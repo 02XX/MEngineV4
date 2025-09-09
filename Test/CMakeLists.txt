@@ -1,0 +1,5 @@
+add_subdirectory(Tool)
+add_subdirectory(Function)
+add_subdirectory(Resource)
+add_subdirectory(Core)
+add_subdirectory(Platform)
