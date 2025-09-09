@@ -1,3 +1,3 @@
 add_subdirectory(Log)
-
-add_library(Core INTERFACE Log)
+add_subdirectory(UUID)
+add_library(Core INTERFACE Log UUID)
