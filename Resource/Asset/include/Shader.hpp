@@ -5,13 +5,16 @@
 #include <gtest/gtest_prod.h>
 #include <nlohmann/json_fwd.hpp>
 #include <vulkan/vulkan.hpp>
-
 using namespace MEngine::Core;
+namespace MEngine::Function
+{
+class ShaderBuilder;
+} // namespace MEngine::Function
 namespace MEngine::Resource
 {
 class Shader final : public Asset
 {
-    friend class ShaderBuilder;
+    friend class Function::ShaderBuilder;
     friend class AssetManager;
     friend struct nlohmann::adl_serializer<Shader>;
     FRIEND_TEST(AssetManagerTest, SaveAndLoadShader);

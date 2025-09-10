@@ -4,12 +4,17 @@
 #include "UUID.hpp"
 #include <vulkan/vulkan.hpp>
 using namespace MEngine::Core;
+namespace MEngine::Function
+{
+class PipelineLayoutBuilder;
+class PBRPipelineLayoutBuilder;
+} // namespace MEngine::Function
 namespace MEngine::Resource
 {
 class PipelineLayout : public Asset
 {
-    friend class PipelineLayoutBuilder;
-    friend class PBRPipelineLayoutBuilder;
+    friend class Function::PipelineLayoutBuilder;
+    friend class Function::PBRPipelineLayoutBuilder;
 
   private:
     vk::UniquePipelineLayout mPipelineLayout{nullptr};

@@ -1,9 +1,9 @@
 #pragma once
-namespace MEngine::Core
+namespace MEngine::Resource
 {
 enum class PipelineLayoutType
 {
     None,
     PBR,
 };
-} // namespace MEngine::Core
+} // namespace MEngine::Resource

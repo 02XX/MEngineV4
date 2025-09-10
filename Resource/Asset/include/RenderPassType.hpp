@@ -1,5 +1,5 @@
 #pragma once
-namespace MEngine::Core
+namespace MEngine::Resource
 {
 enum class RenderPassType
 {
@@ -9,4 +9,4 @@ enum class RenderPassType
     ForwardOpaque,
 };
 
-} // namespace MEngine::Core
+} // namespace MEngine::Resource

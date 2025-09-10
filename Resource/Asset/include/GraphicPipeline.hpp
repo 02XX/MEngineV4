@@ -2,13 +2,19 @@
 #include "Pipeline.hpp"
 #include "RenderPassType.hpp"
 using namespace MEngine::Core;
+namespace MEngine::Function
+{
+class GraphicPipelineBuilder;
+class GBufferPipelineBuilder;
+class CustomGraphicPipelineBuilder;
+} // namespace MEngine::Function
 namespace MEngine::Resource
 {
 class GraphicPipeline final : public Pipeline
 {
-    friend class GraphicPipelineBuilder;
-    friend class GBufferPipelineBuilder;
-    friend class CustomGraphicPipelineBuilder;
+    friend class Function::GraphicPipelineBuilder;
+    friend class Function::GBufferPipelineBuilder;
+    friend class Function::CustomGraphicPipelineBuilder;
 
   protected:
     vk::GraphicsPipelineCreateInfo mCreateInfo{};
