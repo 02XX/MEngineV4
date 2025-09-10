@@ -1,3 +1,4 @@
+#pragma once
 #include "IUUIDGenerator.hpp"
 #include "UUIDv7Generator.hpp"
 #include <memory>

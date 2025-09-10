@@ -32,12 +32,11 @@ Spdlogger::Spdlogger()
         mFileSink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
             (std::filesystem::current_path() / "Logs/app.log").string().c_str(), 5 * 1024 * 1024, 3);
         // 异步日志
-        mLogger =
-            std::make_shared<spdlog::async_logger>("MEngineLogger", spdlog::sinks_init_list{mConsoleSink, mFileSink},
-                                                   spdlog::thread_pool(), spdlog::async_overflow_policy::block);
+        // mLogger =
+        //     std::make_shared<spdlog::async_logger>("MEngineLogger", spdlog::sinks_init_list{mConsoleSink, mFileSink},
+        //                                            spdlog::thread_pool(), spdlog::async_overflow_policy::block);
         // 同步日志
-        // mLogger = std::make_shared<spdlog::logger>("MEngineLogger", spdlog::sinks_init_list{mConsoleSink,
-        // mFileSink});
+        mLogger = std::make_shared<spdlog::logger>("MEngineLogger", spdlog::sinks_init_list{mConsoleSink, mFileSink});
 
         auto formatter = std::make_unique<spdlog::pattern_formatter>();
         formatter->add_flag<UppercaseLevelFormatter>('U');

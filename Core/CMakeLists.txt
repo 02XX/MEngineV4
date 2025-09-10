@@ -1,5 +1,7 @@
 add_subdirectory(Log)
 add_subdirectory(UUID)
 add_subdirectory(Math)
+add_subdirectory(ECS)
+add_subdirectory(Utils)
 add_library(Core INTERFACE)
-target_link_libraries(Core INTERFACE Log UUID Math)
+target_link_libraries(Core INTERFACE Platform Log UUID Math ECS Utils)

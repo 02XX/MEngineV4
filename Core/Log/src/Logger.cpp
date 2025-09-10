@@ -10,6 +10,6 @@ Logger &Logger::GetInstance()
 }
 Logger::Logger()
 {
-    mLogger = std::make_unique<AsyncLogger>();
+    mLogger = std::make_unique<Spdlogger>();
 }
 } // namespace MEngine::Core

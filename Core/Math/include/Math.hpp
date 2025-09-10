@@ -9,3 +9,9 @@
 #include "glm/gtx/matrix_decompose.hpp"
 #include "glm/matrix.hpp"
 #include "glm/trigonometric.hpp"
+
+using namespace glm;
+using Vector3 = glm::vec3;
+using Vector4 = glm::vec4;
+using Matrix4 = glm::mat4;
+using Quaternion = glm::quat;
