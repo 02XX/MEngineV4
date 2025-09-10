@@ -4,6 +4,7 @@ namespace MEngine::Resource
 enum class PipelineLayoutType
 {
     None,
-    PBR,
+    GBufferPBR,
+    LightingPBR,
 };
 } // namespace MEngine::Resource

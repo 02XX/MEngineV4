@@ -32,5 +32,7 @@ std::shared_ptr<GraphicPipeline> GraphicPipelineManager::GetByName(const std::st
     LogError("Graphic Pipeline with name {} not found", name);
     return nullptr;
 }
-
+void GraphicPipelineManager::Update(const UUID &id, std::shared_ptr<GraphicPipeline> asset)
+{
+}   
 } // namespace MEngine::Function

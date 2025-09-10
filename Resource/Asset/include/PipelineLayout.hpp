@@ -7,27 +7,26 @@ using namespace MEngine::Core;
 namespace MEngine::Function
 {
 class PipelineLayoutBuilder;
-class PBRPipelineLayoutBuilder;
+class GBufferPBRPipelineLayoutBuilder;
+class LightingPBRPipelineLayoutBuilder;
 } // namespace MEngine::Function
 namespace MEngine::Resource
 {
 class PipelineLayout : public Asset
 {
     friend class Function::PipelineLayoutBuilder;
-    friend class Function::PBRPipelineLayoutBuilder;
+    friend class Function::GBufferPBRPipelineLayoutBuilder;
+    friend class Function::LightingPBRPipelineLayoutBuilder;
 
   private:
     vk::UniquePipelineLayout mPipelineLayout{nullptr};
-    vk::UniqueDescriptorSetLayout mDescriptorSetLayout{nullptr};
 
   protected:
     PipelineLayoutType mPipelineLayoutType{PipelineLayoutType::None};
     vk::PipelineLayoutCreateInfo mPipelineLayoutCreateInfo{};
-    std::vector<vk::DescriptorSetLayout> mSetLayouts{};
-    std::vector<vk::PushConstantRange> mPushConstantRanges{};
-
     std::vector<std::vector<vk::DescriptorSetLayoutBinding>> mPipelineLayoutBindings{};
-    std::vector<vk::UniqueDescriptorSetLayout> mPipelineLayoutDescriptorSetLayouts{};
+    std::vector<vk::UniqueDescriptorSetLayout> mSetLayouts{};
+    std::vector<vk::PushConstantRange> mPushConstantRanges{};
 
   protected:
     PipelineLayout() : Asset()

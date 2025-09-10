@@ -12,6 +12,7 @@ class PipelineLayoutManager final : public Manager<PipelineLayout>, public IPipe
     std::unordered_map<PipelineLayoutType, UUID> mTypeToID;
 
   public:
+    PipelineLayoutManager(std::shared_ptr<VulkanContext> vulkanContext);
     ~PipelineLayoutManager() override = default;
     void Add(std::shared_ptr<PipelineLayout> asset) override;
     std::shared_ptr<PipelineLayout> GetByType(PipelineLayoutType type) const override;

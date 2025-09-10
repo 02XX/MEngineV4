@@ -3,12 +3,12 @@
 namespace MEngine::Resource
 {
 std::unordered_map<Protocol, std::filesystem::path> AssetURL::mProtocolToBasePath = {
-    {Protocol::ASSET, std::filesystem::current_path() / "assets/"},
+    {Protocol::ASSET, std::filesystem::current_path() / "Assets/"},
     {Protocol::HTTP, ""},
     {Protocol::HTTPS, ""},
-    {Protocol::FILE, std::filesystem::current_path() / "files/"},
-    {Protocol::SHADER, std::filesystem::current_path() / "assets/shaders/"},
-    {Protocol::TEXTURE, std::filesystem::current_path() / "assets/textures/"},
+    {Protocol::FILE, std::filesystem::current_path() / "Files/"},
+    {Protocol::SHADER, std::filesystem::current_path() / "Assets/Shaders/"},
+    {Protocol::TEXTURE, std::filesystem::current_path() / "Assets/Textures/"},
     {Protocol::INVALID, std::filesystem::current_path()}};
 const std::filesystem::path &AssetURL::GetBasePath(Protocol protocol)
 {

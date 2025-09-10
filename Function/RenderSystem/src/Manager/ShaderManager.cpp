@@ -7,17 +7,17 @@ namespace MEngine::Function
 {
 ShaderManager::ShaderManager(std::shared_ptr<VulkanContext> vulkanContext) : Manager<Shader>(vulkanContext)
 {
-    ShaderDirector director("gbuffer_vert", AssetURL("shader://gbuffer_vert").GetPath(),
+    ShaderDirector director("gbuffer_vert", AssetURL("shader://GBuffer.vert").GetPath(),
                             vk::ShaderStageFlagBits::eVertex);
     ShaderBuilder builder(mVulkanContext);
     Add(director.Make(builder));
     director =
-        ShaderDirector("gbuffer_frag", AssetURL("shader://gbuffer_frag").GetPath(), vk::ShaderStageFlagBits::eFragment);
+        ShaderDirector("gbuffer_frag", AssetURL("shader://GBuffer.frag").GetPath(), vk::ShaderStageFlagBits::eFragment);
     Add(director.Make(builder));
     director =
-        ShaderDirector("lighting_vert", AssetURL("shader://lighting_vert").GetPath(), vk::ShaderStageFlagBits::eVertex);
+        ShaderDirector("lighting_vert", AssetURL("shader://Lighting.vert").GetPath(), vk::ShaderStageFlagBits::eVertex);
     Add(director.Make(builder));
-    director = ShaderDirector("lighting_frag", AssetURL("shader://lighting_frag").GetPath(),
+    director = ShaderDirector("lighting_frag", AssetURL("shader://Lighting.frag").GetPath(),
                               vk::ShaderStageFlagBits::eFragment);
     Add(director.Make(builder));
 }
