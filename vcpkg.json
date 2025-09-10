@@ -1,7 +1,13 @@
 {
-    "dependencies": [
-        "gtest",
-        "spdlog",
-        "concurrentqueue"
-    ]
+  "dependencies": [
+    "concurrentqueue",
+    "glm",
+    "gtest",
+    "nlohmann-json",
+    "shaderc",
+    "spdlog",
+    "stb",
+    "vulkan-memory-allocator",
+    "entt"
+  ]
 }
