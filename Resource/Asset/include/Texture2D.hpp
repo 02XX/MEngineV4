@@ -2,11 +2,16 @@
 #include "Texture.hpp"
 
 using namespace MEngine::Core;
+namespace MEngine::Function
+{
+class Texture2DBuilder;
+}
 namespace MEngine::Resource
 {
 class Texture2D : public Texture
 {
-  private:
+    friend class Function::Texture2DBuilder;
+
   protected:
     vk::UniqueSampler mSampler;
 

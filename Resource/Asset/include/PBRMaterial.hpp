@@ -5,8 +5,8 @@ namespace MEngine::Resource
 {
 struct PBRProperties
 {
-    alignas(16) glm::vec3 Albedo = glm::vec3(1.0f, 1.0f, 1.0f);
-    alignas(16) glm::vec3 Normal = glm::vec3(1.0f, 1.0f, 1.0f);
+    alignas(16) Vector3 Albedo = Vector3(1.0f, 1.0f, 1.0f);
+    alignas(16) Vector3 Normal = Vector3(1.0f, 1.0f, 1.0f);
     float Metallic = 0.0f;
     float Roughness = 1.0f;
     float AO = 1.0f;

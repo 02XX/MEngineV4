@@ -7,6 +7,7 @@ namespace MEngine::Function
 class GraphicPipelineBuilder;
 class GBufferPipelineBuilder;
 class CustomGraphicPipelineBuilder;
+class LightingPipelineBuilder;
 } // namespace MEngine::Function
 namespace MEngine::Resource
 {
@@ -15,6 +16,7 @@ class GraphicPipeline final : public Pipeline
     friend class Function::GraphicPipelineBuilder;
     friend class Function::GBufferPipelineBuilder;
     friend class Function::CustomGraphicPipelineBuilder;
+    friend class Function::LightingPipelineBuilder;
 
   protected:
     vk::GraphicsPipelineCreateInfo mCreateInfo{};

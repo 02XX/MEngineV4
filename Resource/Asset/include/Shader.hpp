@@ -9,12 +9,14 @@ using namespace MEngine::Core;
 namespace MEngine::Function
 {
 class ShaderBuilder;
+class ShaderManager;
 } // namespace MEngine::Function
 namespace MEngine::Resource
 {
 class Shader final : public Asset
 {
     friend class Function::ShaderBuilder;
+    friend class Function::ShaderManager;
     friend class AssetManager;
     friend struct nlohmann::adl_serializer<Shader>;
     FRIEND_TEST(AssetManagerTest, SaveAndLoadShader);

@@ -20,6 +20,7 @@ class Texture : public Asset
     VmaAllocationInfo mAllocationInfo{};
     // image
     vk::ImageCreateInfo mImageCreateInfo{};
+    vk::ImageViewCreateInfo mImageViewCreateInfo{};
     vk::ImageType mType{vk::ImageType::e2D};
     vk::Extent3D mExtent{};
     unsigned int mMipmapLevels{1};
@@ -36,5 +37,13 @@ class Texture : public Asset
 
   public:
     ~Texture() override = default;
+    inline vk::Image GetImage() const
+    {
+        return mImage;
+    }
+    inline vk::ImageView GetImageView() const
+    {
+        return mImageView.get();
+    }
 };
 } // namespace MEngine::Resource

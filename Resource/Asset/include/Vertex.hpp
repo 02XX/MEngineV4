@@ -6,9 +6,9 @@ namespace MEngine::Resource
 class Vertex
 {
   public:
-    glm::vec3 position;
-    glm::vec3 normal;
-    glm::vec2 texCoords;
+    Vector3 position;
+    Vector3 normal;
+    Vector3 texCoords;
     static std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescription();
     static vk::VertexInputBindingDescription GetVertexInputBindingDescription();
 };

@@ -10,6 +10,8 @@ namespace MEngine::Resource
 enum class Protocol
 {
     ASSET,
+    SHADER,
+    TEXTURE,
     HTTP,
     HTTPS,
     FILE,

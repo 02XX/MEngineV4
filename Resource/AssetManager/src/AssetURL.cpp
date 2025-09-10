@@ -2,11 +2,14 @@
 
 namespace MEngine::Resource
 {
-std::unordered_map<Protocol, std::filesystem::path> AssetURL::mProtocolToBasePath =
-    {{Protocol::ASSET, std::filesystem::current_path() / "assets/"},
-     {Protocol::HTTP, ""},
-     {Protocol::HTTPS, ""},
-     {Protocol::FILE, std::filesystem::current_path() / "files/"}};
+std::unordered_map<Protocol, std::filesystem::path> AssetURL::mProtocolToBasePath = {
+    {Protocol::ASSET, std::filesystem::current_path() / "assets/"},
+    {Protocol::HTTP, ""},
+    {Protocol::HTTPS, ""},
+    {Protocol::FILE, std::filesystem::current_path() / "files/"},
+    {Protocol::SHADER, std::filesystem::current_path() / "assets/shaders/"},
+    {Protocol::TEXTURE, std::filesystem::current_path() / "assets/textures/"},
+    {Protocol::INVALID, std::filesystem::current_path()}};
 const std::filesystem::path &AssetURL::GetBasePath(Protocol protocol)
 {
     return mProtocolToBasePath.at(protocol);
@@ -37,6 +40,14 @@ void AssetURL::Parse(const std::string &url)
     if (protocolStr == "asset")
     {
         mProtocol = Protocol::ASSET;
+    }
+    else if (protocolStr == "shader")
+    {
+        mProtocol = Protocol::SHADER;
+    }
+    else if (protocolStr == "texture")
+    {
+        mProtocol = Protocol::TEXTURE;
     }
     else if (protocolStr == "http")
     {
