@@ -28,5 +28,6 @@ class GraphicPipelineManager final : public Manager<GraphicPipeline>, public vir
     void Add(std::shared_ptr<GraphicPipeline> asset) override;
     std::shared_ptr<GraphicPipeline> GetByName(const std::string &name) const override;
     void Update(const UUID &id, std::shared_ptr<GraphicPipeline> asset) override;
+    void CreateGPUResource(std::shared_ptr<GraphicPipeline> asset) override;
 };
 } // namespace MEngine::Function

@@ -18,5 +18,6 @@ class ShaderManager final : public Manager<Shader>, public IShaderManager
     void Add(std::shared_ptr<Shader> asset) override;
     std::shared_ptr<Shader> GetByName(const std::string &name) const override;
     void Update(const UUID &id, std::shared_ptr<Shader> asset) override;
+    void CreateGPUResource(std::shared_ptr<Shader> asset) override;
 };
 } // namespace MEngine::Function

@@ -34,5 +34,9 @@ std::shared_ptr<GraphicPipeline> GraphicPipelineManager::GetByName(const std::st
 }
 void GraphicPipelineManager::Update(const UUID &id, std::shared_ptr<GraphicPipeline> asset)
 {
-}   
+}
+void GraphicPipelineManager::CreateGPUResource(std::shared_ptr<GraphicPipeline> asset)
+{
+    
+}
 } // namespace MEngine::Function

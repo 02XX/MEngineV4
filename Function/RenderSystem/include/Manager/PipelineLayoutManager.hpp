@@ -17,5 +17,6 @@ class PipelineLayoutManager final : public Manager<PipelineLayout>, public IPipe
     void Add(std::shared_ptr<PipelineLayout> asset) override;
     std::shared_ptr<PipelineLayout> GetByType(PipelineLayoutType type) const override;
     void Update(const UUID &id, std::shared_ptr<PipelineLayout> asset) override;
+    void CreateGPUResource(std::shared_ptr<PipelineLayout> asset) override;
 };
 } // namespace MEngine::Function

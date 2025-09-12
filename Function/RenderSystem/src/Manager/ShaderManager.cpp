@@ -59,4 +59,11 @@ void ShaderManager::Update(const UUID &id, std::shared_ptr<Shader> asset)
         }
     }
 }
+void ShaderManager::CreateGPUResource(std::shared_ptr<Shader> asset)
+{
+    ShaderBuilder builder(mVulkanContext);
+    ShaderDirector director(asset->mName, asset->mGLSLFilePath, asset->mStage);
+    asset = director.Make(builder);
+    mAssets[asset->GetID()] = asset;
+}
 } // namespace MEngine::Function

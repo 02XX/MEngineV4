@@ -20,5 +20,6 @@ template <std::derived_from<Asset> TAsset> class IManager
     virtual std::vector<std::shared_ptr<TAsset>> GetAll() const = 0;
     virtual void Update(const UUID &id, std::shared_ptr<TAsset> asset) = 0;
     virtual void Remove(const UUID &id) = 0;
+    virtual void CreateGPUResource(std::shared_ptr<TAsset> asset) = 0;
 };
 } // namespace MEngine::Function

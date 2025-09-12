@@ -1,4 +1,4 @@
-add_subdirectory(SystemBase)
+add_subdirectory("System")
 add_subdirectory(RenderSystem)
 add_subdirectory(Component)
 add_library(Function INTERFACE)

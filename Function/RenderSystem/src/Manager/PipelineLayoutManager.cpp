@@ -33,4 +33,7 @@ std::shared_ptr<PipelineLayout> PipelineLayoutManager::GetByType(PipelineLayoutT
 void PipelineLayoutManager::Update(const UUID &id, std::shared_ptr<PipelineLayout> asset)
 {
 }
+void PipelineLayoutManager::CreateGPUResource(std::shared_ptr<PipelineLayout> asset)
+{
+}
 } // namespace MEngine::Function
