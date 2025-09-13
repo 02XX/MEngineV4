@@ -4,14 +4,24 @@ namespace MEngine::Platform
 {
 class RHIResource
 {
-  private:
+  protected:
     RHIResourceType mType{RHIResourceType::None};
+    bool mIsLoaded{false};
+    bool mIsDirty{false};
 
   public:
     virtual ~RHIResource() = default;
     inline RHIResourceType GetType() const
     {
         return mType;
+    }
+    inline bool IsLoaded() const
+    {
+        return mIsLoaded;
+    }
+    inline bool IsDirty() const
+    {
+        return mIsDirty;
     }
 };
 } // namespace MEngine::Platform

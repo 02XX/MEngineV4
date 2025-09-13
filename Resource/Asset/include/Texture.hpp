@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <gtest/gtest_prod.h>
 #include <nlohmann/json_fwd.hpp>
+#include <vector>
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
 namespace MEngine::Resource
@@ -13,22 +14,10 @@ class Texture : public Asset
 {
   private:
   protected:
-    std::vector<uint8_t> mImageData{};
-    vk::Image mImage{};
-    vk::UniqueImageView mImageView{};
-    VmaAllocation mAllocation{};
-    VmaAllocationInfo mAllocationInfo{};
-    // image
-    vk::ImageCreateInfo mImageCreateInfo{};
-    vk::ImageViewCreateInfo mImageViewCreateInfo{};
-    vk::ImageType mType{vk::ImageType::e2D};
-    vk::Extent3D mExtent{};
-    unsigned int mMipmapLevels{1};
-    unsigned int mArrayLevel{1};
-    vk::Format mFormat{vk::Format::eR8G8B8A8Srgb};
-    vk::ImageUsageFlags mUsages{};
-    vk::SampleCountFlagBits mSampleCount{vk::SampleCountFlagBits::e1};
-    vk::ImageCreateFlags mImageCreateFlags{};
+    std::vector<std::vector<uint8_t>> mMipDatas{};
+    uint32_t mWidth{0};
+    uint32_t mHeight{0};
+    uint32_t mChannels{4};
 
   protected:
     Texture() : Asset()
@@ -37,13 +26,21 @@ class Texture : public Asset
 
   public:
     ~Texture() override = default;
-    inline vk::Image GetImage() const
+    inline const std::vector<std::vector<uint8_t>> &GetMipDatas() const
     {
-        return mImage;
+        return mMipDatas;
     }
-    inline vk::ImageView GetImageView() const
+    inline uint32_t GetWidth() const
     {
-        return mImageView.get();
+        return mWidth;
+    }
+    inline uint32_t GetHeight() const
+    {
+        return mHeight;
+    }
+    inline uint32_t GetChannels() const
+    {
+        return mChannels;
     }
 };
 } // namespace MEngine::Resource

@@ -8,8 +8,6 @@ class Texture2DArray : public Texture
   protected:
     Texture2DArray() : Texture()
     {
-        mType = vk::ImageType::e2D;
-        mArrayLevel = 6;
     }
 
   public:

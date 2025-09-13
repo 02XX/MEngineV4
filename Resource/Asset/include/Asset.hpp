@@ -14,7 +14,6 @@ class Asset
   protected:
     UUID mID{};
     std::string mName{"Unnamed"};
-    bool mLoaded{false};
     Asset() : mID(UUIDGenerator::Instance().Create()), mName("Unnamed")
     {
     }
@@ -28,16 +27,6 @@ class Asset
     virtual inline const std::string &GetName() const
     {
         return mName;
-    }
-    /**
-     * @brief 是否加载了Vulkan资源
-     *
-     * @return true
-     * @return false
-     */
-    virtual inline bool IsLoaded() const
-    {
-        return mLoaded;
     }
 };
 } // namespace MEngine::Resource

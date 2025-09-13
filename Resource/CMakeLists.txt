@@ -1,9 +1,9 @@
 add_subdirectory(Asset)
 add_subdirectory(AssetManager)
-
+add_subdirectory(RenderResource)
 
 add_library(Resource INTERFACE)
-target_link_libraries(Resource INTERFACE Asset AssetManager)
+target_link_libraries(Resource INTERFACE Asset AssetManager RenderResource)
 
 
 #Engine

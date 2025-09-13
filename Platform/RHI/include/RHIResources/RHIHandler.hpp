@@ -86,6 +86,10 @@ template <typename TResource> class RHIHandler
         mControlBlock = nullptr;
         mResource = nullptr;
     }
+    TResource *operator->() const
+    {
+        return mResource;
+    }
 };
 
 } // namespace MEngine::Platform
