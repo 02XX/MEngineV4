@@ -18,8 +18,6 @@ class TextureResource : public RenderResource
     TextureResource() : RenderResource()
     {
     }
-    virtual void InitRHI() override;
-    virtual void ReleaseRHI() override;
     inline RHIHandler<RHITexture> GetTexture() const
     {
         return mRHITextureHandler;
@@ -28,5 +26,6 @@ class TextureResource : public RenderResource
     {
         return mRHISamplerHandler;
     }
+    std::pair<uint32_t, uint32_t> GetPixelSize(vk::Format format) const;
 };
 } // namespace MEngine::Resource

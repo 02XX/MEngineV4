@@ -29,5 +29,12 @@ template <typename T> class MPMCQueue
     {
         return mQueue.size_approx();
     }
+    void Clear()
+    {
+        T item;
+        while (mQueue.try_dequeue(item))
+        {
+        }
+    }
 };
 } // namespace MEngine::Platform

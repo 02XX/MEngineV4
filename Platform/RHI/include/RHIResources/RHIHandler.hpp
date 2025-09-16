@@ -1,94 +1,75 @@
 #pragma once
-#include "MPMCQueue.hpp"
 #include "RHIResource.hpp"
-#include <atomic>
-#include <cstdint>
+#include <concepts>
 
 namespace MEngine::Platform
 {
-template <typename TResource> class RHIHandler;
-extern MPMCQueue<RHIResource *> PendingDeletes;
-template <typename TResource> class RHIHandler
+template <std::derived_from<RHIResource> TResource> class RHIHandler
 {
   private:
-    struct ControlBlock
-    {
-        std::atomic<uint32_t> refCount{0};
-    };
-    ControlBlock *mControlBlock{nullptr};
-    void MarkForDeletion()
-    {
-        PendingDeletes.Produce(mResource);
-    }
     TResource *mResource{nullptr};
 
   public:
-    RHIHandler() : mResource(nullptr), mControlBlock(new ControlBlock())
+    RHIHandler() : mResource(nullptr)
     {
     }
-    explicit RHIHandler(TResource *resource) : mResource(resource), mControlBlock(new ControlBlock())
+    explicit RHIHandler(TResource *resource) : mResource(resource)
     {
-        mControlBlock->refCount = 1;
     }
     ~RHIHandler()
     {
-        Release();
+        SafeRelease();
     }
-    RHIHandler(const RHIHandler &other) : mControlBlock(other.mControlBlock), mResource(other.mResource)
+    RHIHandler(const RHIHandler &other) : mResource(other.mResource)
     {
-        mControlBlock->refCount++;
+        if (mResource)
+        {
+            mResource->AddRef();
+        }
     }
-    RHIHandler(RHIHandler &&other) noexcept : mControlBlock(other.mControlBlock), mResource(other.mResource)
+    RHIHandler(RHIHandler &&other) noexcept : mResource(other.mResource)
     {
-        other.mControlBlock = nullptr;
         other.mResource = nullptr;
     }
     void operator=(const RHIHandler &other)
     {
         if (this != &other)
         {
-            if (mControlBlock && --mControlBlock->refCount == 0)
-            {
-                delete mControlBlock;
-                MarkForDeletion();
-            }
-            mControlBlock = other.mControlBlock;
             mResource = other.mResource;
-            mControlBlock->refCount++;
+            if (mResource)
+            {
+                mResource->AddRef();
+            }
         }
     }
     void operator=(RHIHandler &&other) noexcept
     {
         if (this != &other)
         {
-            if (mControlBlock && --mControlBlock->refCount == 0)
-            {
-                delete mControlBlock;
-                MarkForDeletion();
-            }
-            mControlBlock = other.mControlBlock;
             mResource = other.mResource;
-            mControlBlock->refCount++;
+            other.mResource = nullptr;
         }
-    }
-
-    uint32_t GetRefCount() const
-    {
-        return mControlBlock ? mControlBlock->refCount.load() : 0;
-    }
-    void Release()
-    {
-        if (mControlBlock && --mControlBlock->refCount == 0)
-        {
-            delete mControlBlock;
-            MarkForDeletion();
-        }
-        mControlBlock = nullptr;
-        mResource = nullptr;
     }
     TResource *operator->() const
     {
         return mResource;
+    }
+    operator bool() const
+    {
+        return mResource != nullptr;
+    }
+    bool operator==(std::nullptr_t) const
+    {
+        return mResource == nullptr;
+    }
+
+    void SafeRelease()
+    {
+        if (mResource)
+        {
+            mResource->Release();
+            mResource = nullptr;
+        }
     }
 };
 

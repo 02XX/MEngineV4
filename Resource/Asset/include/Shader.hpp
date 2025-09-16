@@ -1,9 +1,6 @@
 #pragma once
 #include "Asset.hpp"
-#include "UUID.hpp"
 #include <filesystem>
-#include <gtest/gtest_prod.h>
-#include <nlohmann/json_fwd.hpp>
 #include <vulkan/vulkan.hpp>
 using namespace MEngine::Core;
 namespace MEngine::Function
@@ -51,3 +48,30 @@ class Shader final : public Asset
     }
 };
 } // namespace MEngine::Resource
+
+namespace nlohmann
+{
+using namespace MEngine::Resource;
+template <> struct adl_serializer<Shader>
+{
+    static void to_json(json &j, const Shader &p)
+    {
+        j = static_cast<const Asset &>(p);
+        j["Stage"] = static_cast<uint32_t>(p.mStage);
+        j["GLSLFilePath"] = p.mGLSLFilePath.string();
+        j["GLSLSource"] = p.mGLSLSource;
+        j["SPIRVFilePath"] = p.mSPIRVFilePath.string();
+        j["SPIRVCode"] = p.mSPIRVCode;
+    };
+    static void from_json(const json &j, Shader &p)
+    {
+        j.get_to<Asset>(p);
+        p.mStage = static_cast<vk::ShaderStageFlagBits>(
+            j.value("Stage", static_cast<uint32_t>(vk::ShaderStageFlagBits::eVertex)));
+        p.mGLSLFilePath = j.value("GLSLFilePath", "");
+        p.mGLSLSource = j.value("GLSLSource", "");
+        p.mSPIRVFilePath = j.value("SPIRVFilePath", "");
+        p.mSPIRVCode = j.value("SPIRVCode", std::vector<uint32_t>{});
+    }
+};
+} // namespace nlohmann

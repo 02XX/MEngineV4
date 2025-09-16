@@ -1,32 +1,31 @@
 #pragma once
 #include "Asset.hpp"
+#include "StaticMeshResource.hpp"
 #include "Vertex.hpp"
 #include "vk_mem_alloc.h"
-#include <string>
+#include <memory>
+#include <nlohmann/json.hpp>
 
 namespace MEngine::Resource
 {
-class StaticMesh : public Asset
+
+class StaticMesh final : public Asset
 {
+    friend class StaticMeshResource;
+
   protected:
     glm::mat4 mModelMatrix{};
     std::vector<Vertex> mVertices{};
     std::vector<uint32_t> mIndices{};
 
-    vk::Buffer mVertexBuffer{};
-    vk::Buffer mIndexBuffer{};
-    VmaAllocation mVertexBufferAllocation{};
-    VmaAllocation mIndexBufferAllocation{};
-    VmaAllocationInfo mVertexBufferAllocationInfo{};
-    VmaAllocationInfo mIndexBufferAllocationInfo{};
-
-  protected:
-    StaticMesh() : Asset()
-    {
-    }
+    std::unique_ptr<StaticMeshResource> mResource;
 
   public:
-    virtual ~StaticMesh() = default;
+    StaticMesh() : Asset()
+    {
+        mResource = std::make_unique<StaticMeshResource>(this);
+    }
+    ~StaticMesh() override = default;
     inline const std::vector<Vertex> &GetVertices() const
     {
         return mVertices;
@@ -34,14 +33,6 @@ class StaticMesh : public Asset
     inline const std::vector<uint32_t> &GetIndices() const
     {
         return mIndices;
-    }
-    inline const vk::Buffer GetVertexBuffer() const
-    {
-        return mVertexBuffer;
-    }
-    inline const vk::Buffer GetIndexBuffer() const
-    {
-        return mIndexBuffer;
     }
 };
 } // namespace MEngine::Resource

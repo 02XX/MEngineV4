@@ -1,8 +1,9 @@
 #pragma once
+#include "RHIContext.hpp"
 #include "RHIResource.hpp"
-#include <vector>
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
+
 namespace MEngine::Resource
 {
 class Texture2DResource;
@@ -11,6 +12,10 @@ class Texture3DResource;
 } // namespace MEngine::Resource
 namespace MEngine::Platform
 {
+using RHITextureDesc = vk::ImageCreateInfo;
+struct MipMapData
+{
+};
 // https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/Engine/UTexture
 class RHITexture : public RHIResource
 {
@@ -25,28 +30,27 @@ class RHITexture : public RHIResource
     VmaAllocationCreateInfo mAllocationCreateInfo{};
     VmaAllocation mAllocation{};
     VmaAllocationInfo mAllocationInfo{};
-
-    vk::ImageCreateInfo mImageCreateInfo{};
-    vk::ImageViewCreateInfo mImageViewCreateInfo{};
-    vk::ImageType mType{vk::ImageType::e2D};
-    vk::Extent3D mExtent{};
-    unsigned int mMipmapLevels{1};
-    unsigned int mArrayLevel{1};
-    vk::Format mFormat{vk::Format::eR8G8B8A8Srgb};
-    vk::ImageUsageFlags mUsages{};
-    vk::SampleCountFlagBits mSampleCount{vk::SampleCountFlagBits::e1};
-    vk::ImageCreateFlags mImageCreateFlags{};
+    RHITextureDesc mTextureDesc{};
+    vk::ImageLayout mCurrentLayout{vk::ImageLayout::eUndefined};
 
   protected:
-    RHITexture() : RHIResource()
-    {
-    }
+    RHITexture(const RHITextureDesc &desc);
+    void TransitionImageLayout(vk::ImageLayout newLayout);
 
   public:
-    ~RHITexture() override = default;
+    ~RHITexture() override;
     inline vk::Image GetImage() const
     {
         return mImage;
     }
+    inline vk::ImageLayout GetCurrentLayout() const
+    {
+        return mCurrentLayout;
+    }
+    inline const RHITextureDesc &GetTextureDesc() const
+    {
+        return mTextureDesc;
+    }
+    void SetImageData();
 };
 } // namespace MEngine::Platform

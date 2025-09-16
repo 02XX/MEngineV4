@@ -136,6 +136,9 @@ class RHIContext
         return DescriptorPool.get();
     }
     void RecreateSwapchain();
+    vk::UniqueCommandBuffer GetGraphicsCommandBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary);
+    vk::UniqueCommandBuffer GetTransferCommandBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary);
+    vk::UniqueCommandBuffer GetPresentCommandBuffer(vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary);
 
   private:
     void CreateInstance();

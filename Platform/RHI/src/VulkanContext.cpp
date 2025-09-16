@@ -208,12 +208,16 @@ void RHIContext::CreateLogicalDevice()
     {
         std::println("Available Vulkan device extension: {}", ext.extensionName.data());
     }
-    std::vector<const char *> extensions = {"VK_KHR_maintenance1"};
+    std::vector<const char *> extensions = {"VK_KHR_maintenance1", "VK_EXT_host_image_copy"};
+    vk::PhysicalDeviceFeatures deviceFeatures{};
+    vk::PhysicalDeviceHostImageCopyFeaturesEXT hostImageCopyFeatures{};
+    hostImageCopyFeatures.hostImageCopy = VK_TRUE;
     mConfig.DeviceRequiredExtensions.insert_range(mConfig.DeviceRequiredExtensions.end(), extensions);
     deviceCreateInfo.setQueueCreateInfos(queueCreateInfos)
         .setPEnabledExtensionNames(mConfig.DeviceRequiredExtensions)
         .setPEnabledLayerNames(mConfig.DeviceRequiredLayers)
-        .setPEnabledFeatures(nullptr);
+        .setPEnabledFeatures(&deviceFeatures)
+        .setPNext(&hostImageCopyFeatures);
     Device = PhysicalDevice.createDeviceUnique(deviceCreateInfo);
     if (!Device)
     {
@@ -521,5 +525,41 @@ void RHIContext::CreateDescriptorPool()
         throw std::runtime_error("Failed to create descriptor pool");
     }
     std::println("Descriptor Pool created successfully");
+}
+vk::UniqueCommandBuffer RHIContext::GetGraphicsCommandBuffer(vk::CommandBufferLevel level)
+{
+    vk::CommandBufferAllocateInfo allocateInfo;
+    allocateInfo.setCommandPool(GraphicsCommandPool.get()).setLevel(level).setCommandBufferCount(1);
+    auto commandBuffer = Device->allocateCommandBuffersUnique(allocateInfo);
+    if (commandBuffer.empty())
+    {
+        std::println("Failed to allocate graphics command buffer");
+        throw std::runtime_error("Failed to allocate graphics command buffer");
+    }
+    return std::move(commandBuffer.front());
+}
+vk::UniqueCommandBuffer RHIContext::GetTransferCommandBuffer(vk::CommandBufferLevel level)
+{
+    vk::CommandBufferAllocateInfo allocateInfo;
+    allocateInfo.setCommandPool(TransferCommandPool.get()).setLevel(level).setCommandBufferCount(1);
+    auto commandBuffer = Device->allocateCommandBuffersUnique(allocateInfo);
+    if (commandBuffer.empty())
+    {
+        std::println("Failed to allocate transfer command buffer");
+        throw std::runtime_error("Failed to allocate transfer command buffer");
+    }
+    return std::move(commandBuffer.front());
+}
+vk::UniqueCommandBuffer RHIContext::GetPresentCommandBuffer(vk::CommandBufferLevel level)
+{
+    vk::CommandBufferAllocateInfo allocateInfo;
+    allocateInfo.setCommandPool(PresentCommandPool.get()).setLevel(level).setCommandBufferCount(1);
+    auto commandBuffer = Device->allocateCommandBuffersUnique(allocateInfo);
+    if (commandBuffer.empty())
+    {
+        std::println("Failed to allocate present command buffer");
+        throw std::runtime_error("Failed to allocate present command buffer");
+    }
+    return std::move(commandBuffer.front());
 }
 } // namespace MEngine::Platform

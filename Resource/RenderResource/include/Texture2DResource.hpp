@@ -1,15 +1,14 @@
 
 #pragma once
-#include "RHIHandler.hpp"
 #include "RHISampler.hpp"
 #include "RHITexture.hpp"
-#include "RenderResource.hpp"
-#include "Texture2D.hpp"
 #include "TextureResource.hpp"
+#include <cstdint>
 
 using namespace MEngine::Platform;
 namespace MEngine::Resource
 {
+class Texture2D;
 class Texture2DResource : public TextureResource
 {
   protected:
@@ -21,13 +20,5 @@ class Texture2DResource : public TextureResource
     }
     virtual void InitRHI() override;
     virtual void ReleaseRHI() override;
-    inline RHIHandler<RHITexture> GetTexture() const
-    {
-        return mRHITextureHandler;
-    }
-    inline RHIHandler<RHISampler> GetSampler() const
-    {
-        return mRHISamplerHandler;
-    }
 };
 } // namespace MEngine::Resource

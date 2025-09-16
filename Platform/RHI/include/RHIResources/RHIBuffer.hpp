@@ -2,25 +2,30 @@
 #include "RHIResource.hpp"
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
+namespace MEngine::Resource
+{
+class VertexResource;
+class IndexResource;
+} // namespace MEngine::Resource
 namespace MEngine::Platform
 {
+using RHIBufferDesc = vk::BufferCreateInfo;
 class RHIBuffer : public RHIResource
 {
+    friend class MEngine::Resource::VertexResource;
+    friend class MEngine::Resource::IndexResource;
+
   protected:
     vk::Buffer mBuffer{};
-    vk::BufferCreateInfo mBufferCreateInfo{};
-    vk::BufferUsageFlags mUsages{};
+    RHIBufferDesc mBufferDesc{};
 
-    VmaAllocationCreateFlags mAllocationCreateFlags{VMA_ALLOCATION_CREATE_STRATEGY_MIN_MEMORY_BIT};
     VmaAllocation mAllocation{};
     VmaAllocationInfo mAllocationInfo{};
-
-  protected:
-    RHIBuffer() : RHIResource()
-    {
-    }
+    VmaAllocationCreateInfo mAllocationCreateInfo{};
 
   public:
+    RHIBuffer(const RHIBufferDesc &bufferDesc, VmaAllocationCreateInfo allocCreateInfo);
+
     ~RHIBuffer() override = default;
 };
 } // namespace MEngine::Platform

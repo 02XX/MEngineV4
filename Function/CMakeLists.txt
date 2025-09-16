@@ -1,5 +1,5 @@
 add_subdirectory("System")
-add_subdirectory(RenderSystem)
+# add_subdirectory(RenderSystem)
 add_subdirectory(Component)
 add_library(Function INTERFACE)
-target_link_libraries(Function INTERFACE SystemBase RenderSystem Component)
+target_link_libraries(Function INTERFACE SystemBase  Component)
