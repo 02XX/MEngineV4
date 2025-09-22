@@ -1,6 +1,8 @@
 {
     "dependencies": [
         "concurrentqueue",
+        "entt",
+        "glfw3",
         "glm",
         "gtest",
         "nlohmann-json",
@@ -8,7 +10,12 @@
         "spdlog",
         "stb",
         "vulkan-memory-allocator",
-        "entt",
-        "glfw3"
+        {
+            "name": "hello-imgui",
+            "features": [
+                "glfw-binding",
+                "opengl3-binding"
+            ]
+        }
     ]
 }
