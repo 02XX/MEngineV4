@@ -4,6 +4,6 @@ find_package(unofficial-shaderc CONFIG REQUIRED)
 add_library(Utils ${RESOURCE})
 target_include_directories(Utils PUBLIC
 ${CMAKE_CURRENT_SOURCE_DIR}/include
+${Stb_INCLUDE_DIR}
 )
-target_link_libraries(Utils PUBLIC ${Stb_INCLUDE_DIR} unofficial::shaderc::shaderc Component)
-
+target_link_libraries(Utils PUBLIC unofficial::shaderc::shaderc Log)

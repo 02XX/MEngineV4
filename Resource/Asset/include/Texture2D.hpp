@@ -24,22 +24,29 @@ struct Texture2DMipMap
 class Texture2D : public Texture
 {
     friend class Texture2DResource;
+    friend class Texture2DManager;
     friend class nlohmann::adl_serializer<Texture2D>;
     FRIEND_TEST(AssetManagerTest, SaveAndLoadTexture2D);
 
   private:
-    std::unique_ptr<Texture2DResource> mResource;
     std::vector<Texture2DMipMap> mTextureData{};
 
-  public:
+  protected:
     Texture2D() : Texture()
     {
         mResource = std::make_unique<Texture2DResource>(this);
     }
-    ~Texture2D() override = default;
-    inline Texture2DResource *GetResource() const
+
+  public:
+    Texture2D(const std::string &name, const TextureSetting &importSetting, const SamplerSetting &samplerSetting)
+        : Texture(name, importSetting, samplerSetting)
     {
-        return mResource.get();
+        mResource = std::make_unique<Texture2DResource>(this);
+    }
+    ~Texture2D() override = default;
+    void SetTextureData(const std::vector<Texture2DMipMap> &data)
+    {
+        mTextureData = data;
     }
     inline const std::vector<Texture2DMipMap> &GetTextureData() const
     {

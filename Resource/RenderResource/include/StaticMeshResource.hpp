@@ -21,5 +21,13 @@ class StaticMeshResource : public RenderResource
     ~StaticMeshResource() override = default;
     void InitRHI() override;
     void ReleaseRHI() override;
+    inline VertexResource *GetVertexResource() const
+    {
+        return mVertexResource.get();
+    }
+    inline IndexResource *GetIndexResource() const
+    {
+        return mIndexResource.get();
+    }
 };
 } // namespace MEngine::Resource

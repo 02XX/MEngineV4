@@ -4,7 +4,6 @@
 #include <stb_image_write.h>
 #include <tuple>
 #include <vector>
-#include <vulkan/vulkan.hpp>
 
 namespace MEngine::Core
 {

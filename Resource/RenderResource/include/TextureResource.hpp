@@ -2,6 +2,7 @@
 #include "RHIHandler.hpp"
 #include "RHISampler.hpp"
 #include "RHITexture.hpp"
+#include "RHITextureView.hpp"
 #include "RenderResource.hpp"
 #include "Texture.hpp"
 
@@ -13,9 +14,14 @@ class TextureResource : public RenderResource
   protected:
     RHIHandler<RHITexture> mRHITextureHandler;
     RHIHandler<RHISampler> mRHISamplerHandler;
+    RHIHandler<RHITextureView> mRHITextureViewHandler;
 
   public:
     TextureResource() : RenderResource()
+    {
+    }
+    TextureResource(RHIHandler<RHITexture> texture, RHIHandler<RHITextureView> textureView)
+        : RenderResource(), mRHITextureHandler(texture), mRHITextureViewHandler(textureView)
     {
     }
     inline RHIHandler<RHITexture> GetTexture() const
@@ -25,6 +31,10 @@ class TextureResource : public RenderResource
     inline RHIHandler<RHISampler> GetSampler() const
     {
         return mRHISamplerHandler;
+    }
+    inline RHIHandler<RHITextureView> GetTextureView() const
+    {
+        return mRHITextureViewHandler;
     }
     std::pair<uint32_t, uint32_t> GetPixelSize(vk::Format format) const;
 };

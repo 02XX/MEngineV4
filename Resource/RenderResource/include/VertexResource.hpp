@@ -23,5 +23,9 @@ class VertexResource final : public RenderResource
     void InitRHI() override;
     void ReleaseRHI() override;
     void UpdateData(const std::vector<Vertex> &vertices);
+    inline RHIHandler<RHIBuffer> GetVertexBuffer() const
+    {
+        return mRHIVertexBufferHandler;
+    }
 };
 } // namespace MEngine::Resource

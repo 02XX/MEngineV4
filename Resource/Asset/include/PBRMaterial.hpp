@@ -1,6 +1,10 @@
 #pragma once
 #include "Material.hpp"
 #include "Math.hpp"
+#include "PBRMaterialResource.hpp"
+#include "Texture2D.hpp"
+#include <format>
+#include <memory>
 namespace MEngine::Resource
 {
 struct PBRProperties
@@ -14,13 +18,16 @@ struct PBRProperties
 };
 struct PBRTextures
 {
-    UUID AlbedoID{};
-    UUID NormalID{};
-    UUID ARMID{}; // Ambient Occlusion, Roughness, Metallic
-    UUID EmissiveID{};
+    std::shared_ptr<Texture2D> Albedo;
+    std::shared_ptr<Texture2D> Normal;
+    std::shared_ptr<Texture2D> ARM;
+    std::shared_ptr<Texture2D> Emissive;
 };
 class PBRMaterial : public Material
 {
+    friend class PBRMaterialResource;
+    friend class PBRMaterialManager;
+
   protected:
     PBRProperties mProperties;
     PBRTextures mTextures;
@@ -28,9 +35,17 @@ class PBRMaterial : public Material
   protected:
     PBRMaterial() : Material()
     {
+        mName = std::format("PBRMaterial_{}", GetID().ToString());
+        mResource = std::make_unique<PBRMaterialResource>(this);
     }
 
   public:
+    PBRMaterial(const std::string &name, const std::shared_ptr<GraphicPipeline> &pipeline, const PBRProperties &props,
+                const PBRTextures &textures)
+        : Material(name, pipeline), mProperties(props), mTextures(textures)
+    {
+        mResource = std::make_unique<PBRMaterialResource>(this);
+    }
     virtual ~PBRMaterial() = default;
     inline const PBRProperties &GetProperties() const
     {

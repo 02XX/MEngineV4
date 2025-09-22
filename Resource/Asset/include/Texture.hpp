@@ -1,13 +1,14 @@
 #pragma once
 #include "Asset.hpp"
+#include <string>
 #include <vk_mem_alloc.h>
 #include <vulkan/vulkan.hpp>
 
 namespace MEngine::Resource
 {
 
-using TextureImportSetting = vk::ImageCreateInfo;
-using SamplerImportSetting = vk::SamplerCreateInfo;
+using TextureSetting = vk::ImageCreateInfo;
+using SamplerSetting = vk::SamplerCreateInfo;
 // https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/Engine/UTexture
 class Texture : public Asset
 {
@@ -15,8 +16,8 @@ class Texture : public Asset
 
   private:
   protected:
-    TextureImportSetting mTextureImportSettings{};
-    SamplerImportSetting mSamplerImportSettings{};
+    TextureSetting mTextureSettings{};
+    SamplerSetting mSamplerSettings{};
 
   protected:
     Texture() : Asset()
@@ -24,6 +25,10 @@ class Texture : public Asset
     }
 
   public:
+    Texture(const std::string &name, const TextureSetting &importSetting, const SamplerSetting &samplerSetting)
+        : Asset(name), mTextureSettings(importSetting), mSamplerSettings(samplerSetting)
+    {
+    }
     ~Texture() override = default;
 };
 } // namespace MEngine::Resource
@@ -31,9 +36,9 @@ class Texture : public Asset
 namespace nlohmann
 {
 using namespace MEngine::Resource;
-template <> struct adl_serializer<TextureImportSetting>
+template <> struct adl_serializer<TextureSetting>
 {
-    static void to_json(json &j, const TextureImportSetting &p)
+    static void to_json(json &j, const TextureSetting &p)
     {
         j["extent"] = {{"width", p.extent.width}, {"height", p.extent.height}, {"depth", p.extent.depth}};
         j["mipLevels"] = p.mipLevels;
@@ -43,7 +48,7 @@ template <> struct adl_serializer<TextureImportSetting>
         j["usage"] = static_cast<uint32_t>(p.usage);
         j["tiling"] = static_cast<uint32_t>(p.tiling);
     }
-    static void from_json(const json &j, TextureImportSetting &p)
+    static void from_json(const json &j, TextureSetting &p)
     {
         auto extentObj = j.value("extent", json::object());
         p.extent.width = extentObj.value("width", 0);
@@ -59,9 +64,9 @@ template <> struct adl_serializer<TextureImportSetting>
         p.tiling = static_cast<vk::ImageTiling>(j.value("tiling", static_cast<uint32_t>(vk::ImageTiling::eOptimal)));
     }
 };
-template <> struct adl_serializer<SamplerImportSetting>
+template <> struct adl_serializer<SamplerSetting>
 {
-    static void to_json(json &j, const SamplerImportSetting &p)
+    static void to_json(json &j, const SamplerSetting &p)
     {
         j["magFilter"] = static_cast<uint32_t>(p.magFilter);
         j["minFilter"] = static_cast<uint32_t>(p.minFilter);
@@ -79,7 +84,7 @@ template <> struct adl_serializer<SamplerImportSetting>
         j["borderColor"] = static_cast<uint32_t>(p.borderColor);
         j["unnormalizedCoordinates"] = p.unnormalizedCoordinates;
     }
-    static void from_json(const json &j, SamplerImportSetting &p)
+    static void from_json(const json &j, SamplerSetting &p)
     {
         p.magFilter = static_cast<vk::Filter>(j.value("magFilter", static_cast<uint32_t>(vk::Filter::eLinear)));
         p.minFilter = static_cast<vk::Filter>(j.value("minFilter", static_cast<uint32_t>(vk::Filter::eLinear)));
@@ -108,14 +113,14 @@ template <> struct adl_serializer<Texture>
     static void to_json(json &j, const Texture &p)
     {
         j = static_cast<const Asset &>(p);
-        j["ImportSettings"]["Texture"] = p.mTextureImportSettings;
-        j["ImportSettings"]["Sampler"] = p.mSamplerImportSettings;
+        j["ImportSettings"]["Texture"] = p.mTextureSettings;
+        j["ImportSettings"]["Sampler"] = p.mSamplerSettings;
     };
     static void from_json(const json &j, Texture &p)
     {
         j.get_to<Asset>(p);
-        p.mTextureImportSettings = j.value("ImportSettings", json::object()).value("Texture", TextureImportSetting{});
-        p.mSamplerImportSettings = j.value("ImportSettings", json::object()).value("Sampler", SamplerImportSetting{});
+        p.mTextureSettings = j.value("ImportSettings", json::object()).value("Texture", TextureSetting{});
+        p.mSamplerSettings = j.value("ImportSettings", json::object()).value("Sampler", SamplerSetting{});
     }
 };
 } // namespace nlohmann

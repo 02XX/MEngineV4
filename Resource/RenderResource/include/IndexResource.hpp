@@ -20,5 +20,9 @@ class IndexResource final : public RenderResource
     void InitRHI() override;
     void ReleaseRHI() override;
     void UpdateData(const std::vector<uint32_t> &indices);
+    inline RHIHandler<RHIBuffer> GetIndexBuffer() const
+    {
+        return mRHIVertexBufferHandler;
+    }
 };
 } // namespace MEngine::Resource

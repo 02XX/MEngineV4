@@ -18,9 +18,9 @@ void IndexResource::UpdateData(const std::vector<uint32_t> &indices)
     // Staging buffer
     vk::DeviceSize bufferSize = sizeof(uint32_t) * indices.size();
     VmaAllocationCreateInfo stagingAllocCreateInfo = {};
-    stagingAllocCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    stagingAllocCreateInfo.usage = VMA_MEMORY_USAGE_CPU_ONLY;
     stagingAllocCreateInfo.flags =
-        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+        VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
     vk::BufferCreateInfo stagingBufferDesc = {};
     stagingBufferDesc.size = bufferSize;
     stagingBufferDesc.usage = vk::BufferUsageFlagBits::eTransferSrc;

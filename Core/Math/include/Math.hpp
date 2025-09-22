@@ -12,6 +12,7 @@
 
 using namespace glm;
 using Vector3 = glm::vec3;
+using Vector2 = glm::vec2;
 using Vector4 = glm::vec4;
 using Matrix4 = glm::mat4;
 using Quaternion = glm::quat;

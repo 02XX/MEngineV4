@@ -4,6 +4,12 @@ namespace MEngine::Resource
 class RenderResource
 {
   public:
+    RenderResource() = default;
+    RenderResource(const RenderResource &other);
+    RenderResource &operator=(const RenderResource &other);
+    RenderResource(RenderResource &&other) noexcept;
+    RenderResource &operator=(RenderResource &&other) noexcept;
+    virtual ~RenderResource();
     ////////////////////////////////////////////////////////////////////////////////////
 
     /** Controls initialization order of render resources. Early engine resources utilize the 'Pre' phase to avoid
@@ -11,7 +17,7 @@ class RenderResource
     enum class InitPhase
     {
         Pre,
-        Default,
+        Default, 
         MAX
     };
     enum class State
@@ -25,7 +31,6 @@ class RenderResource
     static void InitPreRHIResources();
     ////////////////////////////////////////////////////////////////////////////////////
 
-    virtual ~RenderResource();
     /**
      * Initializes the RHI resources used by this resource.
      * Called when entering the state where both the resource and the RHI have been initialized.
@@ -37,12 +42,12 @@ class RenderResource
      * Initializes the resource.
      * This is only called by the rendering thread.
      */
-    virtual void InitResource();
+    void InitResource();
     /**
      * Prepares the resource for deletion.
      * This is only called by the rendering thread.
      */
-    virtual void ReleaseResource();
+    void ReleaseResource();
     /**
      * If the resource's RHI resources have been initialized, then release and reinitialize it.  Otherwise, do nothing.
      * This is only called by the rendering thread.

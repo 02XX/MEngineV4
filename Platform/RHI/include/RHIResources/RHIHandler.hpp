@@ -71,6 +71,10 @@ template <std::derived_from<RHIResource> TResource> class RHIHandler
             mResource = nullptr;
         }
     }
+    TResource *Get()
+    {
+        return mResource;
+    }
 };
 
 } // namespace MEngine::Platform

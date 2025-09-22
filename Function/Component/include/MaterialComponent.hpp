@@ -9,7 +9,7 @@ class MaterialComponent : public Component
 {
   public:
     ~MaterialComponent() override = default;
-    std::shared_ptr<Material> material;
+    std::shared_ptr<Material> Material{nullptr};
 };
 
 } // namespace MEngine::Function

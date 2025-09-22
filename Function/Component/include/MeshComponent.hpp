@@ -9,7 +9,7 @@ class MeshComponent : public Component
 {
   public:
     ~MeshComponent() override = default;
-    std::shared_ptr<StaticMesh> mesh;
+    std::shared_ptr<StaticMesh> Mesh{nullptr};
 };
 
 } // namespace MEngine::Function

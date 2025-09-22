@@ -27,5 +27,13 @@ class RHIBuffer : public RHIResource
     RHIBuffer(const RHIBufferDesc &bufferDesc, VmaAllocationCreateInfo allocCreateInfo);
 
     ~RHIBuffer() override = default;
+    inline vk::Buffer GetBuffer() const
+    {
+        return mBuffer;
+    }
+    inline VmaAllocationInfo GetAllocationInfo() const
+    {
+        return mAllocationInfo;
+    }
 };
 } // namespace MEngine::Platform

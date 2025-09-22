@@ -18,43 +18,38 @@ class RHIContext
   private:
     RHIContextConfig mConfig;
     // properties
-    vk::UniqueInstance mInstance;
-    vk::PhysicalDevice PhysicalDevice;
+    vk::UniqueInstance mInstance{};
+    vk::PhysicalDevice PhysicalDevice{};
     struct QueueFamilyIndicates
     {
-        std::optional<uint32_t> graphicsFamily;
-        std::optional<uint32_t> graphicsFamilyCount;
-        std::optional<uint32_t> presentFamily;
-        std::optional<uint32_t> presentFamilyCount;
-        std::optional<uint32_t> transferFamily;
-        std::optional<uint32_t> transferFamilyCount;
+        std::optional<uint32_t> graphicsFamily{};
+        std::optional<uint32_t> graphicsFamilyCount{};
+        std::optional<uint32_t> presentFamily{};
+        std::optional<uint32_t> presentFamilyCount{};
+        std::optional<uint32_t> transferFamily{};
+        std::optional<uint32_t> transferFamilyCount{};
     } QueueFamilyIndicates;
     struct SurfaceInfo
     {
-        vk::SurfaceFormatKHR format;
-        vk::Extent2D extent;
-        vk::PresentModeKHR presentMode;
-        uint32_t imageCount;
-        uint32_t imageArrayLayer;
+        vk::SurfaceFormatKHR format{};
+        vk::Extent2D extent{};
+        vk::PresentModeKHR presentMode{};
+        uint32_t imageCount{};
+        uint32_t imageArrayLayer{};
     } SurfaceInfo;
-    vk::UniqueDevice Device;
-    vk::UniqueSurfaceKHR Surface;
-    vk::UniqueCommandPool GraphicsCommandPool;
-    vk::UniqueCommandPool TransferCommandPool;
-    vk::UniqueCommandPool PresentCommandPool;
-    vk::Queue GraphicsQueue;
-    vk::Queue TransferQueue;
-    vk::Queue PresentQueue;
+    vk::UniqueDevice Device{};
+    vk::UniqueSurfaceKHR Surface{};
+    vk::UniqueCommandPool GraphicsCommandPool{};
+    vk::UniqueCommandPool TransferCommandPool{};
+    vk::UniqueCommandPool PresentCommandPool{};
+    vk::Queue GraphicsQueue{};
+    vk::Queue TransferQueue{};
+    vk::Queue PresentQueue{};
     uint32_t Version = 0;
-    vk::UniqueDescriptorPool DescriptorPool;
+    vk::UniqueDescriptorPool DescriptorPool{};
 
     // VMA
-    VmaAllocator VmaAllocator;
-
-    // Swapchain
-    vk::UniqueSwapchainKHR mSwapchain;
-    std::vector<vk::Image> mSwapchainImages;
-    std::vector<vk::UniqueImageView> mSwapchainImageViews;
+    VmaAllocator VmaAllocator{};
 
   public:
     static RHIContext &Instance();
@@ -77,6 +72,10 @@ class RHIContext
     inline const vk::SurfaceKHR &GetSurface() const
     {
         return *Surface;
+    }
+    inline const struct SurfaceInfo &GetSurfaceInfo() const
+    {
+        return SurfaceInfo;
     }
     inline const vk::Queue &GetGraphicsQueue() const
     {
@@ -110,26 +109,9 @@ class RHIContext
     {
         return Version;
     }
-
     inline const ::VmaAllocator &GetVmaAllocator() const
     {
         return VmaAllocator;
-    }
-    inline const vk::SwapchainKHR &GetSwapchain() const
-    {
-        return *mSwapchain;
-    }
-    inline const std::vector<vk::Image> &GetSwapchainImages() const
-    {
-        return mSwapchainImages;
-    }
-    inline const std::vector<vk::UniqueImageView> &GetSwapchainImageViews() const
-    {
-        return mSwapchainImageViews;
-    }
-    inline const struct SurfaceInfo &GetSurfaceInfo() const
-    {
-        return SurfaceInfo;
     }
     inline const vk::DescriptorPool GetDescriptorPool() const
     {
@@ -149,9 +131,6 @@ class RHIContext
     void CreateCommandPools();
     void CreateVMA();
     void QuerySurfaceInfo();
-    void CreateSwapchain(vk::SwapchainKHR oldSwapchain = nullptr);
-    void CreateSwapchainImages();
-    void CreateSwapchainImageViews();
     void CreateDescriptorPool();
 
   public:

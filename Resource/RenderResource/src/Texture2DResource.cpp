@@ -12,12 +12,11 @@ void Texture2DResource::InitRHI()
     auto &device = rhiContext.GetDevice();
     auto &instance = rhiContext.GetInstance();
     vk::DispatchLoaderDynamic dld(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
-    mTexture->mTextureImportSettings.imageType = vk::ImageType::e2D;
-    mTexture->mTextureImportSettings.arrayLayers = 1;
-    mTexture->mTextureImportSettings.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled |
-                                             vk::ImageUsageFlagBits::eTransferSrc |
-                                             vk::ImageUsageFlagBits::eHostTransferEXT;
-    mRHITextureHandler = RHIHandler<RHITexture>(new RHITexture(mTexture->mTextureImportSettings));
+    mTexture->mTextureSettings.imageType = vk::ImageType::e2D;
+    mTexture->mTextureSettings.arrayLayers = 1;
+    mTexture->mTextureSettings.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled |
+                                       vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eHostTransferEXT;
+    mRHITextureHandler = RHIHandler<RHITexture>(new RHITexture(mTexture->mTextureSettings));
     if (!mTexture->mTextureData.empty())
     {
         if (mRHITextureHandler->mTextureDesc.mipLevels != mTexture->mTextureData.size())
@@ -26,8 +25,8 @@ void Texture2DResource::InitRHI()
                     "the two.");
         }
         mRHITextureHandler->TransitionImageLayout(vk::ImageLayout::eTransferDstOptimal);
-        std::vector<vk::MemoryToImageCopyEXT> copyRegions(mTexture->mTextureImportSettings.mipLevels);
-        auto [channel, pixSize] = GetPixelSize(mTexture->mTextureImportSettings.format);
+        std::vector<vk::MemoryToImageCopyEXT> copyRegions(mTexture->mTextureSettings.mipLevels);
+        auto [channel, pixSize] = GetPixelSize(mTexture->mTextureSettings.format);
         for (size_t i = 0; i < copyRegions.size(); i++)
         {
             auto &mip = mTexture->mTextureData[i];
@@ -48,7 +47,17 @@ void Texture2DResource::InitRHI()
         device.copyMemoryToImageEXT(copyInfo, dld);
         mRHITextureHandler->TransitionImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
     }
-    mRHISamplerHandler = RHIHandler<RHISampler>(new RHISampler(mTexture->mSamplerImportSettings));
+    mRHISamplerHandler = RHIHandler<RHISampler>(new RHISampler(mTexture->mSamplerSettings));
+    RHITextureViewDesc viewDesc{};
+    viewDesc.image = mRHITextureHandler->GetImage();
+    viewDesc.viewType = vk::ImageViewType::e2D;
+    viewDesc.format = mRHITextureHandler->mTextureDesc.format;
+    viewDesc.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    viewDesc.subresourceRange.baseMipLevel = 0;
+    viewDesc.subresourceRange.levelCount = mRHITextureHandler->mTextureDesc.mipLevels;
+    viewDesc.subresourceRange.baseArrayLayer = 0;
+    viewDesc.subresourceRange.layerCount = 1;
+    mRHITextureViewHandler = RHIHandler<RHITextureView>(new RHITextureView(viewDesc));
 }
 
 void Texture2DResource::ReleaseRHI()

@@ -1,27 +1,22 @@
 #pragma once
 #include "TextureRenderTarget.hpp"
-namespace MEngine::Function
-{
-class TextureRenderTarget2DBuilder;
-class ColorAttachmentBuilder;
-class DepthStencilAttachmentBuilder;
-} // namespace MEngine::Function
+#include "TextureRenderTarget2DResource.hpp"
+
 namespace MEngine::Resource
 {
+using namespace MEngine::Platform;
 class TextureRenderTarget2D : public TextureRenderTarget
 {
-    friend class Function::TextureRenderTarget2DBuilder;
-    friend class Function::ColorAttachmentBuilder;
-    friend class Function::DepthStencilAttachmentBuilder;
+    friend class TextureRenderTarget2DResource;
 
-  protected:
-    TextureRenderTarget2D() : TextureRenderTarget()
-    {
-        mType = vk::ImageType::e2D;
-        mArrayLevel = 1;
-    }
-
+  private:
   public:
+    TextureRenderTarget2D(const std::string &name, const TextureSetting &importSetting,
+                          const SamplerSetting &samplerSetting)
+        : TextureRenderTarget(name, importSetting, samplerSetting)
+    {
+        mResource = std::make_unique<TextureRenderTarget2DResource>(this);
+    }
     ~TextureRenderTarget2D() override = default;
 };
 } // namespace MEngine::Resource

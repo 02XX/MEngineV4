@@ -1,5 +1,7 @@
 #include "ShaderUtils.hpp"
 #include "Logger.hpp"
+#include <filesystem>
+#include <fstream>
 #include <stdexcept>
 
 namespace MEngine::Core
@@ -22,19 +24,70 @@ shaderc::CompileOptions &ShaderUtils::GetCompileOptions()
     options.SetNanClamp(true);
     return options;
 }
-shaderc::SpvCompilationResult ShaderUtils::CompileShader(const std::string &source, shaderc_shader_kind kind,
-                                                         const std::string &name)
+std::vector<uint32_t> ShaderUtils::CompileShader(const std::filesystem::path &path, bool writeSpirvFile)
 {
+    if (!std::filesystem::exists(path))
+    {
+        LogError("Shader file does not exist: {}", path.string());
+        return {};
+    }
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        LogError("Failed to open shader file: {}", path.string());
+        return {};
+    }
+    std::stringstream shaderStream;
+    shaderStream << file.rdbuf();
+    file.close();
+    auto extension = path.extension().string();
     shaderc::Compiler &compiler = GetCompiler();
     shaderc::CompileOptions &options = GetCompileOptions();
-
-    shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(source, kind, name.c_str(), options);
+    shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(
+        shaderStream.str(), GetShaderKindFromExtension(extension), path.stem().string().c_str(), options);
     if (result.GetCompilationStatus() != shaderc_compilation_status_success)
     {
         LogError("Shader compilation failed: {}", result.GetErrorMessage());
-        throw std::runtime_error("Shader compilation failed: " + result.GetErrorMessage());
     }
-    return result;
+    std::vector<uint32_t> spirv(result.cbegin(), result.cend());
+    // 写入Spirv文件
+    if (writeSpirvFile)
+    {
+        auto spirvPath = path;
+        spirvPath.replace_extension(extension + ".spv");
+        std::ofstream spirvFile(spirvPath, std::ios::binary);
+        if (!spirvFile.is_open())
+        {
+            LogError("Failed to open SPIR-V file for writing: {}", spirvPath.string());
+            return {};
+        }
+        spirvFile.write(reinterpret_cast<const char *>(spirv.data()), spirv.size() * sizeof(uint32_t));
+        spirvFile.close();
+    }
+    return spirv;
+}
+std::vector<uint32_t> ShaderUtils::ReadSpirvFile(const std::filesystem::path &path)
+{
+    if (!std::filesystem::exists(path))
+    {
+        LogError("SPIR-V file does not exist: {}", path.string());
+        return {};
+    }
+    std::ifstream spirvFile(path, std::ios::binary);
+    if (!spirvFile.is_open())
+    {
+        LogError("Failed to open SPIR-V file: {}", path.string());
+        return {};
+    }
+    spirvFile.seekg(0, std::ios::end);
+    size_t fileSize = spirvFile.tellg();
+    std::vector<char> buffer(fileSize);
+    spirvFile.seekg(0, std::ios::beg);
+    spirvFile.read((char *)buffer.data(), fileSize);
+    spirvFile.close();
+    std::vector<uint32_t> spirv(buffer.size() / sizeof(uint32_t));
+    std::memcpy(spirv.data(), buffer.data(), buffer.size());
+    return spirv;
 }
 shaderc_shader_kind ShaderUtils::GetShaderKindFromExtension(const std::string &extension)
 {

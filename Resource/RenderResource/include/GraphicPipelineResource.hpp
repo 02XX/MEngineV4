@@ -18,5 +18,9 @@ class GraphicPipelineResource final : public RenderResource
     virtual ~GraphicPipelineResource() = default;
     void InitRHI() override;
     void ReleaseRHI() override;
+    inline RHIHandler<RHIGraphicPipeline> GetGraphicPipeline() const
+    {
+        return mGraphicPipelineHandler;
+    }
 };
 } // namespace MEngine::Resource

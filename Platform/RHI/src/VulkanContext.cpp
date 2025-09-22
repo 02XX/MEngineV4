@@ -36,9 +36,6 @@ void RHIContext::InitContext()
     if (Surface)
     {
         QuerySurfaceInfo();
-        CreateSwapchain();
-        CreateSwapchainImages();
-        CreateSwapchainImageViews();
     }
 }
 void RHIContext::Destroy()
@@ -208,10 +205,15 @@ void RHIContext::CreateLogicalDevice()
     {
         std::println("Available Vulkan device extension: {}", ext.extensionName.data());
     }
-    std::vector<const char *> extensions = {"VK_KHR_maintenance1", "VK_EXT_host_image_copy"};
+    std::vector<const char *> extensions = {"VK_KHR_maintenance1", "VK_EXT_host_image_copy",
+                                            "VK_KHR_dynamic_rendering"};
     vk::PhysicalDeviceFeatures deviceFeatures{};
+    deviceFeatures.setIndependentBlend(vk::True);
     vk::PhysicalDeviceHostImageCopyFeaturesEXT hostImageCopyFeatures{};
-    hostImageCopyFeatures.hostImageCopy = VK_TRUE;
+    vk::PhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{};
+    dynamicRenderingFeatures.setDynamicRendering(vk::True);
+    hostImageCopyFeatures.setHostImageCopy(vk::True).setPNext(&dynamicRenderingFeatures);
+
     mConfig.DeviceRequiredExtensions.insert_range(mConfig.DeviceRequiredExtensions.end(), extensions);
     deviceCreateInfo.setQueueCreateInfos(queueCreateInfos)
         .setPEnabledExtensionNames(mConfig.DeviceRequiredExtensions)
@@ -409,88 +411,6 @@ void RHIContext::QuerySurfaceInfo()
     std::println("Current Extent: {}x{}", capabilities.currentExtent.width, capabilities.currentExtent.height);
     std::println("Current Image Count: {}", SurfaceInfo.imageCount);
     std::println("Current Image Array Layer: {}", SurfaceInfo.imageArrayLayer);
-}
-void RHIContext::CreateSwapchain(vk::SwapchainKHR oldSwapchain)
-{
-    vk::SwapchainCreateInfoKHR swapchainCreateInfo;
-    auto queueFamilyIndicates = QueueFamilyIndicates;
-    swapchainCreateInfo.setSurface(Surface.get())
-        .setClipped(true)
-        .setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
-        .setImageArrayLayers(SurfaceInfo.imageArrayLayer)
-        .setMinImageCount(SurfaceInfo.imageCount)
-        .setImageColorSpace(SurfaceInfo.format.colorSpace)
-        .setImageExtent(SurfaceInfo.extent)
-        .setImageFormat(SurfaceInfo.format.format)
-        .setImageUsage(vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc |
-                       vk::ImageUsageFlagBits::eTransferDst)
-        .setPresentMode(SurfaceInfo.presentMode)
-        .setPreTransform(vk::SurfaceTransformFlagBitsKHR::eIdentity)
-        .setOldSwapchain(oldSwapchain);
-
-    if (queueFamilyIndicates.graphicsFamily == queueFamilyIndicates.presentFamily)
-    {
-        swapchainCreateInfo.setImageSharingMode(vk::SharingMode::eExclusive)
-            .setQueueFamilyIndices({queueFamilyIndicates.graphicsFamily.value()});
-    }
-    else
-    {
-        std::array<uint32_t, 2> queueFamilyIndicesArray = {queueFamilyIndicates.graphicsFamily.value(),
-                                                           queueFamilyIndicates.presentFamily.value()};
-        swapchainCreateInfo.setImageSharingMode(vk::SharingMode::eConcurrent)
-            .setQueueFamilyIndices(queueFamilyIndicesArray);
-    }
-
-    mSwapchain = Device->createSwapchainKHRUnique(swapchainCreateInfo);
-    if (!mSwapchain)
-    {
-        std::println("Failed to create swapchain");
-        throw std::runtime_error("Failed to create swapchain");
-    }
-    std::println("Swapchain created successfully");
-}
-void RHIContext::RecreateSwapchain()
-{
-    Device->waitIdle();
-    QuerySurfaceInfo();
-    auto oldSwapchain = std::move(mSwapchain);
-    CreateSwapchain(oldSwapchain.get());
-    mSwapchainImageViews.clear();
-    mSwapchainImages.clear();
-    CreateSwapchainImages();
-    CreateSwapchainImageViews();
-    std::println("Swapchain Recreated");
-}
-void RHIContext::CreateSwapchainImages()
-{
-    auto swapchainImages = Device->getSwapchainImagesKHR(mSwapchain.get());
-    for (auto &image : swapchainImages)
-    {
-        mSwapchainImages.push_back(image);
-    }
-    std::println("Swapchain Images Created");
-    std::println("Swapchain Image Count: {}", mSwapchainImages.size());
-}
-void RHIContext::CreateSwapchainImageViews()
-{
-    for (auto image : mSwapchainImages)
-    {
-        vk::ImageViewCreateInfo imageViewCreateInfo;
-        imageViewCreateInfo.setImage(image)
-            .setViewType(vk::ImageViewType::e2D)
-            .setFormat(SurfaceInfo.format.format)
-            .setComponents(vk::ComponentMapping{})
-            .setSubresourceRange(vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-        auto imageView = Device->createImageViewUnique(imageViewCreateInfo);
-        if (!imageView)
-        {
-            std::println("Failed to create image view for swapchain image");
-            throw std::runtime_error("Failed to create image view for swapchain image");
-        }
-        mSwapchainImageViews.push_back(std::move(imageView));
-    }
-    std::println("Swapchain Image Count: {}", mSwapchainImageViews.size());
-    std::println("Swapchain Image Views Created");
 }
 void RHIContext::CreateDescriptorPool()
 {

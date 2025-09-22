@@ -1,4 +1,5 @@
 #pragma once
+#include "AssetManager.hpp"
 #include "ISystem.hpp"
 #include "Scene.hpp"
 #include <memory>
@@ -9,9 +10,11 @@ class System : public ISystem
 {
   protected:
     std::shared_ptr<Scene> mScene;
+    std::shared_ptr<AssetManager> mAssetManager;
 
   public:
-    System(std::shared_ptr<Scene> scene) : mScene(scene)
+    System(std::shared_ptr<Scene> scene, std::shared_ptr<AssetManager> assetManager)
+        : mScene(scene), mAssetManager(assetManager)
     {
     }
     virtual ~System() = default;
