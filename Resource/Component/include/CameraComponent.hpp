@@ -1,8 +1,9 @@
 #pragma once
 #include "Component.hpp"
 #include "Math.hpp"
+#include <memory>
 
-namespace MEngine::Function
+namespace MEngine::Resource
 {
 class CameraComponent : public Component
 {
@@ -22,4 +23,11 @@ class CameraComponent : public Component
     Matrix4 viewMatrix = Matrix4(1.0f);
     Matrix4 projectionMatrix = Matrix4(1.0f);
 };
-} // namespace MEngine::Function
+struct CameraParameters
+{
+    alignas(16) Vector3 Position = Vector3(0.0f);
+    alignas(16) Vector3 Direction = Vector3(0.0f, 0.0f, -1.0f);
+    alignas(16) Matrix4 ProjectionMatrix = Matrix4(1.0f);
+    alignas(16) Matrix4 ViewMatrix = Matrix4(1.0f);
+};
+} // namespace MEngine::Resource

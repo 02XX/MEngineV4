@@ -10,7 +10,7 @@ namespace MEngine::Resource
 class IndexResource final : public RenderResource
 {
   protected:
-    RHIHandler<RHIBuffer> mRHIVertexBufferHandler;
+    RHIHandler<RHIBuffer> mRHIIndexBufferHandler;
 
   public:
     IndexResource() : RenderResource()
@@ -22,7 +22,7 @@ class IndexResource final : public RenderResource
     void UpdateData(const std::vector<uint32_t> &indices);
     inline RHIHandler<RHIBuffer> GetIndexBuffer() const
     {
-        return mRHIVertexBufferHandler;
+        return mRHIIndexBufferHandler;
     }
 };
 } // namespace MEngine::Resource

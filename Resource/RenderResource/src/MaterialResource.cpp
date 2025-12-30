@@ -8,11 +8,17 @@ void MaterialResource::InitRHI()
 {
     RHIDescriptorSetDesc desc{};
     auto pipelineResource = mMaterial->mPipeline->GetResourceAs<GraphicPipelineResource>();
-    desc.SetLayouts = pipelineResource->GetGraphicPipeline()->GetDescriptorSetLayouts();
-    mDescriptorSetHandler = RHIHandler<RHIDescriptorSet>(new RHIDescriptorSet(desc));
+    desc.SetLayouts = {pipelineResource->GetGraphicPipeline()->GetDescriptorSetLayouts()[1]};
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        mDescriptorSetHandlers[i] = RHIHandler<RHIDescriptorSet>(new RHIDescriptorSet(desc));
+    }
 }
 void MaterialResource::ReleaseRHI()
 {
-    mDescriptorSetHandler.SafeRelease();
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        mDescriptorSetHandlers[i].SafeRelease();
+    }
 }
 } // namespace MEngine::Resource

@@ -24,9 +24,9 @@ void VertexResource::UpdateData(const std::vector<Vertex> &vertices)
     stagingBufferDesc.usage = vk::BufferUsageFlagBits::eTransferSrc;
     stagingBufferDesc.sharingMode = vk::SharingMode::eExclusive;
     // Create staging buffer
-    mRHIVertexBufferHandler = RHIHandler<RHIBuffer>(new RHIBuffer(stagingBufferDesc, stagingAllocCreateInfo));
+    auto stagingBufferHandler = RHIHandler<RHIBuffer>(new RHIBuffer(stagingBufferDesc, stagingAllocCreateInfo));
     // Copy vertex data to staging buffer
-    memcpy(mRHIVertexBufferHandler->mAllocationInfo.pMappedData, vertices.data(), (size_t)bufferSize);
+    memcpy(stagingBufferHandler->mAllocationInfo.pMappedData, vertices.data(), (size_t)bufferSize);
     // Create vertex buffer
     VmaAllocationCreateInfo vertexAllocCreateInfo = {};
     vertexAllocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -35,7 +35,7 @@ void VertexResource::UpdateData(const std::vector<Vertex> &vertices)
     vertexBufferDesc.size = bufferSize;
     vertexBufferDesc.usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
     vertexBufferDesc.sharingMode = vk::SharingMode::eExclusive;
-    auto vertexBufferHandler = RHIHandler<RHIBuffer>(new RHIBuffer(vertexBufferDesc, vertexAllocCreateInfo));
+    mRHIVertexBufferHandler = RHIHandler<RHIBuffer>(new RHIBuffer(vertexBufferDesc, vertexAllocCreateInfo));
     // Copy data from staging buffer to vertex buffer
 
     auto &rhiContext = RHIContext::Instance();
@@ -45,7 +45,7 @@ void VertexResource::UpdateData(const std::vector<Vertex> &vertices)
     commandBuffer->begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
     vk::BufferCopy copyRegion{};
     copyRegion.size = bufferSize;
-    commandBuffer->copyBuffer(mRHIVertexBufferHandler->mBuffer, vertexBufferHandler->mBuffer, copyRegion);
+    commandBuffer->copyBuffer(stagingBufferHandler->mBuffer, mRHIVertexBufferHandler->mBuffer, copyRegion);
     commandBuffer->end();
     vk::SubmitInfo submitInfo{};
     submitInfo.setCommandBuffers(commandBuffer.get());

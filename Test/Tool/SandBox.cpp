@@ -1,4 +1,5 @@
 #include "FrameBuffer.hpp"
+#include "FrameResource.hpp"
 #include "Logger.hpp"
 #include "MaterialComponent.hpp"
 #include "MeshComponent.hpp"
@@ -77,7 +78,8 @@ class SandBox
         mScene = std::make_shared<Scene>("SampleScene");
         mFrameBuffer = std::make_shared<FrameBuffer>("MRT", mWindowConfig.width, mWindowConfig.height);
         mRenderSystem = std::make_shared<RenderSystem>(mScene, mAssetManager);
-        mRenderSystem->SetFrameBuffers({mFrameBuffer});
+        // mRenderSystem->SetRenderCallback(
+        //     [this](FrameResource &f) { mSwapChain->GetResourceAs<SwapChainResource>()->Present(f); });
     }
     ~SandBox()
     {
@@ -109,6 +111,7 @@ class SandBox
         while (!glfwWindowShouldClose(mWindow))
         {
             glfwPollEvents();
+
             mRenderSystem->Update(0.016);
             RHIContext::Instance().GetDevice().waitIdle();
             auto swapChainResources = mSwapChain->GetResourceAs<SwapChainResource>()->GetSwapChainTextures();
@@ -147,7 +150,45 @@ int main()
 {
     {
         SandBox sandbox;
-        sandbox.Run();
+        // sandbox.Run();
+        auto commandBufferA = RHIContext::Instance().GetGraphicsCommandBuffer();
+        auto commandBufferB = RHIContext::Instance().GetGraphicsCommandBuffer();
+        vk::UniqueSemaphore semaphoreA = RHIContext::Instance().GetDevice().createSemaphoreUnique({});
+        vk::UniqueSemaphore semaphoreB = RHIContext::Instance().GetDevice().createSemaphoreUnique({});
+        vk::UniqueFence fenceA = RHIContext::Instance().GetDevice().createFenceUnique({});
+        vk::UniqueFence fenceB = RHIContext::Instance().GetDevice().createFenceUnique({});
+        commandBufferA->begin(vk::CommandBufferBeginInfo{});
+        commandBufferA->end();
+        vk::SubmitInfo submitinfoA;
+        std::vector<vk::PipelineStageFlags> waitStagesA = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
+        submitinfoA.setCommandBuffers(commandBufferA.get())
+            .setSignalSemaphores(semaphoreA.get())
+            .setWaitSemaphores({})
+            .setWaitDstStageMask(waitStagesA);
+        RHIContext::Instance().GetGraphicsQueue().submit({submitinfoA}, nullptr);
+        commandBufferB->begin(vk::CommandBufferBeginInfo{});
+        commandBufferB->end();
+        vk::SubmitInfo submitinfoB;
+        std::vector<vk::PipelineStageFlags> waitStagesB = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
+        submitinfoB.setCommandBuffers(commandBufferB.get())
+            .setSignalSemaphores(semaphoreB.get())
+            .setWaitSemaphores({semaphoreA.get()})
+            .setWaitDstStageMask(waitStagesB);
+        RHIContext::Instance().GetGraphicsQueue().submit({submitinfoB}, nullptr);
+        auto resultA = RHIContext::Instance().GetDevice().waitForFences({fenceA.get(), fenceB.get()}, vk::True,
+                                                                        std::numeric_limits<uint64_t>::max());
+        if (resultA != vk::Result::eSuccess)
+        {
+            LogError("Failed wait InFlightFences");
+            return -1;
+        }
+        auto resultB = RHIContext::Instance().GetDevice().waitForFences({fenceA.get(), fenceB.get()}, vk::True,
+                                                                        std::numeric_limits<uint64_t>::max());
+        if (resultB != vk::Result::eSuccess)
+        {
+            LogError("Failed reset InFlightFences");
+            return -1;
+        }
     }
     // RHIContext::Instance().GetDevice().waitIdle();
     while (PendingDeletes.Size() > 0)

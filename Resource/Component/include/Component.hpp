@@ -1,5 +1,5 @@
 #pragma once
-namespace MEngine::Function
+namespace MEngine::Resource
 {
 class Component
 {

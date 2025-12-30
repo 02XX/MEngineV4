@@ -2,8 +2,8 @@
 #include "Component.hpp"
 #include "Material.hpp"
 
-using namespace MEngine::Resource;
-namespace MEngine::Function
+
+namespace MEngine::Resource
 {
 class MaterialComponent : public Component
 {

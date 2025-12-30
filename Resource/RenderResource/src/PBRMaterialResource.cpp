@@ -7,33 +7,41 @@ namespace MEngine::Resource
 void PBRMaterialResource::InitRHI()
 {
     // create uniform buffer
+    MaterialResource::InitRHI();
     RHIBufferDesc bufferDesc{};
     bufferDesc.size = sizeof(PBRProperties);
     bufferDesc.usage = vk::BufferUsageFlagBits::eUniformBuffer;
     VmaAllocationCreateInfo allocCreateInfo{};
     allocCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    mRHIUniformBufferHandler = RHIHandler<RHIBuffer>(new RHIBuffer(bufferDesc, allocCreateInfo));
+    allocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        mPBRPropertiesUBO[i] = RHIHandler<RHIBuffer>(new RHIBuffer(bufferDesc, allocCreateInfo));
+    }
 }
 void PBRMaterialResource::ReleaseRHI()
 {
-    mRHIUniformBufferHandler.SafeRelease();
-    mDescriptorSetHandler.SafeRelease();
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        mPBRPropertiesUBO[i].SafeRelease();
+    }
+    MaterialResource::ReleaseRHI();
 }
-void PBRMaterialResource::UpdateDescriptorSet(uint32_t set)
+void PBRMaterialResource::UpdateDescriptorSet(int frameIndex)
 {
     auto pbrMaterial = static_cast<PBRMaterial *>(mMaterial);
-    if (set >= mDescriptorSetHandler->GetDescriptorSets().size())
+    if (frameIndex >= mDescriptorSetHandlers.size())
     {
         LogError("Descriptor set index out of range");
         return;
     }
-    auto descriptorSet = mDescriptorSetHandler->GetDescriptorSets()[set];
     std::vector<vk::WriteDescriptorSet> writeDescriptorSets{};
     // parameters
-    memcpy(mRHIUniformBufferHandler->GetAllocationInfo().pMappedData, &pbrMaterial->GetProperties(),
+    memcpy(mPBRPropertiesUBO[frameIndex]->GetAllocationInfo().pMappedData, &pbrMaterial->GetProperties(),
            sizeof(PBRProperties));
+    auto descriptorSet = mDescriptorSetHandlers[frameIndex]->GetDescriptorSets().front();
     vk::DescriptorBufferInfo bufferInfo{};
-    bufferInfo.setBuffer(mRHIUniformBufferHandler->GetBuffer()).setOffset(0).setRange(sizeof(PBRProperties));
+    bufferInfo.setBuffer(mPBRPropertiesUBO[frameIndex]->GetBuffer()).setOffset(0).setRange(sizeof(PBRProperties));
     writeDescriptorSets.push_back(vk::WriteDescriptorSet{}
                                       .setDstSet(descriptorSet)
                                       .setDstBinding(0)
@@ -43,6 +51,7 @@ void PBRMaterialResource::UpdateDescriptorSet(uint32_t set)
     // albedo
     vk::DescriptorImageInfo albedoImageInfo{};
     auto albedoTexture = pbrMaterial->GetTextures().Albedo;
+    albedoTexture->GetResource()->InitResource();
     albedoImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
         .setImageView(albedoTexture->GetResourceAs<Texture2DResource>()->GetTextureView()->GetImageView())
         .setSampler(albedoTexture->GetResourceAs<Texture2DResource>()->GetSampler()->GetSampler());
@@ -55,6 +64,7 @@ void PBRMaterialResource::UpdateDescriptorSet(uint32_t set)
     // normal
     vk::DescriptorImageInfo normalImageInfo{};
     auto normalTexture = pbrMaterial->GetTextures().Normal;
+    normalTexture->GetResource()->InitResource();
     normalImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
         .setImageView(normalTexture->GetResourceAs<Texture2DResource>()->GetTextureView()->GetImageView())
         .setSampler(normalTexture->GetResourceAs<Texture2DResource>()->GetSampler()->GetSampler());
@@ -67,6 +77,7 @@ void PBRMaterialResource::UpdateDescriptorSet(uint32_t set)
     // arm
     vk::DescriptorImageInfo armImageInfo{};
     auto armTexture = pbrMaterial->GetTextures().ARM;
+    armTexture->GetResource()->InitResource();
     armImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
         .setImageView(armTexture->GetResourceAs<Texture2DResource>()->GetTextureView()->GetImageView())
         .setSampler(armTexture->GetResourceAs<Texture2DResource>()->GetSampler()->GetSampler());
@@ -79,6 +90,7 @@ void PBRMaterialResource::UpdateDescriptorSet(uint32_t set)
     // emissive
     vk::DescriptorImageInfo emissiveImageInfo{};
     auto emissiveTexture = pbrMaterial->GetTextures().Emissive;
+    emissiveTexture->GetResource()->InitResource();
     emissiveImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
         .setImageView(emissiveTexture->GetResourceAs<Texture2DResource>()->GetTextureView()->GetImageView())
         .setSampler(emissiveTexture->GetResourceAs<Texture2DResource>()->GetSampler()->GetSampler());
@@ -89,6 +101,5 @@ void PBRMaterialResource::UpdateDescriptorSet(uint32_t set)
                                       .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
                                       .setImageInfo(emissiveImageInfo));
     auto &device = Platform::RHIContext::Instance().GetDevice();
-    device.updateDescriptorSets(writeDescriptorSets, {});
 }
 } // namespace MEngine::Resource

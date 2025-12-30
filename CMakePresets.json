@@ -1,11 +1,12 @@
 {
-    "version": 2,
+    "version": 8,
     "configurePresets": [
         {
             "name": "Debug_x64-windows_clang",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build",
+            "binaryDir": "${sourceDir}/Out/build/${presetName}",
             "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/Out/install/${presetName}",
                 "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
@@ -17,44 +18,15 @@
         {
             "name": "Release_x64-windows_clang",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build-clion",
+            "binaryDir": "${sourceDir}/Out/build/${presetName}",
             "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/Out/install/${presetName}",
                 "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
-                "VCPKG_TARGET_TRIPLET": "x64-windows",
-                "VCPKG_HOST_TRIPLET": "x64-windows",
                 "VCPKG_MANIFEST_MODE": "ON",
-                "CMAKE_BUILD_TYPE": "Release"
-            }
-        },
-        {
-            "name": "Debug_x64-mingw_clang",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build",
-            "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-                "CMAKE_C_COMPILER": "clang",
-                "CMAKE_CXX_COMPILER": "clang++",
-                "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
-                "VCPKG_HOST_TRIPLET": "x64-mingw-static",
-                "VCPKG_MANIFEST_MODE": "ON",
-                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_BUILD_TYPE": "Release",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
-            }
-        },
-        {
-            "name": "Release_x64-mingw_clang",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build-clion",
-            "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-                "CMAKE_C_COMPILER": "clang",
-                "CMAKE_CXX_COMPILER": "clang++",
-                "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
-                "VCPKG_HOST_TRIPLET": "x64-mingw-static",
-                "VCPKG_MANIFEST_MODE": "ON",
-                "CMAKE_BUILD_TYPE": "Release"
             }
         }
     ]

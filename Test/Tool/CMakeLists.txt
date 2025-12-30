@@ -1,5 +1,5 @@
 find_package(GTest CONFIG REQUIRED)
-
+find_package(glfw3 CONFIG REQUIRED)
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS  ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 foreach(source ${SOURCES})
     get_filename_component(FILE_NAME_WE ${source} NAME_WE)

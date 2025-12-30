@@ -12,4 +12,13 @@ RHIBuffer::RHIBuffer(const RHIBufferDesc &bufferDesc, VmaAllocationCreateInfo al
         throw std::runtime_error("Failed to create buffer");
     }
 }
+RHIBuffer::~RHIBuffer()
+{
+    if (mBuffer)
+    {
+        vmaDestroyBuffer(RHIContext::Instance().GetVmaAllocator(), mBuffer, mAllocation);
+        mBuffer = nullptr;
+        mAllocation = nullptr;
+    }
+}
 } // namespace MEngine::Platform

@@ -55,12 +55,10 @@ void LightingPipelineBuilder::SetLayout()
         vk::DescriptorSetLayoutBinding{1, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment},
         // Binding: 2 Normal Map
         vk::DescriptorSetLayoutBinding{2, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment},
-        // Binding: 3 Metallic Map
+        // Binding: 3 ARM Map
         vk::DescriptorSetLayoutBinding{3, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment},
-        // Binding: 4 Roughness Map
+        // Binding: 4 Emissive Map
         vk::DescriptorSetLayoutBinding{4, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment},
-        // Binding: 5 AO Map
-        vk::DescriptorSetLayoutBinding{5, vk::DescriptorType::eInputAttachment, 1, vk::ShaderStageFlagBits::eFragment},
     });
     mPipelineLayoutDesc.PushConstantRanges.push_back(
         vk::PushConstantRange()

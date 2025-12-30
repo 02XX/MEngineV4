@@ -14,7 +14,6 @@ class RHIDescriptorSet : public RHIResource
     std::vector<vk::UniqueDescriptorSet> mDescriptorSets{};
     RHIDescriptorSetDesc mDescriptorSetDesc{};
 
-  protected:
   public:
     RHIDescriptorSet(const RHIDescriptorSetDesc &desc);
     virtual ~RHIDescriptorSet() override = default;
@@ -22,7 +21,7 @@ class RHIDescriptorSet : public RHIResource
     {
         std::vector<vk::DescriptorSet> descriptorSets;
         descriptorSets.reserve(mDescriptorSets.size());
-        for (const auto &set : mDescriptorSets)
+        for (auto &set : mDescriptorSets)
         {
             descriptorSets.push_back(set.get());
         }

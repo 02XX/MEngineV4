@@ -26,7 +26,7 @@ class RHIBuffer : public RHIResource
   public:
     RHIBuffer(const RHIBufferDesc &bufferDesc, VmaAllocationCreateInfo allocCreateInfo);
 
-    ~RHIBuffer() override = default;
+    ~RHIBuffer();
     inline vk::Buffer GetBuffer() const
     {
         return mBuffer;

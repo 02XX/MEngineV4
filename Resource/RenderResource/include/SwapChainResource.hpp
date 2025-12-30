@@ -1,10 +1,12 @@
 #pragma once
+#include "FrameResource.hpp"
 #include "RHIHandler.hpp"
 #include "RHISwapChain.hpp"
 #include "RHITexture.hpp"
 #include "RHITextureView.hpp"
 #include "RenderResource.hpp"
 #include <vector>
+
 
 using namespace MEngine::Platform;
 namespace MEngine::Resource
@@ -35,5 +37,6 @@ class SwapChainResource : public RenderResource
     {
         return mRHISwapChainHandler;
     }
+    void Present(FrameResource &frameResource);
 };
 } // namespace MEngine::Resource

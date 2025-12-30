@@ -1,4 +1,4 @@
-#pragma once
+#pragma once    
 #include "RHIResource.hpp"
 #include "RHISwapChain.hpp"
 #include <cstdint>
@@ -29,5 +29,6 @@ class RHISwapChain final : public RHIResource
     {
         return mSwapchainImages;
     }
+    
 };
 } // namespace MEngine::Platform

@@ -7,6 +7,7 @@
 
 namespace MEngine::Platform
 {
+constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 struct RHIContextConfig
 {
     std::vector<const char *> InstanceRequiredExtensions;

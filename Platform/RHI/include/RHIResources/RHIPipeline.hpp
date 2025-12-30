@@ -17,11 +17,9 @@ class RHIPipeline : public RHIResource
     vk::UniquePipelineLayout mPipelineLayout{nullptr};
     RHIPipelineLayoutDesc mPipelineLayoutDesc{};
     std::vector<vk::UniqueDescriptorSetLayout> mDescriptorSetLayouts{};
-
-  protected:
-    RHIPipeline(const RHIPipelineLayoutDesc &layoutDesc);
-
+    
   public:
+    RHIPipeline(const RHIPipelineLayoutDesc &layoutDesc);
     ~RHIPipeline() override = default;
     inline vk::Pipeline GetPipeline() const
     {

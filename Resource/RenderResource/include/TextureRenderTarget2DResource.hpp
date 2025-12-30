@@ -2,6 +2,7 @@
 
 #include "RHIHandler.hpp"
 #include "RHISampler.hpp"
+#include "RHISemaphore.hpp"
 #include "RHITexture.hpp"
 #include "RHITextureView.hpp"
 #include "RenderResource.hpp"

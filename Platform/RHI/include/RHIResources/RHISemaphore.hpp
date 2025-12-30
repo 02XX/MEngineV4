@@ -17,11 +17,11 @@ class RHISemaphore : public RHIResource
     vk::UniqueSemaphore mSemaphore;
 
   public:
-    RHISemaphore(const RHISeamphoreDesc &desc);
+    RHISemaphore();
     ~RHISemaphore() override = default;
-    inline vk::Sampler GetSampler() const
+    vk::Semaphore GetSemaphore() const
     {
-        return mSampler.get();
+        return mSemaphore.get();
     }
 };
 } // namespace MEngine::Platform

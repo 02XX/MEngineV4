@@ -9,5 +9,9 @@ RHIDescriptorSet::RHIDescriptorSet(const RHIDescriptorSetDesc &desc) : RHIResour
         .setSetLayouts(mDescriptorSetDesc.SetLayouts)
         .setDescriptorSetCount(static_cast<uint32_t>(mDescriptorSetDesc.SetLayouts.size()));
     mDescriptorSets = RHIContext::Instance().GetDevice().allocateDescriptorSetsUnique(allocInfo);
+    if (mDescriptorSets.empty())
+    {
+        throw std::runtime_error("Failed to allocate descriptor sets!");
+    }
 }
 } // namespace MEngine::Platform

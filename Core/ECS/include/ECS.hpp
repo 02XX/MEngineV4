@@ -5,4 +5,4 @@
 
 using Register = entt::registry;
 using Entity = entt::entity;
-constexpr Entity Null = entt::null;
+constexpr Entity NullEntity = entt::null;

@@ -43,6 +43,13 @@ void GraphicPipelineResource::InitRHI()
     RHIPipelineLayoutDesc.Flags = mGraphicPipeline->mPipelineLayoutDesc.Flags;
     mGraphicPipelineHandler =
         RHIHandler<RHIGraphicPipeline>(new RHIGraphicPipeline(graphicPipelineDesc, RHIPipelineLayoutDesc));
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        RHIDescriptorSetDesc desc{};
+        desc.SetLayouts = {mGraphicPipelineHandler->GetDescriptorSetLayouts().front()};
+        mPerFrameDescriptorSetHandlers[i] = RHIHandler<RHIDescriptorSet>(new RHIDescriptorSet(desc));
+    }
 };
 void GraphicPipelineResource::ReleaseRHI()
 {

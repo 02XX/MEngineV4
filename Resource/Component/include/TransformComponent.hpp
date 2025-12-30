@@ -3,7 +3,7 @@
 #include "ECS.hpp"
 #include "Math.hpp"
 #include <string>
-namespace MEngine::Function
+namespace MEngine::Resource
 {
 
 class TransformComponent : public Component
@@ -22,8 +22,8 @@ class TransformComponent : public Component
     Matrix4 modelMatrix = Matrix4(1.0f);
     bool dirty = true;
 
-    Entity parent = Null;
+    Entity parent = NullEntity;
     std::vector<Entity> children;
 };
 
-} // namespace MEngine::Function
+} // namespace MEngine::Resource

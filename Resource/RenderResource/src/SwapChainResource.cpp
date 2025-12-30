@@ -73,5 +73,42 @@ void SwapChainResource::ReleaseRHI()
     }
     mSwapChainTextures.clear();
 }
+void SwapChainResource::Present(FrameResource &frameResource)
+{
+    auto &rhiContext = RHIContext::Instance();
+    uint32_t imageIndex = 0;
+    auto result = rhiContext.GetDevice().acquireNextImageKHR(
+        mRHISwapChainHandler->GetSwapChain(), std::numeric_limits<uint64_t>::max(), nullptr, nullptr, &imageIndex);
+    if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+    {
+        LogError("Failed to acquire swap chain image!");
+        return;
+    }
+    auto commandBuffer = frameResource.CommandBuffer.get();
+    commandBuffer.begin(vk::CommandBufferBeginInfo{});
+    auto swapChainImage = mSwapChainTextures[imageIndex];
+    swapChainImage->TransitionImageLayout(vk::ImageLayout::eTransferDstOptimal);
+    auto colorAttachment = frameResource.ColorTextures->GetResourceAs<TextureRenderTarget2DResource>()->GetTexture();
+    colorAttachment->CopyTo(swapChainImage.Get());
+    swapChainImage->TransitionImageLayout(vk::ImageLayout::ePresentSrcKHR);
+    commandBuffer.end();
+    vk::SubmitInfo submitinfo;
+    std::vector<vk::PipelineStageFlags> waitStages = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
+    submitinfo.setCommandBuffers(commandBuffer)
+        .setSignalSemaphores(frameResource.RenderFinishedSemaphore.get())
+        .setWaitSemaphores(frameResource.ImageAvailableSemaphore.get())
+        .setWaitDstStageMask(waitStages);
+    rhiContext.GetTransferQueue().submit({submitinfo}, nullptr);
 
+    vk::PresentInfoKHR presentInfo{};
+    presentInfo.setSwapchains(mRHISwapChainHandler->GetSwapChain())
+        .setImageIndices(imageIndex)
+        .setWaitSemaphores({frameResource.RenderFinishedSemaphore.get()});
+    result = rhiContext.GetPresentQueue().presentKHR({presentInfo});
+    if (result != vk::Result::eSuccess)
+    {
+        LogError("Failed to present swap chain image!");
+        return;
+    }
+}
 } // namespace MEngine::Resource

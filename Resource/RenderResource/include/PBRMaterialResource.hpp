@@ -11,7 +11,7 @@ class PBRMaterial;
 class PBRMaterialResource final : public MaterialResource
 {
   private:
-    RHIHandler<RHIBuffer> mRHIUniformBufferHandler{};
+    std::array<RHIHandler<RHIBuffer>, MAX_FRAMES_IN_FLIGHT> mPBRPropertiesUBO{};
 
   public:
     PBRMaterialResource(PBRMaterial *material) : MaterialResource((Material *)material)
@@ -20,6 +20,6 @@ class PBRMaterialResource final : public MaterialResource
     ~PBRMaterialResource() override = default;
     void InitRHI() override;
     void ReleaseRHI() override;
-    void UpdateDescriptorSet(uint32_t set) override;
+    void UpdateDescriptorSet(int frameIndex) override;
 };
 } // namespace MEngine::Resource

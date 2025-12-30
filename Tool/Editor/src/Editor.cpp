@@ -1,5 +1,9 @@
 #include "Editor.hpp"
+#include "RenderSystem.hpp"
+#include "Scene.hpp"
+#include <GLFW/glfw3.h>
 #include <hello_imgui/hello_imgui.h>
+
 namespace MEngine::Tool
 {
 
@@ -23,13 +27,36 @@ Editor::Editor()
         {"Viewport", "MainDockSpace", [this] { ViewPort(); }, true, true}};
     mParams.dockingParams.layoutCondition = HelloImGui::DockingLayoutCondition::ApplicationStart;
     mParams.dockingParams.mainDockSpaceNodeFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+
+    uint32_t vulkanInstanceExtensionCount = 0;
+    const char **vulkanInstanceExtensions = glfwGetRequiredInstanceExtensions(&vulkanInstanceExtensionCount);
+    std::vector<const char *> extensions(vulkanInstanceExtensions,
+                                         vulkanInstanceExtensions + vulkanInstanceExtensionCount);
+
+    RHIContextConfig rhiConfig{};
+    rhiConfig.InstanceRequiredExtensions = extensions;
+    rhiConfig.InstanceRequiredLayers = {"VK_LAYER_KHRONOS_validation"};
+    rhiConfig.DeviceRequiredExtensions = {"VK_KHR_swapchain"};
+
+    RHIContext::Instance().InitInstance(rhiConfig);
+    RHIContext::Instance().InitContext();
+
+    mAssetManager = std::make_shared<AssetManager>();
+    mScene = std::make_shared<Scene>("EditorScene");
+    mRenderSystem = std::make_shared<RenderSystem>(mScene, mAssetManager);
+    mRenderSystem->Init();
 };
+Editor::~Editor()
+{
+}
 void Editor::Run()
 {
     HelloImGui::Run(mParams);
 }
 void Editor::ViewPort()
 {
+    mRenderSystem->Update(0.016);
+    
 }
 void Editor::Hierarchy()
 {

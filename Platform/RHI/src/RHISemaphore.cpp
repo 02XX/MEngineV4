@@ -1,15 +1,18 @@
-#include "RHISampler.hpp"
+#include "RHISemaphore.hpp"
 #include "RHIContext.hpp"
+
 namespace MEngine::Platform
 {
-RHISampler::RHISampler(const RHISamplerDesc &desc) : RHIResource(), mSamplerDesc(desc)
+RHISemaphore::RHISemaphore() : RHIResource()
 {
     auto &rhiContext = RHIContext::Instance();
     auto &device = rhiContext.GetDevice();
-    mSampler = device.createSamplerUnique(mSamplerDesc);
-    if (!mSampler)
+    vk::SemaphoreCreateInfo semaphoreCreateInfo{};
+    semaphoreCreateInfo.setFlags({});
+    mSemaphore = device.createSemaphoreUnique(semaphoreCreateInfo);
+    if (!mSemaphore)
     {
-        throw std::runtime_error("Failed to create sampler!");
+        throw std::runtime_error("Failed to create semaphore!");
     }
 }
 } // namespace MEngine::Platform
