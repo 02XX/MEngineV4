@@ -101,6 +101,10 @@ void Spdlogger::Log(LogLevel level, const std::source_location &loc, const std::
                      spdlog::level::critical, message);
         break;
     }
+    if (mLogCallback)
+    {
+        mLogCallback(level, loc, message);
+    }
 }
 void Spdlogger::Flush()
 {

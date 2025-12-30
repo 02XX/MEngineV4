@@ -16,10 +16,15 @@ class Spdlogger final : public ILogger
     spdlog::sink_ptr mConsoleSink;
     spdlog::sink_ptr mFileSink;
     std::shared_ptr<spdlog::logger> mLogger;
+    CallBack mLogCallback;
 
   public:
     Spdlogger();
     void SetLogLevel(LogLevel level) override;
     void Flush() override;
+    inline void SetLogCallback(CallBack callback) override
+    {
+        mLogCallback = callback;
+    }
 };
 } // namespace MEngine::Core

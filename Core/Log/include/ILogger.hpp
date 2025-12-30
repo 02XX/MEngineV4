@@ -1,5 +1,6 @@
 #pragma once
 #include <format>
+#include <functional>
 #include <source_location>
 #include <string>
 
@@ -15,14 +16,18 @@ enum class LogLevel
     Error,
     Fatal
 };
+
 class ILogger
 {
+
   public:
+    using CallBack = std::function<void(LogLevel, const std::source_location &, const std::string &)>;
+
     virtual ~ILogger() = default;
     virtual void Log(LogLevel level, const std::source_location &loc, const std::string &message) = 0;
     virtual void SetLogLevel(LogLevel level) = 0;
     virtual void Flush() = 0;
-
+    virtual void SetLogCallback(CallBack callback) = 0;
     template <typename... Args>
     void Trace(const std::source_location &loc, std::format_string<Args...> format, Args &&...args)
     {
