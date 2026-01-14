@@ -1,6 +1,5 @@
 #include "Context.hpp"
 #include <algorithm>
-#include <print>
 #include <set>
 #include <vector>
 #include <vulkan/vulkan_to_string.hpp>
@@ -41,17 +40,12 @@ void Context::CreateInstance()
         .setApiVersion(Version);
     // 获取所有可用的实例扩展
     auto availableExtensions = vk::enumerateInstanceExtensionProperties();
-    for (auto &ext : availableExtensions)
-    {
-        std::println("Available Vulkan instance extension: {}", ext.extensionName.data());
-    }
     for (auto &ext : Config.InstanceRequiredExtensions)
     {
         if (std::ranges::find_if(availableExtensions, [&ext](const vk::ExtensionProperties &availableExt) {
                 return std::string(availableExt.extensionName) == ext;
             }) == availableExtensions.end())
         {
-            std::println("Vulkan instance extension {} is not available", ext);
             throw std::runtime_error("Vulkan instance extension not available");
         }
     }
@@ -62,21 +56,8 @@ void Context::CreateInstance()
     Instance = vk::createInstanceUnique(instanceCreateInfo);
     if (!Instance)
     {
-        std::println("Failed to create Vulkan instance");
         throw std::runtime_error("Failed to create Vulkan instance");
     }
-    std::println("Vulkan instance created with version: {}.{}.{}.{}", variant, major, minor, patch);
-    std::println("Vulkan instance extensions:");
-    for (const auto &ext : Config.InstanceRequiredExtensions)
-    {
-        std::println(" - {}", ext);
-    }
-    std::println("Vulkan instance layers:");
-    for (const auto &layer : Config.InstanceRequiredLayers)
-    {
-        std::println(" - {}", layer);
-    }
-    std::println("Vulkan instance created successfully");
 }
 
 void Context::PickPhysicalDevice()
@@ -84,7 +65,6 @@ void Context::PickPhysicalDevice()
     auto PhysicalDevices = Instance->enumeratePhysicalDevices();
     if (PhysicalDevices.empty())
     {
-        std::println("No physical devices found");
         throw std::runtime_error("No physical devices found");
     }
     auto compare = [](const vk::PhysicalDevice &a, const vk::PhysicalDevice &b) {
@@ -101,11 +81,9 @@ void Context::PickPhysicalDevice()
     auto bestDevice = std::max_element(PhysicalDevices.begin(), PhysicalDevices.end(), compare);
     if (bestDevice == PhysicalDevices.end())
     {
-        std::println("No suitable physical device found");
         throw std::runtime_error("No suitable physical device found");
     }
     PhysicalDevice = *bestDevice;
-    std::println("Selected physical device: {}", std::string(PhysicalDevice.getProperties().deviceName.data()));
 }
 void Context::QueryQueueFamilyIndicates()
 {
@@ -129,17 +107,6 @@ void Context::QueryQueueFamilyIndicates()
             break;
         }
     }
-    std::println("Queue Family Indications:");
-    if (QueueFamilyIndicates.graphicsFamily.has_value())
-    {
-        std::println(" - Graphics Family: {}, Count: {}", QueueFamilyIndicates.graphicsFamily.value(),
-                     QueueFamilyIndicates.graphicsFamilyCount.value());
-    }
-    if (QueueFamilyIndicates.transferFamily.has_value())
-    {
-        std::println(" - Transfer Family: {}, Count: {}", QueueFamilyIndicates.transferFamily.value(),
-                     QueueFamilyIndicates.transferFamilyCount.value());
-    }
 }
 void Context::CreateLogicalDevice()
 {
@@ -162,10 +129,6 @@ void Context::CreateLogicalDevice()
     }
     // extension
     auto availableExtensions = PhysicalDevice.enumerateDeviceExtensionProperties();
-    for (auto &ext : availableExtensions)
-    {
-        std::println("Available Vulkan device extension: {}", ext.extensionName.data());
-    }
     std::vector<const char *> extensions = {"VK_KHR_maintenance1", "VK_EXT_host_image_copy",
                                             "VK_KHR_dynamic_rendering"};
     vk::PhysicalDeviceFeatures deviceFeatures{};
@@ -184,10 +147,8 @@ void Context::CreateLogicalDevice()
     Device = PhysicalDevice.createDeviceUnique(deviceCreateInfo);
     if (!Device)
     {
-        std::println("Failed to create Vulkan logical device");
         throw std::runtime_error("Failed to create Vulkan logical device");
     }
-    std::println("Vulkan logical device created successfully");
 }
 void Context::GetQueues()
 {
@@ -197,10 +158,8 @@ void Context::GetQueues()
         GraphicsQueue = Device->getQueue(graphicQueueIndex, 0);
         if (!GraphicsQueue)
         {
-            std::println("Failed to get graphics queue from Vulkan device");
             throw std::runtime_error("Failed to get graphics queue from Vulkan device");
         }
-        std::println("Graphics queue obtained successfully");
     }
     if (QueueFamilyIndicates.transferFamily.has_value())
     {
@@ -208,10 +167,8 @@ void Context::GetQueues()
         TransferQueue = Device->getQueue(transferQueueIndex, 0);
         if (!TransferQueue)
         {
-            std::println("Failed to get transfer queue from Vulkan device");
             throw std::runtime_error("Failed to get transfer queue from Vulkan device");
         }
-        std::println("Transfer queue obtained successfully");
     }
 }
 void Context::CreateVMA()
@@ -229,6 +186,5 @@ void Context::CreateVMA()
     allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
     // allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
     vmaCreateAllocator(&allocatorCreateInfo, &VmaAllocator);
-    std::println("VMA Allocator created successfully");
 }
 } // namespace MEngine::Platform
