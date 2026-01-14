@@ -11,44 +11,36 @@ RenderSystem::RenderSystem(std::shared_ptr<Context> context) : System(), mContex
 }
 RenderSystem::~RenderSystem()
 {
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-    {
-        if (mFrameResources[i])
-        {
-            mFrameResources[i]->ReleaseResource(mContext);
-            mFrameResources[i].reset();
-        }
-    }
 }
 void RenderSystem::Init()
 {
     // mScene->GetResourceAs<SceneResource>()->InitResource();
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-    {
-        mFrameResources[i] = std::make_unique<FrameResource>(vk::Extent3D{800, 600, 1});
-        mFrameResources[i]->InitResource(mContext);
-        vk::ImageMemoryBarrier2 colorAttachmentBarrier{};
-        colorAttachmentBarrier.setImage(mFrameResources[i]->ColorTexture->GetImage())
-            .setOldLayout(vk::ImageLayout::eUndefined)
-            .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
-            .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
-            .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
-            .setSrcAccessMask(vk::AccessFlagBits2::eNone)
-            .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
-            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-        std::vector<vk::ImageMemoryBarrier2> barriers = {colorAttachmentBarrier};
-        auto commandBuffer = mFrameResources[i]->GraphicsCommandBuffer;
-        commandBuffer.begin(vk::CommandBufferBeginInfo{});
-        commandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(barriers));
-        commandBuffer.end();
-        vk::SubmitInfo2 submitInfo{};
-        std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
-            vk::CommandBufferSubmitInfo().setCommandBuffer(commandBuffer),
-        };
-        submitInfo.setCommandBufferInfos(commandBufferInfos);
-        mContext->GraphicsQueue.submit2(submitInfo, {});
-        mContext->Device->waitIdle();
-    }
+    // for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    // {
+    //     mFrameResources[i] = std::make_unique<FrameResource>(vk::Extent3D{800, 600, 1});
+    //     mFrameResources[i]->InitResource(mContext);
+    //     vk::ImageMemoryBarrier2 colorAttachmentBarrier{};
+    //     colorAttachmentBarrier.setImage(mFrameResources[i]->ColorTexture->GetImage())
+    //         .setOldLayout(vk::ImageLayout::eUndefined)
+    //         .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
+    //         .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
+    //         .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+    //         .setSrcAccessMask(vk::AccessFlagBits2::eNone)
+    //         .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+    //         .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+    //     std::vector<vk::ImageMemoryBarrier2> barriers = {colorAttachmentBarrier};
+    //     auto commandBuffer = mFrameResources[i]->GraphicsCommandBuffer;
+    //     commandBuffer.begin(vk::CommandBufferBeginInfo{});
+    //     commandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(barriers));
+    //     commandBuffer.end();
+    //     vk::SubmitInfo2 submitInfo{};
+    //     std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
+    //         vk::CommandBufferSubmitInfo().setCommandBuffer(commandBuffer),
+    //     };
+    //     submitInfo.setCommandBufferInfos(commandBufferInfos);
+    //     mContext->GraphicsQueue.submit2(submitInfo, {});
+    //     mContext->Device->waitIdle();
+    // }
 }
 void RenderSystem::Update(double deltaTime)
 {
@@ -85,90 +77,78 @@ void RenderSystem::Shutdown()
 void RenderSystem::Prepare()
 {
     auto device = mContext->Device.get();
-    auto currentFrameResource = mFrameResources[mCurrentFrameBufferIndex].get();
-    auto currentGraphicCommandBuffer = currentFrameResource->GraphicsCommandBuffer;
-    auto result = device.waitForFences({currentFrameResource->InFlightFence.get()}, vk::True,
-                                       1000000000); // 1 second
-    if (result != vk::Result::eSuccess)
-    {
-        LogError("Failed wait InFlightFences");
-        return;
-    }
-    device.resetFences({currentFrameResource->InFlightFence.get()});
     // mContext->GetResourceAs<SceneResource>()->UpdateSceneUBO(mCurrentFrameBufferIndex);
-    currentGraphicCommandBuffer.begin(vk::CommandBufferBeginInfo{});
+    mFrameResource->GraphicsCommandBuffer.begin(vk::CommandBufferBeginInfo{});
 }
 void RenderSystem::RenderGBuffer()
 {
-    auto currentFrameResource = mFrameResources[mCurrentFrameBufferIndex].get();
-    auto currentGraphicCommandBuffer = currentFrameResource->GraphicsCommandBuffer;
+    auto currentGraphicCommandBuffer = mFrameResource->GraphicsCommandBuffer;
     std::vector<vk::RenderingAttachmentInfo> colorAttachments{
         // Color
         vk::RenderingAttachmentInfo()
-            .setClearValue(currentFrameResource->ColorClearValue)
-            .setImageView(currentFrameResource->ColorTexture->GetImageView())
+            .setClearValue(mFrameResource->ColorClearValue)
+            .setImageView(mFrameResource->ColorTexture->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Albedo
         vk::RenderingAttachmentInfo()
-            .setClearValue(currentFrameResource->AlbedoClearValue)
-            .setImageView(currentFrameResource->AlbedoTexture->GetImageView())
+            .setClearValue(mFrameResource->AlbedoClearValue)
+            .setImageView(mFrameResource->AlbedoTexture->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Normal
         vk::RenderingAttachmentInfo()
-            .setClearValue(currentFrameResource->NormalClearValue)
-            .setImageView(currentFrameResource->NormalTexture->GetImageView())
+            .setClearValue(mFrameResource->NormalClearValue)
+            .setImageView(mFrameResource->NormalTexture->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // ARM
         vk::RenderingAttachmentInfo()
-            .setClearValue(currentFrameResource->ARMClearValue)
-            .setImageView(currentFrameResource->ARMTexture->GetImageView())
+            .setClearValue(mFrameResource->ARMClearValue)
+            .setImageView(mFrameResource->ARMTexture->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Position
         vk::RenderingAttachmentInfo()
-            .setClearValue(currentFrameResource->PositionClearValue)
-            .setImageView(currentFrameResource->PositionTexture->GetImageView())
+            .setClearValue(mFrameResource->PositionClearValue)
+            .setImageView(mFrameResource->PositionTexture->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Emissive
         vk::RenderingAttachmentInfo()
-            .setClearValue(currentFrameResource->EmissiveClearValue)
-            .setImageView(currentFrameResource->EmissiveTexture->GetImageView())
+            .setClearValue(mFrameResource->EmissiveClearValue)
+            .setImageView(mFrameResource->EmissiveTexture->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
     };
     vk::RenderingAttachmentInfo depthStencilAttachment{};
-    depthStencilAttachment.setClearValue(currentFrameResource->DepthClearValue)
+    depthStencilAttachment.setClearValue(mFrameResource->DepthClearValue)
         .setImageLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal)
         .setLoadOp(vk::AttachmentLoadOp::eClear)
         .setStoreOp(vk::AttachmentStoreOp::eDontCare)
-        .setImageView(currentFrameResource->DepthStencilTexture->GetImageView());
+        .setImageView(mFrameResource->DepthStencilTexture->GetImageView());
     vk::RenderingInfo renderingInfo{};
-    renderingInfo
-        .setRenderArea(vk::Rect2D{{0, 0}, {currentFrameResource->Extent.width, currentFrameResource->Extent.height}})
+    renderingInfo.setRenderArea(vk::Rect2D{{0, 0}, {mFrameResource->Extent.width, mFrameResource->Extent.height}})
         .setLayerCount(1)
         .setColorAttachments(colorAttachments)
         .setPDepthAttachment(&depthStencilAttachment);
     currentGraphicCommandBuffer.beginRendering(renderingInfo);
     vk::Viewport viewport;
     viewport.setX(0.0f)
-        .setY(currentFrameResource->Extent.height)
-        .setWidth(static_cast<float>(currentFrameResource->Extent.width))
-        .setHeight(-static_cast<float>(currentFrameResource->Extent.height))
+        .setY(mFrameResource->Extent.height)
+        .setWidth(static_cast<float>(mFrameResource->Extent.width))
+        .setHeight(-static_cast<float>(mFrameResource->Extent.height))
         .setMinDepth(0.0f)
         .setMaxDepth(1.0f);
     currentGraphicCommandBuffer.setViewport(0, {viewport});
     vk::Rect2D scissor;
-    scissor.setOffset({0, 0}).setExtent({currentFrameResource->Extent.width, currentFrameResource->Extent.height});
+    scissor.setOffset({0, 0}).setExtent({mFrameResource->Extent.width, mFrameResource->Extent.height});
     currentGraphicCommandBuffer.setScissor(0, {scissor});
     // if (mRenderQueues.contains("GBufferPipeline"))
     // {
@@ -218,40 +198,7 @@ void RenderSystem::RenderLighting()
 void RenderSystem::End()
 {
     auto device = mContext->Device.get();
-    auto currentFrameResource = mFrameResources[mCurrentFrameBufferIndex].get();
-    auto currentGraphicCommandBuffer = currentFrameResource->GraphicsCommandBuffer;
+    auto currentGraphicCommandBuffer = mFrameResource->GraphicsCommandBuffer;
     currentGraphicCommandBuffer.end();
-    vk::SubmitInfo2 submitinfo;
-    std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
-        vk::CommandBufferSubmitInfo().setCommandBuffer(currentGraphicCommandBuffer),
-    };
-    std::vector<vk::SemaphoreSubmitInfo> signalSemaphoreInfos = {
-        vk::SemaphoreSubmitInfo()
-            .setSemaphore(currentFrameResource->RenderFinishedSemaphore.get())
-            .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput),
-    };
-    std::vector<vk::SemaphoreSubmitInfo> waitSemaphoreInfos = {
-        vk::SemaphoreSubmitInfo()
-            .setSemaphore(currentFrameResource->ImageAvailableSemaphore.get())
-            .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput),
-    };
-    submitinfo.setCommandBufferInfos(commandBufferInfos)
-        .setSignalSemaphoreInfos(signalSemaphoreInfos)
-        .setWaitSemaphoreInfos(waitSemaphoreInfos);
-
-    PendingSubmissions.Push(submitinfo);
-}
-void RenderSystem::Submit()
-{
-    auto graphicsQueue = mContext->GraphicsQueue;
-    vk::SubmitInfo2 item;
-    std::vector<vk::SubmitInfo2> submissions;
-    while (PendingSubmissions.TryPop(item))
-    {
-        submissions.push_back(item);
-        LogInfo("Submitted a command buffer to graphics queue");
-    }
-    graphicsQueue.submit2(submissions, mFrameResources[mCurrentFrameBufferIndex]->InFlightFence.get());
-    mCurrentFrameBufferIndex = (mCurrentFrameBufferIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 } // namespace MEngine::Function

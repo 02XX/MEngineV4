@@ -12,6 +12,7 @@ class FrameResource final : public RenderResource
   public:
     // MRT
     vk::Extent3D Extent;
+    
     std::unique_ptr<TextureRenderTarget2DResource> ColorTexture;
     std::unique_ptr<TextureRenderTarget2DResource> AlbedoTexture;
     std::unique_ptr<TextureRenderTarget2DResource> NormalTexture;
@@ -19,7 +20,8 @@ class FrameResource final : public RenderResource
     std::unique_ptr<TextureRenderTarget2DResource> PositionTexture;
     std::unique_ptr<TextureRenderTarget2DResource> EmissiveTexture;
     std::unique_ptr<TextureRenderTarget2DResource> DepthStencilTexture;
-    vk::ClearColorValue ColorClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
+
+    vk::ClearColorValue ColorClearValue = {std::array<float, 4>{0.5f, 0.0f, 0.0f, 1.0f}};
     vk::ClearColorValue AlbedoClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
     vk::ClearColorValue NormalClearValue = {std::array<float, 4>{0.5f, 0.5f, 1.0f, 1.0f}};
     vk::ClearColorValue ARMClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};

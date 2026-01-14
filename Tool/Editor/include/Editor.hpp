@@ -1,15 +1,21 @@
 #pragma once
 #include "Context.hpp"
+#include "FrameResource.hpp"
 #include "RenderSystem.hpp"
 #include "SwapChainResource.hpp"
 #include <GLFW/glfw3.h>
 #include <array>
+#include <future>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 #include <imgui_internal.h>
 #include <memory>
+#include <mutex>
 #include <taskflow/taskflow.hpp>
+#include <thread>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
 using namespace MEngine::Function;
 namespace MEngine::Tool
@@ -35,17 +41,17 @@ class Editor
     WindowConfig mWindowConfig{};
     // ImGui
     ImGuiID mDockSpaceID{};
-    std::unique_ptr<SwapChainResource> mSwapChainResource{};
     vk::SurfaceKHR mSurface{};
-    std::vector<vk::UniqueSemaphore> mImageAvailableSemaphores{};
-    std::vector<vk::UniqueSemaphore> mRenderFinishedSemaphores{};
-    std::vector<vk::UniqueFence> mInFlightFences{};
-    std::vector<vk::UniqueCommandPool> mGraphicCommandPools{};
-    std::vector<vk::UniqueCommandBuffer> mGraphicCommandBuffers{};
-    vk::ClearValue mColorClearValue = vk::ClearColorValue(std::array<float, 4>{0.1f, 0.1f, 0.1f, 1.0f});
-    vk::ClearValue mDepthClearValue = vk::ClearDepthStencilValue(1.0f, 0);
+    std::unique_ptr<SwapChainResource> mSwapChainResource{};
+    std::vector<std::shared_ptr<FrameResource>> mFrameResources{};
+    std::vector<vk::CommandBuffer> mUICommandBuffers{};
+    std::vector<VkDescriptorSet> mFrameDescriptorSets{};
+
     uint32_t mCurrentFrame = 0;
     bool mIsRunning = false;
+
+    ImDrawData *mFrameDrawData;
+    std::mutex mFrameDrawDataMutex;
 
   private:
     tf::Taskflow mTaskflow{};
@@ -55,6 +61,9 @@ class Editor
     Editor();
     ~Editor();
     void Run();
+
+  private:
+    std::thread mRenderThread;
 
   private:
     void InitWindow();
@@ -67,6 +76,8 @@ class Editor
     void AssetBrowser();
     void Console();
     void Inspector();
+
+    void Render();
 
   private:
     void HandleSwapchainOutOfDate();
