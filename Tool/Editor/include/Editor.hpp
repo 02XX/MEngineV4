@@ -2,7 +2,6 @@
 #include "Context.hpp"
 #include "RenderSystem.hpp"
 #include "SwapChainResource.hpp"
-#include "vulkan/vulkan.hpp"
 #include <GLFW/glfw3.h>
 #include <array>
 #include <imgui.h>
@@ -10,7 +9,7 @@
 #include <imgui_impl_vulkan.h>
 #include <imgui_internal.h>
 #include <memory>
-// #include <taskflow/taskflow.hpp>
+#include <taskflow/taskflow.hpp>
 
 using namespace MEngine::Function;
 namespace MEngine::Tool
@@ -46,10 +45,11 @@ class Editor
     vk::ClearValue mColorClearValue = vk::ClearColorValue(std::array<float, 4>{0.1f, 0.1f, 0.1f, 1.0f});
     vk::ClearValue mDepthClearValue = vk::ClearDepthStencilValue(1.0f, 0);
     uint32_t mCurrentFrame = 0;
+    bool mIsRunning = false;
 
   private:
-    // tf::Taskflow mTaskflow{};
-    // tf::Executor mExecutor{};
+    tf::Taskflow mTaskflow{};
+    tf::Executor mExecutor{};
 
   public:
     Editor();

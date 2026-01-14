@@ -2,6 +2,7 @@
 #include "Logger.hpp"
 #include "RenderSystem.hpp"
 #include <cstddef>
+#include <vector>
 namespace MEngine::Tool
 {
 
@@ -12,6 +13,8 @@ Editor::Editor()
     InitWindow();
     InitVulkan();
     InitImGui();
+    mRenderSystem = std::make_shared<RenderSystem>(mContext);
+    mRenderSystem->Init();
 };
 Editor::~Editor()
 {
@@ -199,7 +202,155 @@ void Editor::InitImGui()
 // }
 void Editor::Run()
 {
+    mIsRunning = true;
     auto device = mContext->Device.get();
+
+    mTaskflow.emplace([this]() {
+        LogInfo("Rendering Thread Start.");
+        while (mIsRunning)
+        {
+            auto device = mContext->Device.get();
+            auto result = device.waitForFences(mInFlightFences[mCurrentFrame].get(), vk::True,
+                                               1000000000); // 1 second timeout
+            if (result != vk::Result::eSuccess)
+            {
+                LogError("Failed to wait for fence: {}", vk::to_string(result));
+                continue;
+            }
+
+            vk::AcquireNextImageInfoKHR acquireInfo{};
+            acquireInfo.setTimeout(1000000000)
+                .setSwapchain(mSwapChainResource->SwapChain)
+                .setSemaphore(mImageAvailableSemaphores[mCurrentFrame].get())
+                .setDeviceMask(1);
+            uint32_t imageIndex;
+            auto nextImageResult = device.acquireNextImage2KHR(&acquireInfo, &imageIndex);
+            if (nextImageResult == vk::Result::eErrorOutOfDateKHR)
+            {
+                HandleSwapchainOutOfDate();
+                continue;
+            }
+
+            device.resetFences(mInFlightFences[mCurrentFrame].get());
+
+            auto currentCommandBuffer = mGraphicCommandBuffers[mCurrentFrame].get();
+            auto renderFrameResource = mRenderSystem->GetFrameResource(mCurrentFrame);
+
+            vk::CommandBufferBeginInfo beginInfo;
+            beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+            currentCommandBuffer.begin(beginInfo);
+            std::vector<vk::RenderingAttachmentInfo> colorAttachments{
+                // Color
+                vk::RenderingAttachmentInfo()
+                    .setClearValue(mColorClearValue)
+                    .setImageView(mSwapChainResource->SwapChainImageViews[imageIndex])
+                    .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
+                    .setLoadOp(vk::AttachmentLoadOp::eClear)
+                    .setStoreOp(vk::AttachmentStoreOp::eStore),
+            };
+            vk::RenderingInfo renderingInfo{};
+            renderingInfo
+                .setRenderArea(vk::Rect2D{{0, 0},
+                                          {mSwapChainResource->SurfaceInfo.Capabilities.currentExtent.width,
+                                           mSwapChainResource->SurfaceInfo.Capabilities.currentExtent.height}})
+                .setLayerCount(1)
+                .setColorAttachments(colorAttachments)
+                .setPDepthAttachment(nullptr);
+            vk::ImageMemoryBarrier2 preBarrier{}, preRenderBarrier{};
+            preBarrier.setImage(mSwapChainResource->SwapChainImages[imageIndex])
+                .setOldLayout(vk::ImageLayout::ePresentSrcKHR)
+                .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
+                .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+                .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+                .setSrcAccessMask(vk::AccessFlagBits2::eNone)
+                .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+                .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+            preRenderBarrier.setImage(renderFrameResource->ColorTexture->GetImage())
+                .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
+                .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+                .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+                .setDstStageMask(vk::PipelineStageFlagBits2::eFragmentShader)
+                .setSrcAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+                .setDstAccessMask(vk::AccessFlagBits2::eShaderRead)
+                .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+            std::vector<vk::ImageMemoryBarrier2> preBarriers = {preBarrier, preRenderBarrier};
+            currentCommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(preBarriers));
+
+            currentCommandBuffer.beginRendering(renderingInfo);
+            {
+                ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), currentCommandBuffer);
+            }
+            currentCommandBuffer.endRendering();
+            vk::ImageMemoryBarrier2 postBarrier{}, postRenderBarrier{};
+            postBarrier.setImage(mSwapChainResource->SwapChainImages[imageIndex])
+                .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
+                .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
+                .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+                .setDstStageMask(vk::PipelineStageFlagBits2::eBottomOfPipe)
+                .setSrcAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+                .setDstAccessMask(vk::AccessFlagBits2::eNone)
+                .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+            postRenderBarrier.setImage(renderFrameResource->ColorTexture->GetImage())
+                .setOldLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+                .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
+                .setSrcStageMask(vk::PipelineStageFlagBits2::eFragmentShader)
+                .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+                .setSrcAccessMask(vk::AccessFlagBits2::eShaderRead)
+                .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+                .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+            std::vector<vk::ImageMemoryBarrier2> postBarriers = {postBarrier, postRenderBarrier};
+            currentCommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(postBarriers));
+            currentCommandBuffer.end();
+
+            vk::SubmitInfo2 submitInfo{};
+            std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
+                vk::CommandBufferSubmitInfo().setCommandBuffer(currentCommandBuffer),
+            };
+            std::vector<vk::SemaphoreSubmitInfo> signalSemaphoreInfos = {
+                vk::SemaphoreSubmitInfo()
+                    .setSemaphore(mRenderFinishedSemaphores[mCurrentFrame].get())
+                    .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput),
+                // vk::SemaphoreSubmitInfo()
+                //     .setSemaphore(renderFrameResource->ImageAvailableSemaphore.get())
+                //     .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput),
+            };
+            std::vector<vk::SemaphoreSubmitInfo> waitSemaphoreInfos = {
+                vk::SemaphoreSubmitInfo()
+                    .setSemaphore(mImageAvailableSemaphores[mCurrentFrame].get())
+                    .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput),
+                // vk::SemaphoreSubmitInfo()
+                //     .setSemaphore(renderFrameResource->RenderFinishedSemaphore.get())
+                //     .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
+            };
+
+            submitInfo.setCommandBufferInfos(commandBufferInfos)
+                .setSignalSemaphoreInfos(signalSemaphoreInfos)
+                .setWaitSemaphoreInfos(waitSemaphoreInfos);
+
+            mContext->GraphicsQueue.submit2(submitInfo, mInFlightFences[mCurrentFrame].get());
+
+            vk::PresentInfoKHR presentInfo{};
+            presentInfo.setSwapchains({mSwapChainResource->SwapChain})
+                .setImageIndices({imageIndex})
+                .setWaitSemaphores({mRenderFinishedSemaphores[mCurrentFrame].get()});
+            try
+            {
+                auto presentResult = mContext->GraphicsQueue.presentKHR(presentInfo);
+                if (presentResult != vk::Result::eSuccess && presentResult != vk::Result::eSuboptimalKHR)
+                {
+                    LogError("Failed to present image: {}", vk::to_string(presentResult));
+                    throw std::runtime_error("Failed to present image");
+                }
+            }
+            catch (vk::OutOfDateKHRError &)
+            {
+                HandleSwapchainOutOfDate();
+            }
+            mCurrentFrame = (mCurrentFrame + 1) % mSwapChainResource->SwapChainImages.size();
+        }
+        LogInfo("Rendering Thread End.");
+    });
+    mExecutor.run(mTaskflow);
     while (!glfwWindowShouldClose(mWindow))
     {
         glfwPollEvents();
@@ -208,115 +359,9 @@ void Editor::Run()
         ImGui::NewFrame();
         UILayout();
         ImGui::Render();
-
-        auto result = device.waitForFences(mInFlightFences[mCurrentFrame].get(), vk::True,
-                                           1000000000); // 1 second timeout
-        if (result != vk::Result::eSuccess)
-        {
-            LogError("Failed to wait for fence: {}", vk::to_string(result));
-            continue;
-        }
-
-        vk::AcquireNextImageInfoKHR acquireInfo{};
-        acquireInfo.setTimeout(1000000000)
-            .setSwapchain(mSwapChainResource->SwapChain)
-            .setSemaphore(mImageAvailableSemaphores[mCurrentFrame].get())
-            .setDeviceMask(1);
-        uint32_t imageIndex;
-        auto nextImageResult = device.acquireNextImage2KHR(&acquireInfo, &imageIndex);
-        if (nextImageResult == vk::Result::eErrorOutOfDateKHR)
-        {
-            HandleSwapchainOutOfDate();
-            continue;
-        }
-
-        device.resetFences(mInFlightFences[mCurrentFrame].get());
-
-        auto currentCommandBuffer = mGraphicCommandBuffers[mCurrentFrame].get();
-        vk::CommandBufferBeginInfo beginInfo;
-        beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-        currentCommandBuffer.begin(beginInfo);
-        std::vector<vk::RenderingAttachmentInfo> colorAttachments{
-            // Color
-            vk::RenderingAttachmentInfo()
-                .setClearValue(mColorClearValue)
-                .setImageView(mSwapChainResource->SwapChainImageViews[imageIndex])
-                .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
-                .setLoadOp(vk::AttachmentLoadOp::eClear)
-                .setStoreOp(vk::AttachmentStoreOp::eStore),
-        };
-        vk::RenderingInfo renderingInfo{};
-        renderingInfo
-            .setRenderArea(vk::Rect2D{{0, 0},
-                                      {mSwapChainResource->SurfaceInfo.Capabilities.currentExtent.width,
-                                       mSwapChainResource->SurfaceInfo.Capabilities.currentExtent.height}})
-            .setLayerCount(1)
-            .setColorAttachments(colorAttachments)
-            .setPDepthAttachment(nullptr);
-        vk::ImageMemoryBarrier2 preBarrier{};
-        preBarrier.setImage(mSwapChainResource->SwapChainImages[imageIndex])
-            .setOldLayout(vk::ImageLayout::ePresentSrcKHR)
-            .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
-            .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
-            .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
-            .setSrcAccessMask(vk::AccessFlagBits2::eNone)
-            .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
-            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-        currentCommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(preBarrier));
-        currentCommandBuffer.beginRendering(renderingInfo);
-        {
-            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), currentCommandBuffer);
-        }
-        currentCommandBuffer.endRendering();
-        vk::ImageMemoryBarrier2 postBarrier{};
-        postBarrier.setImage(mSwapChainResource->SwapChainImages[imageIndex])
-            .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
-            .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
-            .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
-            .setDstStageMask(vk::PipelineStageFlagBits2::eBottomOfPipe)
-            .setSrcAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
-            .setDstAccessMask(vk::AccessFlagBits2::eNone)
-            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-        currentCommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(postBarrier));
-        currentCommandBuffer.end();
-        vk::SubmitInfo2 submitInfo{};
-        std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
-            vk::CommandBufferSubmitInfo().setCommandBuffer(currentCommandBuffer),
-        };
-        std::vector<vk::SemaphoreSubmitInfo> signalSemaphoreInfos = {
-            vk::SemaphoreSubmitInfo()
-                .setSemaphore(mRenderFinishedSemaphores[mCurrentFrame].get())
-                .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput),
-        };
-        std::vector<vk::SemaphoreSubmitInfo> waitSemaphoreInfos = {
-            vk::SemaphoreSubmitInfo()
-                .setSemaphore(mImageAvailableSemaphores[mCurrentFrame].get())
-                .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput),
-        };
-        submitInfo.setCommandBufferInfos(commandBufferInfos)
-            .setSignalSemaphoreInfos(signalSemaphoreInfos)
-            .setWaitSemaphoreInfos(waitSemaphoreInfos);
-        mContext->GraphicsQueue.submit2(submitInfo, mInFlightFences[mCurrentFrame].get());
-
-        vk::PresentInfoKHR presentInfo{};
-        presentInfo.setSwapchains({mSwapChainResource->SwapChain})
-            .setImageIndices({imageIndex})
-            .setWaitSemaphores({mRenderFinishedSemaphores[mCurrentFrame].get()});
-        try
-        {
-            auto presentResult = mContext->GraphicsQueue.presentKHR(presentInfo);
-            if (presentResult != vk::Result::eSuccess && presentResult != vk::Result::eSuboptimalKHR)
-            {
-                LogError("Failed to present image: {}", vk::to_string(presentResult));
-                throw std::runtime_error("Failed to present image");
-            }
-        }
-        catch (vk::OutOfDateKHRError &)
-        {
-            HandleSwapchainOutOfDate();
-        }
-        mCurrentFrame = (mCurrentFrame + 1) % mSwapChainResource->SwapChainImages.size();
     }
+    mIsRunning = false;
+    mExecutor.wait_for_all();
 }
 void Editor::UILayout()
 {

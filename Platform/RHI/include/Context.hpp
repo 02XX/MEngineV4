@@ -5,6 +5,7 @@
 
 namespace MEngine::Platform
 {
+
 struct ContextConfig
 {
     std::vector<const char *> InstanceRequiredExtensions;

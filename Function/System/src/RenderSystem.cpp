@@ -1,6 +1,8 @@
 #include "RenderSystem.hpp"
 #include "Logger.hpp"
 #include "RenderResource.hpp"
+#include <vector>
+#include <vulkan/vulkan_enums.hpp>
 
 namespace MEngine::Function
 {
@@ -25,6 +27,27 @@ void RenderSystem::Init()
     {
         mFrameResources[i] = std::make_unique<FrameResource>(vk::Extent3D{800, 600, 1});
         mFrameResources[i]->InitResource(mContext);
+        vk::ImageMemoryBarrier2 colorAttachmentBarrier{};
+        colorAttachmentBarrier.setImage(mFrameResources[i]->ColorTexture->GetImage())
+            .setOldLayout(vk::ImageLayout::eUndefined)
+            .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
+            .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
+            .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+            .setSrcAccessMask(vk::AccessFlagBits2::eNone)
+            .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+        std::vector<vk::ImageMemoryBarrier2> barriers = {colorAttachmentBarrier};
+        auto commandBuffer = mFrameResources[i]->GraphicsCommandBuffer;
+        commandBuffer.begin(vk::CommandBufferBeginInfo{});
+        commandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(barriers));
+        commandBuffer.end();
+        vk::SubmitInfo2 submitInfo{};
+        std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
+            vk::CommandBufferSubmitInfo().setCommandBuffer(commandBuffer),
+        };
+        submitInfo.setCommandBufferInfos(commandBufferInfos);
+        mContext->GraphicsQueue.submit2(submitInfo, {});
+        mContext->Device->waitIdle();
     }
 }
 void RenderSystem::Update(double deltaTime)
@@ -35,8 +58,6 @@ void RenderSystem::Update(double deltaTime)
     RenderGBuffer();
     RenderLighting();
     End();
-    Submit();
-    mCurrentFrameBufferIndex = (mCurrentFrameBufferIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 void RenderSystem::Shutdown()
 {
@@ -200,23 +221,37 @@ void RenderSystem::End()
     auto currentFrameResource = mFrameResources[mCurrentFrameBufferIndex].get();
     auto currentGraphicCommandBuffer = currentFrameResource->GraphicsCommandBuffer;
     currentGraphicCommandBuffer.end();
-    vk::SubmitInfo submitinfo;
-    std::vector<vk::PipelineStageFlags> waitStages = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
-    submitinfo.setCommandBuffers(currentGraphicCommandBuffer)
-        .setSignalSemaphores(currentFrameResource->RenderFinishedSemaphore.get())
-        .setWaitSemaphores(currentFrameResource->ImageAvailableSemaphore.get())
-        .setWaitDstStageMask(waitStages);
-    mSubmitQueue.Push([submitinfo, currentFrameResource](vk::Queue queue) {
-        queue.submit(submitinfo, currentFrameResource->InFlightFence.get());
-    });
+    vk::SubmitInfo2 submitinfo;
+    std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
+        vk::CommandBufferSubmitInfo().setCommandBuffer(currentGraphicCommandBuffer),
+    };
+    std::vector<vk::SemaphoreSubmitInfo> signalSemaphoreInfos = {
+        vk::SemaphoreSubmitInfo()
+            .setSemaphore(currentFrameResource->RenderFinishedSemaphore.get())
+            .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput),
+    };
+    std::vector<vk::SemaphoreSubmitInfo> waitSemaphoreInfos = {
+        vk::SemaphoreSubmitInfo()
+            .setSemaphore(currentFrameResource->ImageAvailableSemaphore.get())
+            .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput),
+    };
+    submitinfo.setCommandBufferInfos(commandBufferInfos)
+        .setSignalSemaphoreInfos(signalSemaphoreInfos)
+        .setWaitSemaphoreInfos(waitSemaphoreInfos);
+
+    PendingSubmissions.Push(submitinfo);
 }
 void RenderSystem::Submit()
 {
     auto graphicsQueue = mContext->GraphicsQueue;
-    std::function<void(vk::Queue)> item;
-    while (mSubmitQueue.TryPop(item))
+    vk::SubmitInfo2 item;
+    std::vector<vk::SubmitInfo2> submissions;
+    while (PendingSubmissions.TryPop(item))
     {
-        item(graphicsQueue);
+        submissions.push_back(item);
+        LogInfo("Submitted a command buffer to graphics queue");
     }
+    graphicsQueue.submit2(submissions, mFrameResources[mCurrentFrameBufferIndex]->InFlightFence.get());
+    mCurrentFrameBufferIndex = (mCurrentFrameBufferIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 } // namespace MEngine::Function

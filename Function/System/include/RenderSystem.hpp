@@ -11,11 +11,12 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <vulkan/vulkan_handles.hpp>
 inline constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 using namespace MEngine::Resource;
 namespace MEngine::Function
 {
-
+inline ConcurrentQueue<vk::SubmitInfo2> PendingSubmissions{};
 class RenderSystem : public System
 {
   private:
@@ -25,7 +26,6 @@ class RenderSystem : public System
     std::unordered_map<std::string, std::vector<Entity>> mRenderQueues{};
     std::array<std::unique_ptr<FrameResource>, MAX_FRAMES_IN_FLIGHT> mFrameResources{};
     uint32_t mCurrentFrameBufferIndex{0};
-    ConcurrentQueue<std::function<void(vk::Queue)>> mSubmitQueue{};
 
   public:
     RenderSystem(std::shared_ptr<Context> context);
@@ -33,10 +33,11 @@ class RenderSystem : public System
     void Init() override;
     void Update(double deltaTime) override;
     void Shutdown() override;
-    inline FrameResource *GetCurrentFrameResource() const
+    inline FrameResource *GetFrameResource(uint32_t index) const
     {
-        return mFrameResources[mCurrentFrameBufferIndex].get();
+        return mFrameResources[index].get();
     }
+    void Submit();
 
   private:
     // void PrepareGlobalResources();
@@ -46,6 +47,5 @@ class RenderSystem : public System
     void RenderGBuffer();
     void RenderLighting();
     void End();
-    void Submit();
 };
 } // namespace MEngine::Function

@@ -5,17 +5,19 @@
         "glfw3",
         "glm",
         "gtest",
+        {
+            "name": "imgui",
+            "features": [
+                "glfw-binding",
+                "vulkan-binding",
+                "docking-experimental"
+            ]
+        },
         "nlohmann-json",
         "shaderc",
         "spdlog",
         "stb",
         "vulkan-memory-allocator",
-        {
-            "name": "hello-imgui",
-            "features": [
-                "glfw-binding",
-                "experimental-vulkan-binding"
-            ]
-        }
+        "taskflow"
     ]
 }
