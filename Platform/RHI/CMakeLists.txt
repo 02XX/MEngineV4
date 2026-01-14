@@ -12,3 +12,19 @@ ${CMAKE_CURRENT_SOURCE_DIR}/include/RenderResource
 )
 target_link_libraries(RHI PUBLIC concurrentqueue::concurrentqueue Vulkan::Vulkan GPUOpen::VulkanMemoryAllocator)
 
+if(WIN32)
+    # Windows 平台
+    target_compile_definitions(RHI PUBLIC VK_USE_PLATFORM_WIN32_KHR)
+elseif(APPLE)
+    # macOS 和 iOS 平台 (MoltenVK)
+    target_compile_definitions(RHI PUBLIC VK_USE_PLATFORM_METAL_EXT)
+elseif(ANDROID)
+    # Android 平台
+    target_compile_definitions(RHI PUBLIC VK_USE_PLATFORM_ANDROID_KHR)
+elseif(UNIX AND NOT APPLE)
+    # Linux 平台：建议同时开启 XCB 和 Wayland
+    target_compile_definitions(RHI PUBLIC VK_USE_PLATFORM_XCB_KHR)
+    target_compile_definitions(RHI PUBLIC VK_USE_PLATFORM_WAYLAND_KHR)
+    # 如果你还需要支持老旧的 X11 (Xlib)
+    target_compile_definitions(RHI PUBLIC VK_USE_PLATFORM_XLIB_KHR)
+endif()

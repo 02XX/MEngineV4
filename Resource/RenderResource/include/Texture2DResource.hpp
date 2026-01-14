@@ -1,24 +1,29 @@
 
 #pragma once
-#include "RHISampler.hpp"
-#include "RHITexture.hpp"
 #include "TextureResource.hpp"
-#include <cstdint>
 
 using namespace MEngine::Platform;
 namespace MEngine::Resource
 {
-class Texture2D;
+struct Texture2DMipMap
+{
+    std::vector<uint8_t> Data{};
+    uint32_t SizeX{0};
+    uint32_t SizeY{0};
+    uint32_t SizeZ{0};
+};
 class Texture2DResource : public TextureResource
 {
+
   protected:
-    Texture2D *mTexture{nullptr};
+    std::vector<Texture2DMipMap> mTextureData{};
 
   public:
-    Texture2DResource(Texture2D *texture) : TextureResource(), mTexture(texture)
-    {
-    }
-    virtual void InitRHI() override;
-    virtual void ReleaseRHI() override;
+    Texture2DResource(vk::ImageCreateInfo imageCreateInfo, vk::SamplerCreateInfo samplerCreateInfo,
+                      std::vector<Texture2DMipMap> textureData)
+        : TextureResource(imageCreateInfo, samplerCreateInfo), mTextureData(textureData) {};
+    ~Texture2DResource() override = default;
+    virtual void InitRHI(std::shared_ptr<Context> context) override;
+    virtual void ReleaseRHI(std::shared_ptr<Context> context) override;
 };
 } // namespace MEngine::Resource

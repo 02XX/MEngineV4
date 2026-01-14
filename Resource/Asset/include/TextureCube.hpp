@@ -8,8 +8,6 @@ class TextureCube : public Texture
   protected:
     TextureCube() : Texture()
     {
-        mType = vk::ImageType::e2D;
-        mArrayLevel = 6;
     }
 
   public:

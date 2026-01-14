@@ -1,114 +1,132 @@
-#include "SwapChainResource.hpp"
+#include "SwapchainResource.hpp"
 #include "Logger.hpp"
-#include "RHIContext.hpp"
-#include "RHITexture.hpp"
-#include "RHITextureView.hpp"
+
 using namespace MEngine::Platform;
 namespace MEngine::Resource
 {
-void SwapChainResource::InitRHI()
+void SwapChainResource::InitRHI(std::shared_ptr<Context> context)
 {
-    auto &rhiContext = RHIContext::Instance();
-    auto surfaceInfo = rhiContext.GetSurfaceInfo();
-    RHISwapChainDesc swapChainDesc{};
-    swapChainDesc.setOldSwapchain(nullptr)
-        .setSurface(rhiContext.GetSurface())
-        .setMinImageCount(surfaceInfo.imageCount)
-        .setImageFormat(surfaceInfo.format.format)
-        .setImageColorSpace(surfaceInfo.format.colorSpace)
-        .setImageExtent(surfaceInfo.extent)
-        .setImageArrayLayers(surfaceInfo.imageArrayLayer)
+    auto device = context->Device.get();
+    QuerySurfaceSupport(context);
+    vk::SwapchainCreateInfoKHR swapChainCreateInfo{};
+    swapChainCreateInfo.setOldSwapchain(nullptr)
+        .setSurface(Surface)
+        .setMinImageCount(SurfaceInfo.Capabilities.minImageCount)
+        .setImageFormat(SurfaceInfo.SurfaceFormat.format)
+        .setImageColorSpace(SurfaceInfo.SurfaceFormat.colorSpace)
+        .setImageExtent(SurfaceInfo.Capabilities.currentExtent)
+        .setImageArrayLayers(1)
         .setImageUsage(vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst |
                        vk::ImageUsageFlagBits::eTransferSrc)
         .setPreTransform(vk::SurfaceTransformFlagBitsKHR::eIdentity)
         .setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
-        .setPresentMode(surfaceInfo.presentMode)
+        .setPresentMode(SurfaceInfo.PresentMode)
         .setClipped(vk::True);
-    mRHISwapChainHandler = RHIHandler<RHISwapChain>(new RHISwapChain(swapChainDesc));
-    auto swapChainImages = mRHISwapChainHandler->GetSwapChainImages();
-    mSwapChainTextures.resize(swapChainImages.size());
-    mSwapChainTextureViews.resize(swapChainImages.size());
-    vk::ImageSubresourceRange subResourceRange{};
-    subResourceRange.setAspectMask(vk::ImageAspectFlagBits::eColor)
-        .setBaseArrayLayer(0)
-        .setLevelCount(1)
-        .setLayerCount(1)
-        .setBaseMipLevel(0);
-    for (size_t i = 0; i < swapChainImages.size(); ++i)
+    SwapChain = device.createSwapchainKHR(swapChainCreateInfo);
+    SwapChainImages = device.getSwapchainImagesKHR(SwapChain);
+    SwapChainImageViews.resize(SwapChainImages.size());
+    for (size_t i = 0; i < SwapChainImages.size(); ++i)
     {
-        mSwapChainTextures[i] = RHIHandler<RHITexture>(new RHITexture(swapChainImages[i], subResourceRange));
-        mSwapChainTextures[i]->TransitionImageLayout(vk::ImageLayout::ePresentSrcKHR);
-        RHITextureViewDesc viewDesc{};
-        viewDesc.image = mSwapChainTextures[i]->GetImage();
-        viewDesc.viewType = vk::ImageViewType::e2D;
-        viewDesc.format = surfaceInfo.format.format;
-        viewDesc.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-        viewDesc.subresourceRange.baseMipLevel = 0;
-        viewDesc.subresourceRange.levelCount = 1;
-        viewDesc.subresourceRange.baseArrayLayer = 0;
-        viewDesc.subresourceRange.layerCount = 1;
-        mSwapChainTextureViews[i] = RHIHandler<RHITextureView>(new RHITextureView(viewDesc));
+        vk::ImageViewCreateInfo imageViewCreateInfo{};
+        imageViewCreateInfo.setImage(SwapChainImages[i])
+            .setViewType(vk::ImageViewType::e2D)
+            .setFormat(SurfaceInfo.SurfaceFormat.format)
+            .setSubresourceRange(vk::ImageSubresourceRange{}
+                                     .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                                     .setBaseMipLevel(0)
+                                     .setLevelCount(1)
+                                     .setBaseArrayLayer(0)
+                                     .setLayerCount(1));
+        SwapChainImageViews[i] = device.createImageView(imageViewCreateInfo);
     }
 }
-void SwapChainResource::ReleaseRHI()
+void SwapChainResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
-    if (mRHISwapChainHandler)
-    {
-        mRHISwapChainHandler.SafeRelease();
-    }
-    for (auto &textureView : mSwapChainTextureViews)
-    {
-        if (textureView)
+    PendingDeletions.Push([this, context]() {
+        auto device = context->Device.get();
+        for (auto &imageView : SwapChainImageViews)
         {
-            textureView.SafeRelease();
+            device.destroyImageView(imageView);
         }
-    }
-    mSwapChainTextureViews.clear();
-    for (auto &texture : mSwapChainTextures)
-    {
-        if (texture)
-        {
-            texture.SafeRelease();
-        }
-    }
-    mSwapChainTextures.clear();
+        device.destroySwapchainKHR(SwapChain);
+    });
 }
-void SwapChainResource::Present(FrameResource &frameResource)
+void SwapChainResource::CreateSurface(std::shared_ptr<Context> context)
 {
-    auto &rhiContext = RHIContext::Instance();
-    uint32_t imageIndex = 0;
-    auto result = rhiContext.GetDevice().acquireNextImageKHR(
-        mRHISwapChainHandler->GetSwapChain(), std::numeric_limits<uint64_t>::max(), nullptr, nullptr, &imageIndex);
-    if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+#ifdef VK_USE_PLATFORM_WIN32_KHR
+    // windows
+    vk::Win32SurfaceCreateInfoKHR createInfo{};
+    createInfo.setHinstance(HInstance).setHwnd(Hwnd);
+    Surface = context->Instance.get().createWin32SurfaceKHR(createInfo);
+#elifdef VK_USE_PLATFORM_METAL_EXT
+    // macos
+    vk::MacOSSurfaceCreateInfoMVK createInfo{};
+#elifdef VK_USE_PLATFORM_ANDROID_KHR
+    // android
+    vk::AndroidSurfaceCreateInfoKHR createInfo{};
+#elifdef VK_USE_PLATFORM_XCB_KHR
+    // linux xcb
+    vk::XcbSurfaceCreateInfoKHR createInfo{};
+#elifdef VK_USE_PLATFORM_WAYLAND_KHR
+    // linux xlib
+    vk::WaylandSurfaceCreateInfoKHR createInfo{};
+#elifdef VK_USE_PLATFORM_XLIB_KHR
+    // linux xlib
+    vk::XlibSurfaceCreateInfoKHR createInfo{};
+#endif
+}
+void SwapChainResource::QuerySurfaceSupport(std::shared_ptr<Context> context)
+{
+    auto physicalDevice = context->PhysicalDevice;
+    auto device = context->Device.get();
+    auto formats = physicalDevice.getSurfaceFormatsKHR(context->Surface.get());
+    auto presentModes = physicalDevice.getSurfacePresentModesKHR(context->Surface.get());
+    SurfaceInfo.Capabilities = physicalDevice.getSurfaceCapabilitiesKHR(context->Surface.get());
+    // surface format
+    SurfaceInfo.SurfaceFormat = formats[0];
+    bool foundFormat = false;
+    for (const auto &candidateFormat : SurfaceInfo.candidatesFormats)
     {
-        LogError("Failed to acquire swap chain image!");
-        return;
+        for (const auto &availableFormat : formats)
+        {
+            if (availableFormat.format == candidateFormat.format &&
+                availableFormat.colorSpace == candidateFormat.colorSpace)
+            {
+                SurfaceInfo.SurfaceFormat = availableFormat;
+                foundFormat = true;
+                break;
+            }
+        }
+        if (foundFormat)
+            break;
     }
-    auto commandBuffer = frameResource.CommandBuffer.get();
-    commandBuffer.begin(vk::CommandBufferBeginInfo{});
-    auto swapChainImage = mSwapChainTextures[imageIndex];
-    swapChainImage->TransitionImageLayout(vk::ImageLayout::eTransferDstOptimal);
-    auto colorAttachment = frameResource.ColorTextures->GetResourceAs<TextureRenderTarget2DResource>()->GetTexture();
-    colorAttachment->CopyTo(swapChainImage.Get());
-    swapChainImage->TransitionImageLayout(vk::ImageLayout::ePresentSrcKHR);
-    commandBuffer.end();
-    vk::SubmitInfo submitinfo;
-    std::vector<vk::PipelineStageFlags> waitStages = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
-    submitinfo.setCommandBuffers(commandBuffer)
-        .setSignalSemaphores(frameResource.RenderFinishedSemaphore.get())
-        .setWaitSemaphores(frameResource.ImageAvailableSemaphore.get())
-        .setWaitDstStageMask(waitStages);
-    rhiContext.GetTransferQueue().submit({submitinfo}, nullptr);
-
-    vk::PresentInfoKHR presentInfo{};
-    presentInfo.setSwapchains(mRHISwapChainHandler->GetSwapChain())
-        .setImageIndices(imageIndex)
-        .setWaitSemaphores({frameResource.RenderFinishedSemaphore.get()});
-    result = rhiContext.GetPresentQueue().presentKHR({presentInfo});
-    if (result != vk::Result::eSuccess)
+    // present mode
+    SurfaceInfo.PresentMode = presentModes[0];
+    bool foundPresentMode = false;
+    for (const auto &candidatePresentMode : SurfaceInfo.candidatePresentModes)
     {
-        LogError("Failed to present swap chain image!");
-        return;
+        for (const auto &availablePresentMode : presentModes)
+        {
+            if (availablePresentMode == candidatePresentMode)
+            {
+                SurfaceInfo.PresentMode = availablePresentMode;
+                foundPresentMode = true;
+                break;
+            }
+        }
+        if (foundPresentMode)
+            break;
     }
+    // Log info
+    LogInfo("Selected Surface Format: Format={}, ColorSpace={}", vk::to_string(SurfaceInfo.SurfaceFormat.format),
+            vk::to_string(SurfaceInfo.SurfaceFormat.colorSpace));
+    LogInfo("Selected Present Mode: {}", vk::to_string(SurfaceInfo.PresentMode));
+    LogInfo("Surface Capabilities: minImageCount={}, maxImageCount={}, currentExtent=({}, {}), minImageExtent=({}, "
+            "{}), maxImageExtent=({}, {}), maxImageArrayLayers={}",
+            SurfaceInfo.Capabilities.minImageCount, SurfaceInfo.Capabilities.maxImageCount,
+            SurfaceInfo.Capabilities.currentExtent.width, SurfaceInfo.Capabilities.currentExtent.height,
+            SurfaceInfo.Capabilities.minImageExtent.width, SurfaceInfo.Capabilities.minImageExtent.height,
+            SurfaceInfo.Capabilities.maxImageExtent.width, SurfaceInfo.Capabilities.maxImageExtent.height,
+            SurfaceInfo.Capabilities.maxImageArrayLayers);
 }
 } // namespace MEngine::Resource

@@ -3,6 +3,13 @@
 
 namespace MEngine::Resource
 {
+TextureResource::TextureResource(vk::ImageCreateInfo imageCreateInfo, vk::SamplerCreateInfo samplerCreateInfo)
+    : RenderResource()
+{
+}
+TextureResource::~TextureResource()
+{
+}
 
 std::pair<uint32_t, uint32_t> TextureResource::GetPixelSize(vk::Format format) const
 {

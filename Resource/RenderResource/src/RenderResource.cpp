@@ -31,19 +31,19 @@ RenderResource &RenderResource::operator=(RenderResource &&other) noexcept
 RenderResource::~RenderResource()
 {
 }
-void RenderResource::ReleaseResource()
+void RenderResource::ReleaseResource(std::shared_ptr<Context> context)
 {
     if (mState == State::Initialized)
     {
-        ReleaseRHI();
+        ReleaseRHI(context);
         mState = State::Released;
     }
 }
-void RenderResource::InitResource()
+void RenderResource::InitResource(std::shared_ptr<Context> context)
 {
     if (mState != State::Initialized)
     {
-        InitRHI();
+        InitRHI(context);
         mState = State::Initialized;
     }
 }

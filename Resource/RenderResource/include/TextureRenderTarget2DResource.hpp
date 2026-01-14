@@ -1,40 +1,15 @@
 #pragma once
-
-#include "RHIHandler.hpp"
-#include "RHISampler.hpp"
-#include "RHISemaphore.hpp"
-#include "RHITexture.hpp"
-#include "RHITextureView.hpp"
-#include "RenderResource.hpp"
-using namespace MEngine::Platform;
+#include "TextureResource.hpp"
 namespace MEngine::Resource
 {
 class TextureRenderTarget2D;
-class TextureRenderTarget2DResource : public RenderResource
+class TextureRenderTarget2DResource : public TextureResource
 {
-  private:
-    RHIHandler<RHITexture> mTexture{};
-    RHIHandler<RHISampler> mSampler{};
-    RHIHandler<RHITextureView> mTextureView{};
-    TextureRenderTarget2D *mTextureRenderTarget2D{};
 
   public:
-    TextureRenderTarget2DResource(TextureRenderTarget2D *texture) : RenderResource(), mTextureRenderTarget2D(texture)
-    {
-    }
-    virtual void InitRHI() override;
-    virtual void ReleaseRHI() override;
-    inline RHIHandler<RHITexture> GetTexture() const
-    {
-        return mTexture;
-    }
-    inline RHIHandler<RHISampler> GetSampler() const
-    {
-        return mSampler;
-    }
-    inline RHIHandler<RHITextureView> GetTextureView() const
-    {
-        return mTextureView;
-    }
+    TextureRenderTarget2DResource(vk::ImageCreateInfo imageCreateInfo, vk::SamplerCreateInfo samplerCreateInfo)
+        : TextureResource(imageCreateInfo, samplerCreateInfo) {};
+    virtual void InitRHI(std::shared_ptr<Context> context) override;
+    virtual void ReleaseRHI(std::shared_ptr<Context> context) override;
 };
 } // namespace MEngine::Resource

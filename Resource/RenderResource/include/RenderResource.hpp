@@ -1,6 +1,15 @@
 #pragma once
+#include "ConcurrentQueue.hpp"
+#include "Context.hpp"
+#include <functional>
+#include <memory>
+
+using namespace MEngine::Platform;
+using namespace MEngine::Core;
 namespace MEngine::Resource
 {
+inline ConcurrentQueue<std::function<void()>> PendingDeletions{};
+
 class RenderResource
 {
   public:
@@ -17,16 +26,16 @@ class RenderResource
         Initialized,
         Released
     };
-    void InitResource();
-    void ReleaseResource();
+    void InitResource(std::shared_ptr<Context> context);
+    void ReleaseResource(std::shared_ptr<Context> context);
     bool IsInitialized() const
     {
         return mState == State::Initialized;
     }
 
   protected:
-    virtual void InitRHI() = 0;
-    virtual void ReleaseRHI() = 0;
+    virtual void InitRHI(std::shared_ptr<Context> context) = 0;
+    virtual void ReleaseRHI(std::shared_ptr<Context> context) = 0;
 
   private:
     State mState = State::Uninitialized;

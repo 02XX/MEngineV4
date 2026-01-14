@@ -8,8 +8,6 @@ class TextureRenderTextureCube : public TextureRenderTarget
   protected:
     TextureRenderTextureCube() : TextureRenderTarget()
     {
-        mType = vk::ImageType::e2D;
-        mArrayLevel = 6;
     }
 
   public:

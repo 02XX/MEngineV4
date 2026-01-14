@@ -1,41 +1,39 @@
 #pragma once
-#include "RHIHandler.hpp"
-#include "RHISampler.hpp"
-#include "RHITexture.hpp"
-#include "RHITextureView.hpp"
 #include "RenderResource.hpp"
-#include "Texture.hpp"
 
-using namespace MEngine::Platform;
 namespace MEngine::Resource
 {
 class TextureResource : public RenderResource
 {
   protected:
-    RHIHandler<RHITexture> mRHITextureHandler;
-    RHIHandler<RHISampler> mRHISamplerHandler;
-    RHIHandler<RHITextureView> mRHITextureViewHandler;
+    vk::ImageCreateInfo mImageCreateInfo{};
+    vk::SamplerCreateInfo mSamplerCreateInfo{};
+
+    vk::Image mImage{};
+    vk::ImageView mImageView{};
+    vk::Sampler mSampler{};
+
+    // VMA
+    VmaAllocation mImageAllocation{};
+    VmaAllocationInfo mImageAllocationInfo{};
 
   public:
-    TextureResource() : RenderResource()
+    TextureResource(vk::ImageCreateInfo imageCreateInfo, vk::SamplerCreateInfo samplerCreateInfo);
+    ~TextureResource() override;
+
+    inline const vk::Image GetImage() const
     {
+        return mImage;
     }
-    TextureResource(RHIHandler<RHITexture> texture, RHIHandler<RHITextureView> textureView)
-        : RenderResource(), mRHITextureHandler(texture), mRHITextureViewHandler(textureView)
+    inline const vk::Sampler GetSampler() const
     {
+        return mSampler;
     }
-    inline RHIHandler<RHITexture> GetTexture() const
+    const vk::ImageView GetImageView() const
     {
-        return mRHITextureHandler;
+        return mImageView;
     }
-    inline RHIHandler<RHISampler> GetSampler() const
-    {
-        return mRHISamplerHandler;
-    }
-    inline RHIHandler<RHITextureView> GetTextureView() const
-    {
-        return mRHITextureViewHandler;
-    }
+
     std::pair<uint32_t, uint32_t> GetPixelSize(vk::Format format) const;
 };
 } // namespace MEngine::Resource

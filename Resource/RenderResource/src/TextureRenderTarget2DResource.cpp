@@ -1,83 +1,51 @@
 #include "TextureRenderTarget2DResource.hpp"
-#include "RHISampler.hpp"
-#include "RHITexture.hpp"
-#include "TextureRenderTarget2D.hpp"
+#include "Logger.hpp"
 namespace MEngine::Resource
 {
-void TextureRenderTarget2DResource::InitRHI()
+void TextureRenderTarget2DResource::InitRHI(std::shared_ptr<Context> context)
 {
-    RHITextureDesc desc{};
-    desc.imageType = vk::ImageType::e2D;
-    desc.extent = mTextureRenderTarget2D->mTextureSettings.extent;
-    desc.mipLevels = mTextureRenderTarget2D->mTextureSettings.mipLevels;
-    desc.format = mTextureRenderTarget2D->mTextureSettings.format;
-    desc.arrayLayers = 1;
-    desc.samples = mTextureRenderTarget2D->mTextureSettings.samples;
-
-    desc.tiling = mTextureRenderTarget2D->mTextureSettings.tiling;
-    desc.flags = mTextureRenderTarget2D->mTextureSettings.flags;
-    switch (desc.format)
+    mImageCreateInfo.imageType = vk::ImageType::e2D;
+    mImageCreateInfo.arrayLayers = 1;
+    mImageCreateInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled |
+                             vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
+    VmaAllocationCreateInfo imageAllocationCreateInfo{};
+    imageAllocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    imageAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    auto result = vmaCreateImage(context->VmaAllocator, reinterpret_cast<VkImageCreateInfo *>(&mImageCreateInfo),
+                                 &imageAllocationCreateInfo, reinterpret_cast<VkImage *>(&mImage), &mImageAllocation,
+                                 reinterpret_cast<VmaAllocationInfo *>(&mImageAllocationInfo));
+    if (result != VK_SUCCESS)
     {
-    case vk::Format::eD16Unorm:
-    case vk::Format::eX8D24UnormPack32:
-    case vk::Format::eD32Sfloat:
-    case vk::Format::eS8Uint:
-    case vk::Format::eD16UnormS8Uint:
-    case vk::Format::eD24UnormS8Uint:
-    case vk::Format::eD32SfloatS8Uint:
-        desc.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled |
-                     vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
-        break;
-    default:
-        desc.usage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled |
-                     vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
-        break;
+        LogError("Failed to create image with VMA");
+        return;
     }
-    RHISamplerDesc samplerDesc{};
-    samplerDesc.magFilter = mTextureRenderTarget2D->mSamplerSettings.magFilter;
-    samplerDesc.minFilter = mTextureRenderTarget2D->mSamplerSettings.minFilter;
-    samplerDesc.mipmapMode = mTextureRenderTarget2D->mSamplerSettings.mipmapMode;
-    samplerDesc.addressModeU = mTextureRenderTarget2D->mSamplerSettings.addressModeU;
-    samplerDesc.addressModeV = mTextureRenderTarget2D->mSamplerSettings.addressModeV;
-    samplerDesc.addressModeW = mTextureRenderTarget2D->mSamplerSettings.addressModeW;
-    mTexture = RHIHandler<RHITexture>(new RHITexture(desc));
-    switch (desc.format)
+    mSampler = context->Device->createSampler(mSamplerCreateInfo);
+    vk::ImageViewCreateInfo imageViewCreateInfo{};
+    imageViewCreateInfo.image = mImage;
+    imageViewCreateInfo.viewType = vk::ImageViewType::e2D;
+    imageViewCreateInfo.format = mImageCreateInfo.format;
+    if (mImageCreateInfo.usage & vk::ImageUsageFlagBits::eDepthStencilAttachment)
     {
-    case vk::Format::eD16Unorm:
-    case vk::Format::eX8D24UnormPack32:
-    case vk::Format::eD32Sfloat:
-    case vk::Format::eS8Uint:
-    case vk::Format::eD16UnormS8Uint:
-    case vk::Format::eD24UnormS8Uint:
-    case vk::Format::eD32SfloatS8Uint:
-        mTexture->TransitionImageLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
-        break;
-    default:
-        mTexture->TransitionImageLayout(vk::ImageLayout::eColorAttachmentOptimal);
-        break;
-    }
-    RHITextureViewDesc viewDesc{};
-    viewDesc.image = mTexture->GetImage();
-    viewDesc.viewType = vk::ImageViewType::e2D;
-    viewDesc.format = mTexture->GetTextureDesc().format;
-    if (mTexture->GetTextureDesc().usage & vk::ImageUsageFlagBits::eDepthStencilAttachment)
-    {
-        viewDesc.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+        imageViewCreateInfo.subresourceRange.aspectMask =
+            vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
     }
     else
     {
-        viewDesc.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+        imageViewCreateInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
     }
-    viewDesc.subresourceRange.baseMipLevel = 0;
-    viewDesc.subresourceRange.levelCount = mTexture->GetTextureDesc().mipLevels;
-    viewDesc.subresourceRange.baseArrayLayer = 0;
-    viewDesc.subresourceRange.layerCount = 1;
-    mSampler = RHIHandler<RHISampler>(new RHISampler(samplerDesc));
-    mTextureView = RHIHandler<RHITextureView>(new RHITextureView(viewDesc));
+    imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+    imageViewCreateInfo.subresourceRange.levelCount = mImageCreateInfo.mipLevels;
+    imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    imageViewCreateInfo.subresourceRange.layerCount = 1;
+    mImageView = context->Device->createImageView(imageViewCreateInfo);
 }
-void TextureRenderTarget2DResource::ReleaseRHI()
+void TextureRenderTarget2DResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
-    mTexture.SafeRelease();
-    mSampler.SafeRelease();
+    PendingDeletions.Push([this, context]() {
+        auto device = context->Device.get();
+        device.destroySampler(mSampler);
+        device.destroyImageView(mImageView);
+        vmaDestroyImage(context->VmaAllocator, mImage, mImageAllocation);
+    });
 }
 } // namespace MEngine::Resource
