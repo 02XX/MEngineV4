@@ -41,7 +41,8 @@ class SwapChainResource : public RenderResource
         : HInstance(hInstance), Hwnd(hwnd) {
 
           };
-    ~SwapChainResource() override;
+    SwapChainResource(vk::SurfaceKHR surface) : Surface(surface) {};
+    ~SwapChainResource() override = default;
 
   protected:
     void CreateSurface(std::shared_ptr<Context> context);

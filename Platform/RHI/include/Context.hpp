@@ -26,7 +26,6 @@ class Context
         std::optional<uint32_t> transferFamilyCount{};
     } QueueFamilyIndicates;
     vk::UniqueDevice Device{};
-    vk::UniqueSurfaceKHR Surface{};
     vk::Queue GraphicsQueue{};
     vk::Queue TransferQueue{};
     uint32_t Version = 0;

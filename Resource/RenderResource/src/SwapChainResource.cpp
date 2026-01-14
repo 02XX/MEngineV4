@@ -1,4 +1,4 @@
-#include "SwapchainResource.hpp"
+#include "SwapChainResource.hpp"
 #include "Logger.hpp"
 
 using namespace MEngine::Platform;
@@ -77,9 +77,9 @@ void SwapChainResource::QuerySurfaceSupport(std::shared_ptr<Context> context)
 {
     auto physicalDevice = context->PhysicalDevice;
     auto device = context->Device.get();
-    auto formats = physicalDevice.getSurfaceFormatsKHR(context->Surface.get());
-    auto presentModes = physicalDevice.getSurfacePresentModesKHR(context->Surface.get());
-    SurfaceInfo.Capabilities = physicalDevice.getSurfaceCapabilitiesKHR(context->Surface.get());
+    auto formats = physicalDevice.getSurfaceFormatsKHR(Surface);
+    auto presentModes = physicalDevice.getSurfacePresentModesKHR(Surface);
+    SurfaceInfo.Capabilities = physicalDevice.getSurfaceCapabilitiesKHR(Surface);
     // surface format
     SurfaceInfo.SurfaceFormat = formats[0];
     bool foundFormat = false;
