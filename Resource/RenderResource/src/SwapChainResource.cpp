@@ -48,7 +48,6 @@ void SwapChainResource::ReleaseRHI(std::shared_ptr<Context> context)
         device.destroyImageView(imageView);
     }
     device.destroySwapchainKHR(SwapChain);
-    context->Instance->destroySurfaceKHR(Surface);
 }
 void SwapChainResource::CreateSurface(std::shared_ptr<Context> context)
 {

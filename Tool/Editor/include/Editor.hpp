@@ -2,6 +2,7 @@
 #include "Context.hpp"
 #include "RenderSystem.hpp"
 #include "SwapChainResource.hpp"
+#include "vulkan/vulkan.hpp"
 #include <GLFW/glfw3.h>
 #include <array>
 #include <imgui.h>
@@ -36,6 +37,7 @@ class Editor
     // ImGui
     ImGuiID mDockSpaceID{};
     std::unique_ptr<SwapChainResource> mSwapChainResource{};
+    vk::SurfaceKHR mSurface{};
     std::vector<vk::UniqueSemaphore> mImageAvailableSemaphores{};
     std::vector<vk::UniqueSemaphore> mRenderFinishedSemaphores{};
     std::vector<vk::UniqueFence> mInFlightFences{};
@@ -65,5 +67,8 @@ class Editor
     void AssetBrowser();
     void Console();
     void Inspector();
+
+  private:
+    void HandleSwapchainOutOfDate();
 };
 } // namespace MEngine::Tool

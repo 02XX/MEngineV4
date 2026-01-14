@@ -36,6 +36,7 @@ Editor::~Editor()
     {
         item(mContext);
     }
+    mContext->Instance.get().destroySurfaceKHR(mSurface);
     LogInfo("Goodbye!");
 }
 void Editor::InitWindow()
@@ -94,10 +95,8 @@ void Editor::InitVulkan()
     config.DeviceRequiredExtensions = {"VK_KHR_swapchain"};
     mContext = std::make_shared<Context>(config);
 
-    VkSurfaceKHR surface;
-    glfwCreateWindowSurface(mContext->Instance.get(), mWindow, nullptr, &surface);
-
-    mSwapChainResource = std::make_unique<SwapChainResource>(surface);
+    glfwCreateWindowSurface(mContext->Instance.get(), mWindow, nullptr, reinterpret_cast<VkSurfaceKHR *>(&mSurface));
+    mSwapChainResource = std::make_unique<SwapChainResource>(mSurface);
     mSwapChainResource->InitResource(mContext);
     auto imageCount = mSwapChainResource->SwapChainImages.size();
     mImageAvailableSemaphores.resize(imageCount);
@@ -227,7 +226,7 @@ void Editor::Run()
         auto nextImageResult = device.acquireNextImage2KHR(&acquireInfo, &imageIndex);
         if (nextImageResult == vk::Result::eErrorOutOfDateKHR)
         {
-            // HandleSwapchainOutOfDate();
+            HandleSwapchainOutOfDate();
             continue;
         }
 
@@ -314,7 +313,7 @@ void Editor::Run()
         }
         catch (vk::OutOfDateKHRError &)
         {
-            // HandleSwapchainOutOfDate();
+            HandleSwapchainOutOfDate();
         }
         mCurrentFrame = (mCurrentFrame + 1) % mSwapChainResource->SwapChainImages.size();
     }
@@ -392,5 +391,35 @@ void Editor::Console()
 }
 void Editor::Inspector()
 {
+}
+
+void Editor::HandleSwapchainOutOfDate()
+{
+    mContext->Device->waitIdle();
+    mSwapChainResource->ReleaseResource(mContext);
+    mSwapChainResource->InitResource(mContext);
+    auto imageCount = mSwapChainResource->SwapChainImages.size();
+    for (size_t i = 0; i < imageCount; i++)
+    {
+        vk::ImageMemoryBarrier2 barrier{};
+        barrier.setImage(mSwapChainResource->SwapChainImages[i])
+            .setOldLayout(vk::ImageLayout::eUndefined)
+            .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
+            .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
+            .setDstStageMask(vk::PipelineStageFlagBits2::eBottomOfPipe)
+            .setSrcAccessMask(vk::AccessFlagBits2::eNone)
+            .setDstAccessMask(vk::AccessFlagBits2::eNone)
+            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+        mGraphicCommandBuffers[i]->begin(vk::CommandBufferBeginInfo{});
+        mGraphicCommandBuffers[i]->pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(barrier));
+        mGraphicCommandBuffers[i]->end();
+        vk::SubmitInfo2 submitInfo{};
+        std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
+            vk::CommandBufferSubmitInfo().setCommandBuffer(mGraphicCommandBuffers[i].get()),
+        };
+        submitInfo.setCommandBufferInfos(commandBufferInfos);
+        mContext->GraphicsQueue.submit2(submitInfo, {});
+        mContext->Device->waitIdle();
+    }
 }
 } // namespace MEngine::Tool
