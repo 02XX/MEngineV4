@@ -4,70 +4,47 @@ namespace MEngine::Resource
 {
 RenderResource::RenderResource(const RenderResource &other)
 {
-    mIsInitialized = other.mIsInitialized;
     mState = other.mState;
 }
 RenderResource &RenderResource::operator=(const RenderResource &other)
 {
     if (this != &other)
     {
-        mIsInitialized = other.mIsInitialized;
         mState = other.mState;
     }
     return *this;
 }
 RenderResource::RenderResource(RenderResource &&other) noexcept
 {
-    mIsInitialized = other.mIsInitialized;
     mState = other.mState;
-    other.mIsInitialized = false;
-    other.mState = State::Deleted;
+    other.mState = State::Released;
 }
 RenderResource &RenderResource::operator=(RenderResource &&other) noexcept
 {
     if (this != &other)
     {
-        mIsInitialized = other.mIsInitialized;
         mState = other.mState;
-        other.mIsInitialized = false;
-        other.mState = State::Deleted;
+        other.mState = State::Released;
     }
     return *this;
 }
 RenderResource::~RenderResource()
 {
-    // if (mState != State::Deleted)
-    // {
-    //     ReleaseResource();
-    // }
 }
 void RenderResource::ReleaseResource()
 {
-    if (mIsInitialized)
+    if (mState == State::Initialized)
     {
         ReleaseRHI();
-        mIsInitialized = false;
-        mState = State::Deleted;
+        mState = State::Released;
     }
-    // else
-    // {
-    //     LogWarn("RenderResource::ReleaseResource called on uninitialized resource");
-    // }
 }
 void RenderResource::InitResource()
 {
-    if (!mIsInitialized)
+    if (mState != State::Initialized)
     {
         InitRHI();
-        mIsInitialized = true;
-    }
-}
-void RenderResource::UpdateRHI()
-{
-    if (mIsInitialized)
-    {
-        ReleaseRHI();
-        InitRHI();
+        mState = State::Initialized;
     }
 }
 } // namespace MEngine::Resource
