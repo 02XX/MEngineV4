@@ -1,4 +1,4 @@
-#include "RHIContext.hpp"
+#include "Context.hpp"
 #include <algorithm>
 #include <print>
 #include <set>
@@ -7,45 +7,23 @@
 
 namespace MEngine::Platform
 {
-RHIContext &RHIContext::Instance()
+Context::Context(const ContextConfig &config) : Config(config)
 {
-    static RHIContext instance;
-    return instance;
-}
-RHIContext::RHIContext()
-{
-}
-RHIContext::~RHIContext()
-{
-    Destroy();
-}
-void RHIContext::InitInstance(const RHIContextConfig &config)
-{
-    mConfig = config;
     CreateInstance();
     PickPhysicalDevice();
-}
-void RHIContext::InitContext()
-{
     QueryQueueFamilyIndicates();
     CreateLogicalDevice();
     GetQueues();
-    CreateCommandPools();
     CreateVMA();
-    CreateDescriptorPool();
-    if (Surface)
-    {
-        QuerySurfaceInfo();
-    }
 }
-void RHIContext::Destroy()
+Context::~Context()
 {
     if (VmaAllocator)
     {
         vmaDestroyAllocator(VmaAllocator);
     }
 }
-void RHIContext::CreateInstance()
+void Context::CreateInstance()
 {
     vk::InstanceCreateInfo instanceCreateInfo;
     vk::ApplicationInfo appInfo;
@@ -67,7 +45,7 @@ void RHIContext::CreateInstance()
     {
         std::println("Available Vulkan instance extension: {}", ext.extensionName.data());
     }
-    for (auto &ext : mConfig.InstanceRequiredExtensions)
+    for (auto &ext : Config.InstanceRequiredExtensions)
     {
         if (std::ranges::find_if(availableExtensions, [&ext](const vk::ExtensionProperties &availableExt) {
                 return std::string(availableExt.extensionName) == ext;
@@ -79,31 +57,31 @@ void RHIContext::CreateInstance()
     }
     instanceCreateInfo.setFlags({})
         .setPApplicationInfo(&appInfo)
-        .setPEnabledLayerNames(mConfig.InstanceRequiredLayers)
-        .setPEnabledExtensionNames(mConfig.InstanceRequiredExtensions);
-    mInstance = vk::createInstanceUnique(instanceCreateInfo);
-    if (!mInstance)
+        .setPEnabledLayerNames(Config.InstanceRequiredLayers)
+        .setPEnabledExtensionNames(Config.InstanceRequiredExtensions);
+    Instance = vk::createInstanceUnique(instanceCreateInfo);
+    if (!Instance)
     {
         std::println("Failed to create Vulkan instance");
         throw std::runtime_error("Failed to create Vulkan instance");
     }
     std::println("Vulkan instance created with version: {}.{}.{}.{}", variant, major, minor, patch);
     std::println("Vulkan instance extensions:");
-    for (const auto &ext : mConfig.InstanceRequiredExtensions)
+    for (const auto &ext : Config.InstanceRequiredExtensions)
     {
         std::println(" - {}", ext);
     }
     std::println("Vulkan instance layers:");
-    for (const auto &layer : mConfig.InstanceRequiredLayers)
+    for (const auto &layer : Config.InstanceRequiredLayers)
     {
         std::println(" - {}", layer);
     }
     std::println("Vulkan instance created successfully");
 }
 
-void RHIContext::PickPhysicalDevice()
+void Context::PickPhysicalDevice()
 {
-    auto PhysicalDevices = mInstance->enumeratePhysicalDevices();
+    auto PhysicalDevices = Instance->enumeratePhysicalDevices();
     if (PhysicalDevices.empty())
     {
         std::println("No physical devices found");
@@ -129,7 +107,7 @@ void RHIContext::PickPhysicalDevice()
     PhysicalDevice = *bestDevice;
     std::println("Selected physical device: {}", std::string(PhysicalDevice.getProperties().deviceName.data()));
 }
-void RHIContext::QueryQueueFamilyIndicates()
+void Context::QueryQueueFamilyIndicates()
 {
     auto queueFamilyProperties = PhysicalDevice.getQueueFamilyProperties();
     for (uint32_t i = 0; i < queueFamilyProperties.size(); i++)
@@ -140,11 +118,6 @@ void RHIContext::QueryQueueFamilyIndicates()
         {
             QueueFamilyIndicates.graphicsFamily = i;
             QueueFamilyIndicates.graphicsFamilyCount = queueCount;
-        }
-        if (Surface && PhysicalDevice.getSurfaceSupportKHR(i, Surface.get()))
-        {
-            QueueFamilyIndicates.presentFamily = i;
-            QueueFamilyIndicates.presentFamilyCount = queueCount;
         }
         if (queueFamily.queueFlags & vk::QueueFlagBits::eTransfer)
         {
@@ -162,18 +135,13 @@ void RHIContext::QueryQueueFamilyIndicates()
         std::println(" - Graphics Family: {}, Count: {}", QueueFamilyIndicates.graphicsFamily.value(),
                      QueueFamilyIndicates.graphicsFamilyCount.value());
     }
-    if (QueueFamilyIndicates.presentFamily.has_value())
-    {
-        std::println(" - Present Family: {}, Count: {}", QueueFamilyIndicates.presentFamily.value(),
-                     QueueFamilyIndicates.presentFamilyCount.value());
-    }
     if (QueueFamilyIndicates.transferFamily.has_value())
     {
         std::println(" - Transfer Family: {}, Count: {}", QueueFamilyIndicates.transferFamily.value(),
                      QueueFamilyIndicates.transferFamilyCount.value());
     }
 }
-void RHIContext::CreateLogicalDevice()
+void Context::CreateLogicalDevice()
 {
     vk::DeviceCreateInfo deviceCreateInfo;
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
@@ -185,13 +153,6 @@ void RHIContext::CreateLogicalDevice()
     {
         uniqueQueueFamilies.insert(QueueFamilyIndicates.transferFamily.value());
     }
-
-    if (QueueFamilyIndicates.presentFamily.has_value() &&
-        QueueFamilyIndicates.presentFamily.value() != QueueFamilyIndicates.graphicsFamily.value())
-    {
-        uniqueQueueFamilies.insert(QueueFamilyIndicates.presentFamily.value());
-    }
-
     const float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies)
     {
@@ -214,10 +175,10 @@ void RHIContext::CreateLogicalDevice()
     dynamicRenderingFeatures.setDynamicRendering(vk::True);
     hostImageCopyFeatures.setHostImageCopy(vk::True).setPNext(&dynamicRenderingFeatures);
 
-    mConfig.DeviceRequiredExtensions.insert_range(mConfig.DeviceRequiredExtensions.end(), extensions);
+    Config.DeviceRequiredExtensions.insert_range(Config.DeviceRequiredExtensions.end(), extensions);
     deviceCreateInfo.setQueueCreateInfos(queueCreateInfos)
-        .setPEnabledExtensionNames(mConfig.DeviceRequiredExtensions)
-        .setPEnabledLayerNames(mConfig.DeviceRequiredLayers)
+        .setPEnabledExtensionNames(Config.DeviceRequiredExtensions)
+        .setPEnabledLayerNames(Config.DeviceRequiredLayers)
         .setPEnabledFeatures(&deviceFeatures)
         .setPNext(&hostImageCopyFeatures);
     Device = PhysicalDevice.createDeviceUnique(deviceCreateInfo);
@@ -228,17 +189,7 @@ void RHIContext::CreateLogicalDevice()
     }
     std::println("Vulkan logical device created successfully");
 }
-void RHIContext::InitSurface(const vk::SurfaceKHR &surface)
-{
-    Surface = vk::UniqueSurfaceKHR(surface, mInstance.get());
-    if (!Surface)
-    {
-        std::println("Failed to create Vulkan surface");
-        throw std::runtime_error("Failed to create Vulkan surface");
-    }
-    std::println("Vulkan surface set successfully");
-}
-void RHIContext::GetQueues()
+void Context::GetQueues()
 {
     if (QueueFamilyIndicates.graphicsFamily.has_value())
     {
@@ -250,17 +201,6 @@ void RHIContext::GetQueues()
             throw std::runtime_error("Failed to get graphics queue from Vulkan device");
         }
         std::println("Graphics queue obtained successfully");
-    }
-    if (QueueFamilyIndicates.presentFamily.has_value())
-    {
-        auto presentQueueIndex = QueueFamilyIndicates.presentFamily.value();
-        PresentQueue = Device->getQueue(presentQueueIndex, 0);
-        if (!PresentQueue)
-        {
-            std::println("Failed to get present queue from Vulkan device");
-            throw std::runtime_error("Failed to get present queue from Vulkan device");
-        }
-        std::println("Present queue obtained successfully");
     }
     if (QueueFamilyIndicates.transferFamily.has_value())
     {
@@ -274,57 +214,12 @@ void RHIContext::GetQueues()
         std::println("Transfer queue obtained successfully");
     }
 }
-
-void RHIContext::CreateCommandPools()
-{
-    if (QueueFamilyIndicates.graphicsFamily.has_value())
-    {
-        vk::CommandPoolCreateInfo commandPoolCreateInfo;
-        commandPoolCreateInfo.setQueueFamilyIndex(QueueFamilyIndicates.graphicsFamily.value())
-            .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
-        GraphicsCommandPool = Device->createCommandPoolUnique(commandPoolCreateInfo);
-        if (!GraphicsCommandPool)
-        {
-            std::println("Failed to create graphics command pool");
-            throw std::runtime_error("Failed to create graphics command pool");
-        }
-        std::println("Graphics command pool created successfully");
-    }
-
-    if (QueueFamilyIndicates.transferFamily.has_value())
-    {
-        vk::CommandPoolCreateInfo commandPoolCreateInfo;
-        commandPoolCreateInfo.setQueueFamilyIndex(QueueFamilyIndicates.transferFamily.value())
-            .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
-        TransferCommandPool = Device->createCommandPoolUnique(commandPoolCreateInfo);
-        if (!TransferCommandPool)
-        {
-            std::println("Failed to create transfer command pool");
-            throw std::runtime_error("Failed to create transfer command pool");
-        }
-        std::println("Transfer command pool created successfully");
-    }
-
-    if (QueueFamilyIndicates.presentFamily.has_value())
-    {
-        vk::CommandPoolCreateInfo commandPoolCreateInfo;
-        commandPoolCreateInfo.setQueueFamilyIndex(QueueFamilyIndicates.presentFamily.value())
-            .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
-        PresentCommandPool = Device->createCommandPoolUnique(commandPoolCreateInfo);
-        if (!PresentCommandPool)
-        {
-            std::println("Failed to create present command pool");
-            throw std::runtime_error("Failed to create present command pool");
-        }
-        std::println("Present command pool created successfully");
-    }
-}
-void RHIContext::CreateVMA()
+void Context::CreateVMA()
 {
     VmaAllocatorCreateInfo allocatorCreateInfo{};
     allocatorCreateInfo.device = Device.get();
     allocatorCreateInfo.physicalDevice = PhysicalDevice;
-    allocatorCreateInfo.instance = mInstance.get();
+    allocatorCreateInfo.instance = Instance.get();
     allocatorCreateInfo.flags =
         VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT | VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
     auto variant = vk::apiVersionVariant(Version);
@@ -335,151 +230,5 @@ void RHIContext::CreateVMA()
     // allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
     vmaCreateAllocator(&allocatorCreateInfo, &VmaAllocator);
     std::println("VMA Allocator created successfully");
-}
-void RHIContext::QuerySurfaceInfo()
-{
-    auto formats = PhysicalDevice.getSurfaceFormatsKHR(Surface.get());
-    auto presentModes = PhysicalDevice.getSurfacePresentModesKHR(Surface.get());
-    auto capabilities = PhysicalDevice.getSurfaceCapabilitiesKHR(Surface.get());
-    std::vector<vk::SurfaceFormatKHR> candidatesFormats = {
-        {vk::Format::eR32G32B32A32Sfloat, vk::ColorSpaceKHR::eSrgbNonlinear},
-        {vk::Format::eR16G16B16A16Sfloat, vk::ColorSpaceKHR::eSrgbNonlinear},
-        {vk::Format::eR8G8B8A8Srgb, vk::ColorSpaceKHR::eSrgbNonlinear},
-        {vk::Format::eB8G8R8A8Srgb, vk::ColorSpaceKHR::eSrgbNonlinear},
-        {vk::Format::eR8G8B8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear},
-        {vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear},
-    };
-    std::vector<vk::PresentModeKHR> candidatesPresentModes = {
-        vk::PresentModeKHR::eMailbox,
-        vk::PresentModeKHR::eFifo,
-    };
-    bool formatFound = false;
-    bool presentModeFound = false;
-    SurfaceInfo.format = formats[0];
-    for (auto &format : candidatesFormats)
-    {
-        for (auto &supportFormat : formats)
-        {
-            if (format.format == supportFormat.format && format.colorSpace == supportFormat.colorSpace)
-            {
-                SurfaceInfo.format = format;
-                formatFound = true;
-                break;
-            }
-        }
-        if (formatFound)
-            break;
-    }
-    SurfaceInfo.presentMode = presentModes[0];
-    for (auto &presentMode : candidatesPresentModes)
-    {
-        for (auto &supportPresentMode : presentModes)
-        {
-            if (presentMode == supportPresentMode)
-            {
-                SurfaceInfo.presentMode = presentMode;
-                presentModeFound = true;
-                break;
-            }
-        }
-        if (presentModeFound)
-            break;
-    }
-    SurfaceInfo.extent = capabilities.currentExtent;
-    SurfaceInfo.imageCount = std::clamp(2u, capabilities.minImageCount, capabilities.maxImageCount);
-    SurfaceInfo.imageArrayLayer = std::clamp(1u, 1u, capabilities.maxImageArrayLayers);
-    // log
-    std::println("Current Surface Info:");
-    std::println("Support Image Count: {}~{}", capabilities.minImageCount, capabilities.maxImageCount);
-    std::println("Support Array Layer: 1~{}", capabilities.maxImageArrayLayers);
-    std::println("Support Transforms: {}", vk::to_string(capabilities.supportedTransforms));
-    std::println("Support Usage Flags: {}", vk::to_string(capabilities.supportedUsageFlags));
-    std::println("Support CompositeAlpha: {}", vk::to_string(capabilities.supportedCompositeAlpha));
-    std::println("Support Extent: {}x{}~{}x{}", capabilities.minImageExtent.width, capabilities.minImageExtent.height,
-                 capabilities.maxImageExtent.width, capabilities.maxImageExtent.height);
-    for (auto &supportFormat : formats)
-    {
-        std::println("Support Format: {}", vk::to_string(supportFormat.format));
-    }
-    for (auto &supportPresentMode : presentModes)
-    {
-        std::println("Support Present Mode: {}", vk::to_string(supportPresentMode));
-    }
-    std::println("Current Format: {}", vk::to_string(SurfaceInfo.format.format));
-    std::println("Current Color Space: {}", vk::to_string(SurfaceInfo.format.colorSpace));
-    std::println("Current Present Mode: {}", vk::to_string(SurfaceInfo.presentMode));
-    std::println("Current Extent: {}x{}", capabilities.currentExtent.width, capabilities.currentExtent.height);
-    std::println("Current Image Count: {}", SurfaceInfo.imageCount);
-    std::println("Current Image Array Layer: {}", SurfaceInfo.imageArrayLayer);
-}
-void RHIContext::CreateDescriptorPool()
-{
-    auto maxDescriptorSize = 1000;
-    std::vector<std::pair<vk::DescriptorType, float>> proportion = {
-        {vk::DescriptorType::eSampler, 0.5f},
-        {vk::DescriptorType::eCombinedImageSampler, 4.0f},
-        {vk::DescriptorType::eSampledImage, 4.0f},
-        {vk::DescriptorType::eStorageImage, 1.0f},
-        {vk::DescriptorType::eUniformBuffer, 2.0f},
-        {vk::DescriptorType::eStorageBuffer, 2.0f},
-        {vk::DescriptorType::eUniformBufferDynamic, 1.0f},
-        {vk::DescriptorType::eStorageBufferDynamic, 1.0f},
-    };
-
-    std::vector<vk::DescriptorPoolSize> descriptorPoolSize;
-    descriptorPoolSize.reserve(proportion.size());
-    for (auto &proportion : proportion)
-    {
-        descriptorPoolSize.emplace_back(proportion.first, static_cast<uint32_t>(proportion.second * maxDescriptorSize));
-    }
-    vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo;
-    descriptorPoolCreateInfo
-        .setPoolSizes(descriptorPoolSize) // 设置池中各类描述符的数量
-        .setMaxSets(maxDescriptorSize)    // 设置池最多可分配的 Descriptor Set 数量
-        .setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet |
-                  vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind); // 设置池的标志位
-    DescriptorPool = Device->createDescriptorPoolUnique(descriptorPoolCreateInfo);
-    if (!DescriptorPool)
-    {
-        std::println("Failed to create descriptor pool");
-        throw std::runtime_error("Failed to create descriptor pool");
-    }
-    std::println("Descriptor Pool created successfully");
-}
-vk::UniqueCommandBuffer RHIContext::GetGraphicsCommandBuffer(vk::CommandBufferLevel level)
-{
-    vk::CommandBufferAllocateInfo allocateInfo;
-    allocateInfo.setCommandPool(GraphicsCommandPool.get()).setLevel(level).setCommandBufferCount(1);
-    auto commandBuffer = Device->allocateCommandBuffersUnique(allocateInfo);
-    if (commandBuffer.empty())
-    {
-        std::println("Failed to allocate graphics command buffer");
-        throw std::runtime_error("Failed to allocate graphics command buffer");
-    }
-    return std::move(commandBuffer.front());
-}
-vk::UniqueCommandBuffer RHIContext::GetTransferCommandBuffer(vk::CommandBufferLevel level)
-{
-    vk::CommandBufferAllocateInfo allocateInfo;
-    allocateInfo.setCommandPool(TransferCommandPool.get()).setLevel(level).setCommandBufferCount(1);
-    auto commandBuffer = Device->allocateCommandBuffersUnique(allocateInfo);
-    if (commandBuffer.empty())
-    {
-        std::println("Failed to allocate transfer command buffer");
-        throw std::runtime_error("Failed to allocate transfer command buffer");
-    }
-    return std::move(commandBuffer.front());
-}
-vk::UniqueCommandBuffer RHIContext::GetPresentCommandBuffer(vk::CommandBufferLevel level)
-{
-    vk::CommandBufferAllocateInfo allocateInfo;
-    allocateInfo.setCommandPool(PresentCommandPool.get()).setLevel(level).setCommandBufferCount(1);
-    auto commandBuffer = Device->allocateCommandBuffersUnique(allocateInfo);
-    if (commandBuffer.empty())
-    {
-        std::println("Failed to allocate present command buffer");
-        throw std::runtime_error("Failed to allocate present command buffer");
-    }
-    return std::move(commandBuffer.front());
 }
 } // namespace MEngine::Platform
