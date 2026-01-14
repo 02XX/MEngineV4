@@ -36,11 +36,11 @@ class Editor
     // ImGui
     ImGuiID mDockSpaceID{};
     std::unique_ptr<SwapChainResource> mSwapChainResource{};
-    std::array<vk::UniqueSemaphore, MAX_FRAMES_IN_FLIGHT> mImageAvailableSemaphores{};
-    std::array<vk::UniqueSemaphore, MAX_FRAMES_IN_FLIGHT> mRenderFinishedSemaphores{};
-    std::array<vk::UniqueFence, MAX_FRAMES_IN_FLIGHT> mInFlightFences{};
-    std::array<vk::UniqueCommandPool, MAX_FRAMES_IN_FLIGHT> mGraphicCommandPools{};
-    std::array<vk::UniqueCommandBuffer, MAX_FRAMES_IN_FLIGHT> mGraphicCommandBuffers{};
+    std::vector<vk::UniqueSemaphore> mImageAvailableSemaphores{};
+    std::vector<vk::UniqueSemaphore> mRenderFinishedSemaphores{};
+    std::vector<vk::UniqueFence> mInFlightFences{};
+    std::vector<vk::UniqueCommandPool> mGraphicCommandPools{};
+    std::vector<vk::UniqueCommandBuffer> mGraphicCommandBuffers{};
     vk::ClearValue mColorClearValue = vk::ClearColorValue(std::array<float, 4>{0.1f, 0.1f, 0.1f, 1.0f});
     vk::ClearValue mDepthClearValue = vk::ClearDepthStencilValue(1.0f, 0);
     uint32_t mCurrentFrame = 0;

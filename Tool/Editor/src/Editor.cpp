@@ -99,7 +99,13 @@ void Editor::InitVulkan()
 
     mSwapChainResource = std::make_unique<SwapChainResource>(surface);
     mSwapChainResource->InitResource(mContext);
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    auto imageCount = mSwapChainResource->SwapChainImages.size();
+    mImageAvailableSemaphores.resize(imageCount);
+    mRenderFinishedSemaphores.resize(imageCount);
+    mInFlightFences.resize(imageCount);
+    mGraphicCommandPools.resize(imageCount);
+    mGraphicCommandBuffers.resize(imageCount);
+    for (size_t i = 0; i < imageCount; i++)
     {
         mImageAvailableSemaphores[i] = mContext->Device->createSemaphoreUnique(vk::SemaphoreCreateInfo{});
         mRenderFinishedSemaphores[i] = mContext->Device->createSemaphoreUnique(vk::SemaphoreCreateInfo{});
@@ -310,7 +316,7 @@ void Editor::Run()
         {
             // HandleSwapchainOutOfDate();
         }
-        mCurrentFrame = (mCurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+        mCurrentFrame = (mCurrentFrame + 1) % mSwapChainResource->SwapChainImages.size();
     }
 }
 void Editor::UILayout()
