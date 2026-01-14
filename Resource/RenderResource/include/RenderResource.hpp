@@ -27,6 +27,9 @@ class RenderResource : public std::enable_shared_from_this<RenderResource>
     };
     void InitResource(std::shared_ptr<Context> context);
     void ReleaseResource(std::shared_ptr<Context> context);
+    void InitResourceAsync();
+    void ReleaseResourceAsync();
+
     bool IsInitialized() const
     {
         return mState == State::Initialized;

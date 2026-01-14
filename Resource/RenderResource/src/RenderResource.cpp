@@ -47,4 +47,13 @@ void RenderResource::InitResource(std::shared_ptr<Context> context)
         mState = State::Initialized;
     }
 }
+void RenderResource::InitResourceAsync()
+{
+    PendingInit.Push([self = shared_from_this()](std::shared_ptr<Context> context) { self->InitResource(context); });
+}
+void RenderResource::ReleaseResourceAsync()
+{
+    PendingDeletions.Push(
+        [self = shared_from_this()](std::shared_ptr<Context> context) { self->ReleaseResource(context); });
+}
 } // namespace MEngine::Resource
