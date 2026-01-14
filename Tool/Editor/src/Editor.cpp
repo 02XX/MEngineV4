@@ -1,11 +1,14 @@
 #include "Editor.hpp"
 #include "Logger.hpp"
+#include "RenderSystem.hpp"
+#include <cstddef>
 namespace MEngine::Tool
 {
 
 Editor::Editor()
 {
     Logger::GetInstance().GetLogger()->SetLogLevel(LogLevel::Trace);
+    LogInfo("Welcome to MEngine Editor!");
     InitWindow();
     InitVulkan();
     InitImGui();
@@ -13,8 +16,27 @@ Editor::Editor()
 Editor::~Editor()
 {
     mContext->Device->waitIdle();
+
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    if (mRenderSystem)
+    {
+        mRenderSystem->Shutdown();
+        mRenderSystem.reset();
+    }
+    if (mSwapChainResource)
+    {
+        mSwapChainResource->ReleaseResource(mContext);
+        mSwapChainResource.reset();
+    }
+    std::function<void(std::shared_ptr<Context> context)> item{};
+    while (PendingDeletions.TryPop(item))
+    {
+        item(mContext);
+    }
+    LogInfo("Goodbye!");
 }
 void Editor::InitWindow()
 {
@@ -92,6 +114,25 @@ void Editor::InitVulkan()
                                                                          .setCommandPool(mGraphicCommandPools[i].get())
                                                                          .setLevel(vk::CommandBufferLevel::ePrimary)
                                                                          .setCommandBufferCount(1))[0]);
+        vk::ImageMemoryBarrier2 barrier{};
+        barrier.setImage(mSwapChainResource->SwapChainImages[i])
+            .setOldLayout(vk::ImageLayout::eUndefined)
+            .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
+            .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
+            .setDstStageMask(vk::PipelineStageFlagBits2::eBottomOfPipe)
+            .setSrcAccessMask(vk::AccessFlagBits2::eNone)
+            .setDstAccessMask(vk::AccessFlagBits2::eNone)
+            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+        mGraphicCommandBuffers[i]->begin(vk::CommandBufferBeginInfo{});
+        mGraphicCommandBuffers[i]->pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(barrier));
+        mGraphicCommandBuffers[i]->end();
+        vk::SubmitInfo2 submitInfo{};
+        std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
+            vk::CommandBufferSubmitInfo().setCommandBuffer(mGraphicCommandBuffers[i].get()),
+        };
+        submitInfo.setCommandBufferInfos(commandBufferInfos);
+        mContext->GraphicsQueue.submit2(submitInfo, {});
+        mContext->Device->waitIdle();
     }
 }
 void Editor::InitImGui()
@@ -174,7 +215,8 @@ void Editor::Run()
         vk::AcquireNextImageInfoKHR acquireInfo{};
         acquireInfo.setTimeout(1000000000)
             .setSwapchain(mSwapChainResource->SwapChain)
-            .setSemaphore(mImageAvailableSemaphores[mCurrentFrame].get());
+            .setSemaphore(mImageAvailableSemaphores[mCurrentFrame].get())
+            .setDeviceMask(1);
         uint32_t imageIndex;
         auto nextImageResult = device.acquireNextImage2KHR(&acquireInfo, &imageIndex);
         if (nextImageResult == vk::Result::eErrorOutOfDateKHR)
@@ -182,6 +224,7 @@ void Editor::Run()
             // HandleSwapchainOutOfDate();
             continue;
         }
+
         device.resetFences(mInFlightFences[mCurrentFrame].get());
 
         auto currentCommandBuffer = mGraphicCommandBuffers[mCurrentFrame].get();
@@ -192,7 +235,7 @@ void Editor::Run()
             // Color
             vk::RenderingAttachmentInfo()
                 .setClearValue(mColorClearValue)
-                .setImageView(mSwapChainResource->SwapChainImageViews[mCurrentFrame])
+                .setImageView(mSwapChainResource->SwapChainImageViews[imageIndex])
                 .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
                 .setLoadOp(vk::AttachmentLoadOp::eClear)
                 .setStoreOp(vk::AttachmentStoreOp::eStore),
@@ -205,11 +248,31 @@ void Editor::Run()
             .setLayerCount(1)
             .setColorAttachments(colorAttachments)
             .setPDepthAttachment(nullptr);
+        vk::ImageMemoryBarrier2 preBarrier{};
+        preBarrier.setImage(mSwapChainResource->SwapChainImages[imageIndex])
+            .setOldLayout(vk::ImageLayout::ePresentSrcKHR)
+            .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
+            .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+            .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+            .setSrcAccessMask(vk::AccessFlagBits2::eNone)
+            .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+        currentCommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(preBarrier));
         currentCommandBuffer.beginRendering(renderingInfo);
         {
             ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), currentCommandBuffer);
         }
         currentCommandBuffer.endRendering();
+        vk::ImageMemoryBarrier2 postBarrier{};
+        postBarrier.setImage(mSwapChainResource->SwapChainImages[imageIndex])
+            .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
+            .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
+            .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+            .setDstStageMask(vk::PipelineStageFlagBits2::eBottomOfPipe)
+            .setSrcAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+            .setDstAccessMask(vk::AccessFlagBits2::eNone)
+            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+        currentCommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(postBarrier));
         currentCommandBuffer.end();
         vk::SubmitInfo2 submitInfo{};
         std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {

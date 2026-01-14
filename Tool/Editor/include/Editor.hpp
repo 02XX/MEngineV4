@@ -36,7 +36,6 @@ class Editor
     // ImGui
     ImGuiID mDockSpaceID{};
     std::unique_ptr<SwapChainResource> mSwapChainResource{};
-    std::array<vk::UniqueFramebuffer, MAX_FRAMES_IN_FLIGHT> mSwapChainFramebuffers{};
     std::array<vk::UniqueSemaphore, MAX_FRAMES_IN_FLIGHT> mImageAvailableSemaphores{};
     std::array<vk::UniqueSemaphore, MAX_FRAMES_IN_FLIGHT> mRenderFinishedSemaphores{};
     std::array<vk::UniqueFence, MAX_FRAMES_IN_FLIGHT> mInFlightFences{};

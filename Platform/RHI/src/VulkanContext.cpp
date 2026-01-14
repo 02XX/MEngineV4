@@ -128,21 +128,25 @@ void Context::CreateLogicalDevice()
         queueCreateInfos.push_back(queueCreateInfo);
     }
     // extension
+
     auto availableExtensions = PhysicalDevice.enumerateDeviceExtensionProperties();
-    std::vector<const char *> extensions = {"VK_KHR_maintenance1", "VK_EXT_host_image_copy",
-                                            "VK_KHR_dynamic_rendering"};
+
+    std::vector<const char *> extensions = {"VK_KHR_maintenance1", "VK_EXT_host_image_copy", "VK_KHR_dynamic_rendering",
+                                            "VK_KHR_synchronization2"};
     vk::PhysicalDeviceFeatures deviceFeatures{};
     deviceFeatures.setIndependentBlend(vk::True);
     vk::PhysicalDeviceHostImageCopyFeaturesEXT hostImageCopyFeatures{};
     vk::PhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{};
-    dynamicRenderingFeatures.setDynamicRendering(vk::True);
-    hostImageCopyFeatures.setHostImageCopy(vk::True).setPNext(&dynamicRenderingFeatures);
+    vk::PhysicalDeviceSynchronization2FeaturesKHR synchronization2Features{};
+    dynamicRenderingFeatures.setDynamicRendering(vk::True).setPNext(&hostImageCopyFeatures);
+    hostImageCopyFeatures.setHostImageCopy(vk::True).setPNext(&synchronization2Features);
+    synchronization2Features.setSynchronization2(vk::True);
 
     Config.DeviceRequiredExtensions.insert_range(Config.DeviceRequiredExtensions.end(), extensions);
     deviceCreateInfo.setQueueCreateInfos(queueCreateInfos)
         .setPEnabledExtensionNames(Config.DeviceRequiredExtensions)
         .setPEnabledFeatures(&deviceFeatures)
-        .setPNext(&hostImageCopyFeatures);
+        .setPNext(&dynamicRenderingFeatures);
     Device = PhysicalDevice.createDeviceUnique(deviceCreateInfo);
     if (!Device)
     {
