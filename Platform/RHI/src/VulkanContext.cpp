@@ -141,7 +141,6 @@ void Context::CreateLogicalDevice()
     Config.DeviceRequiredExtensions.insert_range(Config.DeviceRequiredExtensions.end(), extensions);
     deviceCreateInfo.setQueueCreateInfos(queueCreateInfos)
         .setPEnabledExtensionNames(Config.DeviceRequiredExtensions)
-        .setPEnabledLayerNames(Config.DeviceRequiredLayers)
         .setPEnabledFeatures(&deviceFeatures)
         .setPNext(&hostImageCopyFeatures);
     Device = PhysicalDevice.createDeviceUnique(deviceCreateInfo);

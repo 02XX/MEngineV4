@@ -7,7 +7,6 @@
         "gtest",
         "nlohmann-json",
         "shaderc",
-        "taskflow",
         "spdlog",
         "stb",
         "vulkan-memory-allocator",
@@ -15,7 +14,7 @@
             "name": "hello-imgui",
             "features": [
                 "glfw-binding",
-                "opengl3-binding"
+                "experimental-vulkan-binding"
             ]
         }
     ]

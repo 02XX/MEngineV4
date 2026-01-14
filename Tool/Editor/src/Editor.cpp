@@ -11,6 +11,9 @@ Editor::Editor()
 {
     Logger::GetInstance().GetLogger()->SetLogLevel(LogLevel::Trace);
     mParams.appWindowParams.windowTitle = "MEngine Editor";
+    mParams.rendererBackendType = HelloImGui::RendererBackendType::Vulkan;
+    mParams.fpsIdling.enableIdling = true;
+    mParams.fpsIdling.fpsIdle = 60.0f;
     mParams.imGuiWindowParams.defaultImGuiWindowType = HelloImGui::DefaultImGuiWindowType::ProvideFullScreenDockSpace;
     // mParams.imGuiWindowParams.enableViewports = true;
     mParams.dockingParams.dockingSplits = {// 先分割底部
@@ -28,30 +31,30 @@ Editor::Editor()
     mParams.dockingParams.layoutCondition = HelloImGui::DockingLayoutCondition::ApplicationStart;
     mParams.dockingParams.mainDockSpaceNodeFlags = ImGuiDockNodeFlags_PassthruCentralNode;
 
-    uint32_t vulkanInstanceExtensionCount = 0;
-    const char **vulkanInstanceExtensions = glfwGetRequiredInstanceExtensions(&vulkanInstanceExtensionCount);
-    std::vector<const char *> extensions(vulkanInstanceExtensions,
-                                         vulkanInstanceExtensions + vulkanInstanceExtensionCount);
+    // uint32_t vulkanInstanceExtensionCount = 0;
+    // const char **vulkanInstanceExtensions = glfwGetRequiredInstanceExtensions(&vulkanInstanceExtensionCount);
+    // std::vector<const char *> extensions(vulkanInstanceExtensions,
+    //                                      vulkanInstanceExtensions + vulkanInstanceExtensionCount);
 
-    ContextConfig config{};
-    config.InstanceRequiredExtensions = extensions;
-    config.InstanceRequiredLayers = {"VK_LAYER_KHRONOS_validation"};
-    mContext = std::make_shared<Context>(config);
-    mRenderSystem = std::make_shared<RenderSystem>(mContext);
-    mRenderSystem->Init();
+    // ContextConfig config{};
+    // config.InstanceRequiredExtensions = extensions;
+    // config.InstanceRequiredLayers = {"VK_LAYER_KHRONOS_validation"};
+    // mContext = std::make_shared<Context>(config);
+    // mRenderSystem = std::make_shared<RenderSystem>(mContext);
+    // mRenderSystem->Init();
 };
 Editor::~Editor()
 {
-    mRenderSystem->Shutdown();
-    mRenderSystem.reset();
-    std::function<void(std::shared_ptr<Context>)> item;
-    auto size = PendingDeletions.Size();
-    while (PendingDeletions.TryPop(item))
-    {
-        item(mContext);
-        LogDebug("Processed a pending deletion in RenderSystem destructor");
-    }
-    mContext.reset();
+    // mRenderSystem->Shutdown();
+    // mRenderSystem.reset();
+    // std::function<void(std::shared_ptr<Context>)> item;
+    // auto size = PendingDeletions.Size();
+    // while (PendingDeletions.TryPop(item))
+    // {
+    //     item(mContext);
+    //     LogDebug("Processed a pending deletion in RenderSystem destructor");
+    // }
+    // mContext.reset();
 }
 void Editor::Run()
 {

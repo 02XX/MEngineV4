@@ -9,7 +9,7 @@ void Texture2DResource::InitRHI(std::shared_ptr<Context> context)
 
     auto instance = context->Instance.get();
     auto device = context->Device.get();
-    vk::DispatchLoaderDynamic dld(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
+    // vk::DispatchLoaderDynamic dld(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
     mImageCreateInfo.imageType = vk::ImageType::e2D;
 
     mImageCreateInfo.arrayLayers = 1;
