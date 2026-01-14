@@ -8,9 +8,8 @@ using namespace MEngine::Platform;
 using namespace MEngine::Core;
 namespace MEngine::Resource
 {
-inline ConcurrentQueue<std::function<void()>> PendingDeletions{};
 
-class RenderResource
+class RenderResource : public std::enable_shared_from_this<RenderResource>
 {
   public:
     RenderResource() = default;
@@ -40,4 +39,6 @@ class RenderResource
   private:
     State mState = State::Uninitialized;
 };
+inline ConcurrentQueue<std::function<void(std::shared_ptr<Context>)>> PendingInit{};
+inline ConcurrentQueue<std::function<void(std::shared_ptr<Context>)>> PendingDeletions{};
 } // namespace MEngine::Resource

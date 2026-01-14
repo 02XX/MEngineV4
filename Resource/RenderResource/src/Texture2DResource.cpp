@@ -6,6 +6,7 @@ namespace MEngine::Resource
 {
 void Texture2DResource::InitRHI(std::shared_ptr<Context> context)
 {
+
     auto instance = context->Instance.get();
     auto device = context->Device.get();
     vk::DispatchLoaderDynamic dld(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
@@ -27,6 +28,19 @@ void Texture2DResource::InitRHI(std::shared_ptr<Context> context)
         LogError("Failed to create image with VMA");
         return;
     }
+    mSampler = device.createSampler(mSamplerCreateInfo);
+
+    vk::ImageViewCreateInfo viewDesc{};
+    viewDesc.image = mImage;
+    viewDesc.viewType = vk::ImageViewType::e2D;
+    viewDesc.format = mImageCreateInfo.format;
+    viewDesc.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    viewDesc.subresourceRange.baseMipLevel = 0;
+    viewDesc.subresourceRange.levelCount = mImageCreateInfo.mipLevels;
+    viewDesc.subresourceRange.baseArrayLayer = 0;
+    viewDesc.subresourceRange.layerCount = 1;
+    mImageView = device.createImageView(viewDesc);
+
     // if (!mTextureData.empty())
     // {
     //     if (mImageCreateInfo.mipLevels != mTextureData.size())
@@ -59,27 +73,14 @@ void Texture2DResource::InitRHI(std::shared_ptr<Context> context)
     //     device.copyMemoryToImageEXT(copyInfo, dld);
     //     mRHITextureHandler->TransitionImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
     // }
-    mSampler = device.createSampler(mSamplerCreateInfo);
-
-    vk::ImageViewCreateInfo viewDesc{};
-    viewDesc.image = mImage;
-    viewDesc.viewType = vk::ImageViewType::e2D;
-    viewDesc.format = mImageCreateInfo.format;
-    viewDesc.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-    viewDesc.subresourceRange.baseMipLevel = 0;
-    viewDesc.subresourceRange.levelCount = mImageCreateInfo.mipLevels;
-    viewDesc.subresourceRange.baseArrayLayer = 0;
-    viewDesc.subresourceRange.layerCount = 1;
-    mImageView = device.createImageView(viewDesc);
 }
 
 void Texture2DResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
-    PendingDeletions.Push([this, context]() {
-        auto device = context->Device.get();
-        device.destroySampler(mSampler);
-        device.destroyImageView(mImageView);
-        vmaDestroyImage(context->VmaAllocator, mImage, mImageAllocation);
-    });
+
+    auto device = context->Device.get();
+    device.destroySampler(mSampler);
+    device.destroyImageView(mImageView);
+    vmaDestroyImage(context->VmaAllocator, mImage, mImageAllocation);
 }
 } // namespace MEngine::Resource

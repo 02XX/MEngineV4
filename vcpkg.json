@@ -7,6 +7,7 @@
         "gtest",
         "nlohmann-json",
         "shaderc",
+        "taskflow",
         "spdlog",
         "stb",
         "vulkan-memory-allocator",

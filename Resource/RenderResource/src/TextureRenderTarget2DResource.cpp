@@ -1,13 +1,14 @@
 #include "TextureRenderTarget2DResource.hpp"
 #include "Logger.hpp"
+#include "RenderResource.hpp"
 namespace MEngine::Resource
 {
 void TextureRenderTarget2DResource::InitRHI(std::shared_ptr<Context> context)
 {
+
     mImageCreateInfo.imageType = vk::ImageType::e2D;
     mImageCreateInfo.arrayLayers = 1;
-    mImageCreateInfo.usage = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled |
-                             vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst;
+
     VmaAllocationCreateInfo imageAllocationCreateInfo{};
     imageAllocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     imageAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
@@ -41,11 +42,9 @@ void TextureRenderTarget2DResource::InitRHI(std::shared_ptr<Context> context)
 }
 void TextureRenderTarget2DResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
-    PendingDeletions.Push([this, context]() {
-        auto device = context->Device.get();
-        device.destroySampler(mSampler);
-        device.destroyImageView(mImageView);
-        vmaDestroyImage(context->VmaAllocator, mImage, mImageAllocation);
-    });
+    auto device = context->Device.get();
+    device.destroySampler(mSampler);
+    device.destroyImageView(mImageView);
+    vmaDestroyImage(context->VmaAllocator, mImage, mImageAllocation);
 }
 } // namespace MEngine::Resource

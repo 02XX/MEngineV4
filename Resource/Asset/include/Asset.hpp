@@ -26,7 +26,14 @@ class Asset
     }
     virtual ~Asset()
     {
-        LogDebug("Destroying Asset base {}", mName);
+        std::shared_ptr<RenderResource> res = std::move(mResource);
+        PendingDeletions.Push([res](std::shared_ptr<Context> context) mutable {
+            if (res)
+            {
+                res->ReleaseResource(context);
+                res.reset();
+            }
+        });
     };
     virtual inline const MEngine::Core::UUID &GetID() const
     {

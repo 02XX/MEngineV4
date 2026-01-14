@@ -1,5 +1,6 @@
 #include "RenderSystem.hpp"
 #include "Logger.hpp"
+#include "RenderResource.hpp"
 
 namespace MEngine::Function
 {
@@ -8,10 +9,23 @@ RenderSystem::RenderSystem(std::shared_ptr<Context> context) : System(), mContex
 }
 RenderSystem::~RenderSystem()
 {
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        if (mFrameResources[i])
+        {
+            mFrameResources[i]->ReleaseResource(mContext);
+            mFrameResources[i].reset();
+        }
+    }
 }
 void RenderSystem::Init()
 {
     // mScene->GetResourceAs<SceneResource>()->InitResource();
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
+    {
+        mFrameResources[i] = std::make_unique<FrameResource>(vk::Extent3D{800, 600, 1});
+        mFrameResources[i]->InitResource(mContext);
+    }
 }
 void RenderSystem::Update(double deltaTime)
 {
@@ -21,6 +35,7 @@ void RenderSystem::Update(double deltaTime)
     RenderGBuffer();
     RenderLighting();
     End();
+    Submit();
     mCurrentFrameBufferIndex = (mCurrentFrameBufferIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 void RenderSystem::Shutdown()
@@ -198,5 +213,10 @@ void RenderSystem::End()
 void RenderSystem::Submit()
 {
     auto graphicsQueue = mContext->GraphicsQueue;
+    std::function<void(vk::Queue)> item;
+    while (mSubmitQueue.TryPop(item))
+    {
+        item(graphicsQueue);
+    }
 }
 } // namespace MEngine::Function

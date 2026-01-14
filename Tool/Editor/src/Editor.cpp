@@ -1,4 +1,5 @@
 #include "Editor.hpp"
+#include "ILogger.hpp"
 #include "Logger.hpp"
 #include <GLFW/glfw3.h>
 #include <hello_imgui/hello_imgui.h>
@@ -8,6 +9,7 @@ namespace MEngine::Tool
 
 Editor::Editor()
 {
+    Logger::GetInstance().GetLogger()->SetLogLevel(LogLevel::Trace);
     mParams.appWindowParams.windowTitle = "MEngine Editor";
     mParams.imGuiWindowParams.defaultImGuiWindowType = HelloImGui::DefaultImGuiWindowType::ProvideFullScreenDockSpace;
     // mParams.imGuiWindowParams.enableViewports = true;
@@ -31,21 +33,25 @@ Editor::Editor()
     std::vector<const char *> extensions(vulkanInstanceExtensions,
                                          vulkanInstanceExtensions + vulkanInstanceExtensionCount);
 
-    // RHIContextConfig rhiConfig{};
-    // rhiConfig.InstanceRequiredExtensions = extensions;
-    // rhiConfig.InstanceRequiredLayers = {"VK_LAYER_KHRONOS_validation"};
-    // rhiConfig.DeviceRequiredExtensions = {"VK_KHR_swapchain"};
-
-    // RHIContext::Instance().InitInstance(rhiConfig);
-    // RHIContext::Instance().InitContext();
-
-    // mAssetManager = std::make_shared<AssetManager>();
-    // mScene = std::make_shared<Scene>("EditorScene");
-    // mRenderSystem = std::make_shared<RenderSystem>(mScene, mAssetManager);
-    // mRenderSystem->Init();
+    ContextConfig config{};
+    config.InstanceRequiredExtensions = extensions;
+    config.InstanceRequiredLayers = {"VK_LAYER_KHRONOS_validation"};
+    mContext = std::make_shared<Context>(config);
+    mRenderSystem = std::make_shared<RenderSystem>(mContext);
+    mRenderSystem->Init();
 };
 Editor::~Editor()
 {
+    mRenderSystem->Shutdown();
+    mRenderSystem.reset();
+    std::function<void(std::shared_ptr<Context>)> item;
+    auto size = PendingDeletions.Size();
+    while (PendingDeletions.TryPop(item))
+    {
+        item(mContext);
+        LogDebug("Processed a pending deletion in RenderSystem destructor");
+    }
+    mContext.reset();
 }
 void Editor::Run()
 {

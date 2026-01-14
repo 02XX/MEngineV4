@@ -10,12 +10,38 @@ template <typename T> class ConcurrentQueue final : public IConcurrentQueue<T>
 
   public:
     ~ConcurrentQueue() override = default;
-    bool Empty() const override;
-    size_t Size() const override;
-    void Push(T &&item) override;
-    void Push(const T &item) override;
-    bool TryPop(T &item) override;
-    void WaitAndPop(T &item) override;
-    void Clear() override;
+    bool Empty() const override
+    {
+        return Size() == 0;
+    }
+    size_t Size() const override
+    {
+        return mQueue.size_approx();
+    }
+    void Push(T &&item) override
+    {
+        mQueue.enqueue(std::move(item));
+    }
+    void Push(const T &item) override
+    {
+        mQueue.enqueue(item);
+    }
+    bool TryPop(T &item) override
+    {
+        return mQueue.try_dequeue(item);
+    }
+    void WaitAndPop(T &item) override
+    {
+        while (!mQueue.try_dequeue(item))
+        {
+        }
+    }
+    void Clear() override
+    {
+        T temp;
+        while (mQueue.try_dequeue(temp))
+        {
+        }
+    }
 };
 } // namespace MEngine::Core

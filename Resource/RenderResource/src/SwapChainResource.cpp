@@ -42,14 +42,12 @@ void SwapChainResource::InitRHI(std::shared_ptr<Context> context)
 }
 void SwapChainResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
-    PendingDeletions.Push([this, context]() {
-        auto device = context->Device.get();
-        for (auto &imageView : SwapChainImageViews)
-        {
-            device.destroyImageView(imageView);
-        }
-        device.destroySwapchainKHR(SwapChain);
-    });
+    auto device = context->Device.get();
+    for (auto &imageView : SwapChainImageViews)
+    {
+        device.destroyImageView(imageView);
+    }
+    device.destroySwapchainKHR(SwapChain);
 }
 void SwapChainResource::CreateSurface(std::shared_ptr<Context> context)
 {

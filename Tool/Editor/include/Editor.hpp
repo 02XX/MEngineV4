@@ -1,13 +1,20 @@
 #pragma once
+#include "Context.hpp"
+#include "RenderSystem.hpp"
 #include <hello_imgui/runner_params.h>
 #include <memory>
 #include <queue>
+
+using namespace MEngine::Platform;
+using namespace MEngine::Function;
 namespace MEngine::Tool
 {
 class Editor
 {
   private:
-    HelloImGui::RunnerParams mParams;
+    std::shared_ptr<Context> mContext{};
+    HelloImGui::RunnerParams mParams{};
+    std::shared_ptr<RenderSystem> mRenderSystem{};
 
   public:
     Editor();

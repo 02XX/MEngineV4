@@ -9,6 +9,7 @@ namespace MEngine::Resource
 FrameResource::FrameResource(vk::Extent3D extent) : Extent(extent) {};
 void FrameResource::InitRHI(std::shared_ptr<Context> context)
 {
+
     auto device = context->Device.get();
     // Semaphore
     ImageAvailableSemaphore = device.createSemaphoreUnique(vk::SemaphoreCreateInfo{});
@@ -61,8 +62,8 @@ void FrameResource::InitRHI(std::shared_ptr<Context> context)
         .setAddressModeU(vk::SamplerAddressMode::eRepeat)
         .setAddressModeV(vk::SamplerAddressMode::eRepeat)
         .setAddressModeW(vk::SamplerAddressMode::eRepeat)
-        .setAnisotropyEnable(VK_TRUE)
-        .setMaxAnisotropy(16)
+        // .setAnisotropyEnable(VK_TRUE)
+        // .setMaxAnisotropy(16)
         .setBorderColor(vk::BorderColor::eIntOpaqueBlack)
         .setUnnormalizedCoordinates(VK_FALSE)
         .setCompareEnable(VK_FALSE)
@@ -92,6 +93,7 @@ void FrameResource::InitRHI(std::shared_ptr<Context> context)
                   vk::ImageUsageFlagBits::eTransferSrc)
         .setSharingMode(vk::SharingMode::eExclusive)
         .setInitialLayout(vk::ImageLayout::eUndefined);
+    vk::SamplerCreateInfo depthStencilImageSamplerCreateInfo{};
     DepthStencilTexture =
         std::make_unique<TextureRenderTarget2DResource>(depthStencilImageCreateInfo, colorImageSamplerCreateInfo);
     // Init RHI
@@ -105,6 +107,7 @@ void FrameResource::InitRHI(std::shared_ptr<Context> context)
 }
 void FrameResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
+
     ColorTexture->ReleaseRHI(context);
     AlbedoTexture->ReleaseRHI(context);
     NormalTexture->ReleaseRHI(context);
@@ -112,14 +115,12 @@ void FrameResource::ReleaseRHI(std::shared_ptr<Context> context)
     PositionTexture->ReleaseRHI(context);
     EmissiveTexture->ReleaseRHI(context);
     DepthStencilTexture->ReleaseRHI(context);
-    PendingDeletions.Push([this, context]() {
-        auto device = context->Device.get();
-        device.freeCommandBuffers(GraphicsCommandPool, {GraphicsCommandBuffer});
-        device.freeCommandBuffers(TransferCommandPool, {TransferCommandBuffer});
-        device.freeCommandBuffers(PresentCommandPool, {PresentCommandBuffer});
-        device.destroyCommandPool(GraphicsCommandPool);
-        device.destroyCommandPool(TransferCommandPool);
-        device.destroyCommandPool(PresentCommandPool);
-    });
+    auto device = context->Device.get();
+    device.freeCommandBuffers(GraphicsCommandPool, {GraphicsCommandBuffer});
+    device.freeCommandBuffers(TransferCommandPool, {TransferCommandBuffer});
+    device.freeCommandBuffers(PresentCommandPool, {PresentCommandBuffer});
+    device.destroyCommandPool(GraphicsCommandPool);
+    device.destroyCommandPool(TransferCommandPool);
+    device.destroyCommandPool(PresentCommandPool);
 }
 } // namespace MEngine::Resource
