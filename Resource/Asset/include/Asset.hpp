@@ -1,11 +1,10 @@
 #pragma once
+#include "UUID.hpp"
+
 #include "Logger.hpp"
 #include "RenderResource.hpp"
-#include "UUID.hpp"
 #include "UUIDGenerator.hpp"
-#include <gtest/gtest_prod.h>
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <string>
 
 using namespace MEngine::Core;
@@ -13,14 +12,11 @@ namespace MEngine::Resource
 {
 class Asset
 {
-    friend struct nlohmann::adl_serializer<Asset>;
-    friend class AssetManager;
-
   protected:
-    UUID mID{};
+    MEngine::Core::UUID mID{};
     std::string mName{"Unnamed"};
     std::unique_ptr<RenderResource> mResource{};
-    Asset() : mID(UUID{}), mName("Unnamed")
+    Asset() : mID(MEngine::Core::UUID{}), mName("Unnamed")
     {
     }
 
@@ -32,7 +28,7 @@ class Asset
     {
         LogDebug("Destroying Asset base {}", mName);
     };
-    virtual inline const UUID &GetID() const
+    virtual inline const MEngine::Core::UUID &GetID() const
     {
         return mID;
     }

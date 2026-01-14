@@ -71,13 +71,13 @@ void FrameResource::InitRHI(std::shared_ptr<Context> context)
         .setMipLodBias(0.0f)
         .setMinLod(0.0f)
         .setMaxLod(0.0f);
-    ColorTextures = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
-    AlbedoTextures = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
-    NormalTextures = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
-    ARMTextures = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
-    PositionTextures =
+    ColorTexture = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
+    AlbedoTexture = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
+    NormalTexture = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
+    ARMTexture = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
+    PositionTexture =
         std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
-    EmissiveTextures =
+    EmissiveTexture =
         std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
 
     vk::ImageCreateInfo depthStencilImageCreateInfo{};
@@ -92,26 +92,26 @@ void FrameResource::InitRHI(std::shared_ptr<Context> context)
                   vk::ImageUsageFlagBits::eTransferSrc)
         .setSharingMode(vk::SharingMode::eExclusive)
         .setInitialLayout(vk::ImageLayout::eUndefined);
-    DepthStencilTextures =
+    DepthStencilTexture =
         std::make_unique<TextureRenderTarget2DResource>(depthStencilImageCreateInfo, colorImageSamplerCreateInfo);
     // Init RHI
-    ColorTextures->InitRHI(context);
-    AlbedoTextures->InitRHI(context);
-    NormalTextures->InitRHI(context);
-    ARMTextures->InitRHI(context);
-    PositionTextures->InitRHI(context);
-    EmissiveTextures->InitRHI(context);
-    DepthStencilTextures->InitRHI(context);
+    ColorTexture->InitRHI(context);
+    AlbedoTexture->InitRHI(context);
+    NormalTexture->InitRHI(context);
+    ARMTexture->InitRHI(context);
+    PositionTexture->InitRHI(context);
+    EmissiveTexture->InitRHI(context);
+    DepthStencilTexture->InitRHI(context);
 }
 void FrameResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
-    ColorTextures->ReleaseRHI(context);
-    AlbedoTextures->ReleaseRHI(context);
-    NormalTextures->ReleaseRHI(context);
-    ARMTextures->ReleaseRHI(context);
-    PositionTextures->ReleaseRHI(context);
-    EmissiveTextures->ReleaseRHI(context);
-    DepthStencilTextures->ReleaseRHI(context);
+    ColorTexture->ReleaseRHI(context);
+    AlbedoTexture->ReleaseRHI(context);
+    NormalTexture->ReleaseRHI(context);
+    ARMTexture->ReleaseRHI(context);
+    PositionTexture->ReleaseRHI(context);
+    EmissiveTexture->ReleaseRHI(context);
+    DepthStencilTexture->ReleaseRHI(context);
     PendingDeletions.Push([this, context]() {
         auto device = context->Device.get();
         device.freeCommandBuffers(GraphicsCommandPool, {GraphicsCommandBuffer});

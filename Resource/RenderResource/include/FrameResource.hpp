@@ -12,13 +12,13 @@ class FrameResource final : public RenderResource
   public:
     // MRT
     vk::Extent3D Extent;
-    std::unique_ptr<TextureRenderTarget2DResource> ColorTextures;
-    std::unique_ptr<TextureRenderTarget2DResource> AlbedoTextures;
-    std::unique_ptr<TextureRenderTarget2DResource> NormalTextures;
-    std::unique_ptr<TextureRenderTarget2DResource> ARMTextures;
-    std::unique_ptr<TextureRenderTarget2DResource> PositionTextures;
-    std::unique_ptr<TextureRenderTarget2DResource> EmissiveTextures;
-    std::unique_ptr<TextureRenderTarget2DResource> DepthStencilTextures;
+    std::unique_ptr<TextureRenderTarget2DResource> ColorTexture;
+    std::unique_ptr<TextureRenderTarget2DResource> AlbedoTexture;
+    std::unique_ptr<TextureRenderTarget2DResource> NormalTexture;
+    std::unique_ptr<TextureRenderTarget2DResource> ARMTexture;
+    std::unique_ptr<TextureRenderTarget2DResource> PositionTexture;
+    std::unique_ptr<TextureRenderTarget2DResource> EmissiveTexture;
+    std::unique_ptr<TextureRenderTarget2DResource> DepthStencilTexture;
     vk::ClearColorValue ColorClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
     vk::ClearColorValue AlbedoClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
     vk::ClearColorValue NormalClearValue = {std::array<float, 4>{0.5f, 0.5f, 1.0f, 1.0f}};
