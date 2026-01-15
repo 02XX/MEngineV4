@@ -11,6 +11,16 @@ TextureResource::TextureResource(vk::ImageCreateInfo imageCreateInfo, vk::Sample
 TextureResource::~TextureResource()
 {
 }
+void TextureResource::ReleaseRHI(std::shared_ptr<Context> context)
+{
+    auto device = context->Device.get();
+    if (mSampler)
+        device.destroySampler(mSampler);
+    if (mImageView)
+        device.destroyImageView(mImageView);
+    if (mImage && mImageAllocation)
+        vmaDestroyImage(context->VmaAllocator, mImage, mImageAllocation);
+}
 
 std::pair<uint32_t, uint32_t> TextureResource::GetPixelSize(vk::Format format) const
 {

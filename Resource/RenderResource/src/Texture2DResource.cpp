@@ -75,12 +75,5 @@ void Texture2DResource::InitRHI(std::shared_ptr<Context> context)
     // }
 }
 
-void Texture2DResource::ReleaseRHI(std::shared_ptr<Context> context)
-{
 
-    auto device = context->Device.get();
-    device.destroySampler(mSampler);
-    device.destroyImageView(mImageView);
-    vmaDestroyImage(context->VmaAllocator, mImage, mImageAllocation);
-}
 } // namespace MEngine::Resource

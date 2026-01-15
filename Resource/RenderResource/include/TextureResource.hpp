@@ -20,7 +20,7 @@ class TextureResource : public RenderResource
   public:
     TextureResource(vk::ImageCreateInfo imageCreateInfo, vk::SamplerCreateInfo samplerCreateInfo);
     ~TextureResource() override;
-
+    virtual void ReleaseRHI(std::shared_ptr<Context> context) override;
     inline const vk::Image GetImage() const
     {
         return mImage;
