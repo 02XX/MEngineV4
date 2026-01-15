@@ -64,7 +64,7 @@ std::shared_ptr<Shader> ShaderManager::CreateShader(const std::string &name, con
     }
     // 创建Shader对象
     auto shader = std::make_shared<Shader>(name, spirvCode, GetShaderStageFromExtension(extension));
-    LogInfo("Created shader {} from {}", name, path.GetPath().string());
+    LogInfo("Created「{}」shader from「{}」", name, path.GetPath().string());
     return shader;
 }
 vk::ShaderStageFlagBits ShaderManager::GetShaderStageFromExtension(const std::string &extension)

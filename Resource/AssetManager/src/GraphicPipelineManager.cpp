@@ -27,7 +27,7 @@ std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateGBufferPipeline()
         LogError("Failed to create GBuffer pipeline");
         return nullptr;
     }
-    LogInfo("Created GBuffer pipeline");
+    LogInfo("Created「GBuffer」pipeline");
     return pipeline;
 }
 std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateLightingPipeline()
@@ -40,7 +40,7 @@ std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateLightingPipeline(
         LogError("Failed to create Lighting pipeline");
         return nullptr;
     }
-    LogInfo("Created Lighting pipeline");
+    LogInfo("Created 「Lighting」 pipeline");
     return std::shared_ptr<GraphicPipeline>(std::move(pipeline));
 }
 std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateSkyboxPipeline()
