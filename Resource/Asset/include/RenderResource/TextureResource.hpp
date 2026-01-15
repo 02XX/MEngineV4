@@ -3,22 +3,19 @@
 
 namespace MEngine::Resource
 {
+class Texture;
 class TextureResource : public RenderResource
 {
   protected:
-    vk::ImageCreateInfo mImageCreateInfo{};
-    vk::SamplerCreateInfo mSamplerCreateInfo{};
-
     vk::Image mImage{};
     vk::ImageView mImageView{};
     vk::Sampler mSampler{};
 
-    // VMA
     VmaAllocation mImageAllocation{};
     VmaAllocationInfo mImageAllocationInfo{};
 
   public:
-    TextureResource(vk::ImageCreateInfo imageCreateInfo, vk::SamplerCreateInfo samplerCreateInfo);
+    TextureResource(Texture *texture);
     ~TextureResource() override;
     virtual void ReleaseRHI(std::shared_ptr<Context> context) override;
     inline const vk::Image GetImage() const

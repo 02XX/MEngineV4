@@ -1,21 +1,25 @@
 #include "GraphicPipelineResource.hpp"
+#include "GraphicPipeline.hpp"
 #include "PipelineResource.hpp"
 namespace MEngine::Resource
 {
-
+GraphicPipelineResource::GraphicPipelineResource(GraphicPipeline *pipeline) : PipelineResource(pipeline)
+{
+}
 void GraphicPipelineResource::InitRHI(std::shared_ptr<Context> context)
 {
     PipelineResource::InitRHI(context);
-
+    auto pipeline = static_cast<GraphicPipeline *>(mOwnerAsset);
     auto device = context->Device.get();
     vk::PipelineRenderingCreateInfo pipelineRenderingInfo{};
-    pipelineRenderingInfo.setColorAttachmentCount(static_cast<uint32_t>(mColorBlendAttachments.size()))
-        .setColorAttachmentFormats(mColorAttachmentFormats)
-        .setDepthAttachmentFormat(mDepthStencilAttachmentFormat)
-        .setStencilAttachmentFormat(mDepthStencilAttachmentFormat);
+    pipelineRenderingInfo.setColorAttachmentCount(static_cast<uint32_t>(pipeline->mColorBlendAttachments.size()))
+        .setColorAttachmentFormats(pipeline->mColorAttachmentFormats)
+        .setDepthAttachmentFormat(pipeline->mDepthStencilAttachmentFormat)
+        .setStencilAttachmentFormat(pipeline->mDepthStencilAttachmentFormat);
 
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.setVertexBindingDescriptions(mVertexBindings).setVertexAttributeDescriptions(mVertexAttributes);
+    vertexInputInfo.setVertexBindingDescriptions(pipeline->mVertexBindings)
+        .setVertexAttributeDescriptions(pipeline->mVertexAttributes);
 
     vk::PipelineViewportStateCreateInfo viewportState{};
     vk::Viewport viewport{};
@@ -30,24 +34,25 @@ void GraphicPipelineResource::InitRHI(std::shared_ptr<Context> context)
     dynamicStateInfo.setDynamicStates(dynamicStates);
 
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
-    for (const auto &shader : mShaders)
+    for (const auto &shader : pipeline->mShaders)
     {
+        auto shaderResource = shader->GetResourceAs<ShaderResource>();
         shaderStages.push_back(vk::PipelineShaderStageCreateInfo{}
                                    .setStage(shader->GetShaderStage())
-                                   .setModule(shader->GetShaderModule())
+                                   .setModule(shaderResource->GetShaderModule())
                                    .setPName("main"));
     }
 
-    mColorBlendState.setAttachments(mColorBlendAttachments);
+    pipeline->mColorBlendState.setAttachments(pipeline->mColorBlendAttachments);
 
     vk::GraphicsPipelineCreateInfo pipelineCreateInfo{};
     pipelineCreateInfo.setPVertexInputState(&vertexInputInfo)
-        .setPInputAssemblyState(&mInputAssemblyState)
-        .setPRasterizationState(&mRasterizationState)
+        .setPInputAssemblyState(&pipeline->mInputAssemblyState)
+        .setPRasterizationState(&pipeline->mRasterizationState)
         .setPViewportState(&viewportState)
-        .setPMultisampleState(&mMultisampleState)
-        .setPDepthStencilState(&mDepthStencilState)
-        .setPColorBlendState(&mColorBlendState)
+        .setPMultisampleState(&pipeline->mMultisampleState)
+        .setPDepthStencilState(&pipeline->mDepthStencilState)
+        .setPColorBlendState(&pipeline->mColorBlendState)
         .setPDynamicState(&dynamicStateInfo)
         .setStages(shaderStages)
         .setLayout(mPipelineLayout)

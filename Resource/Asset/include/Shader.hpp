@@ -8,18 +8,20 @@ namespace MEngine::Resource
 {
 class Shader final : public Asset
 {
+    friend class ShaderResource;
+
   protected:
-    std::vector<uint32_t> SPIRVCode{};
+    std::vector<uint32_t> mSPIRVCode{};
     vk::ShaderStageFlagBits mStage{vk::ShaderStageFlagBits::eVertex};
 
   public:
     Shader(const std::string &name, const std::vector<uint32_t> &spirvCode, vk::ShaderStageFlagBits stage)
-        : Asset(name), SPIRVCode(spirvCode), mStage(stage)
+        : Asset(name), mSPIRVCode(spirvCode), mStage(stage)
     {
-        mResource = std::make_unique<ShaderResource>(SPIRVCode, mStage);
+        mResource = std::make_unique<ShaderResource>(this);
     }
     ~Shader() override = default;
-    inline vk::ShaderStageFlagBits GetStage() const
+    inline vk::ShaderStageFlagBits GetShaderStage() const
     {
         return mStage;
     }

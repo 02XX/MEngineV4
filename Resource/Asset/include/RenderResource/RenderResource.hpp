@@ -8,11 +8,14 @@ using namespace MEngine::Platform;
 using namespace MEngine::Core;
 namespace MEngine::Resource
 {
-
+class Asset;
 class RenderResource : public std::enable_shared_from_this<RenderResource>
 {
+  protected:
+    Asset *mOwnerAsset{};
+
   public:
-    RenderResource() = default;
+    RenderResource(Asset *ownerAsset);
     RenderResource(const RenderResource &other);
     RenderResource &operator=(const RenderResource &other);
     RenderResource(RenderResource &&other) noexcept;

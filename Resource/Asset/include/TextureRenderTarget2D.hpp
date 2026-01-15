@@ -15,7 +15,7 @@ class TextureRenderTarget2D : public TextureRenderTarget
                           const SamplerSetting &samplerSetting)
         : TextureRenderTarget(name, importSetting, samplerSetting)
     {
-        mResource = std::make_unique<TextureRenderTarget2DResource>(importSetting, samplerSetting);
+        mResource = std::make_unique<TextureRenderTarget2DResource>(this);
     }
     ~TextureRenderTarget2D() override = default;
 };

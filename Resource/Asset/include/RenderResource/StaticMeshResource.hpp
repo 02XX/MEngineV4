@@ -5,6 +5,7 @@
 #include <vector>
 namespace MEngine::Resource
 {
+class StaticMesh;
 class StaticMeshResource : public RenderResource
 {
   protected:
@@ -17,15 +18,9 @@ class StaticMeshResource : public RenderResource
     vk::Buffer mIndexBuffer;
     VmaAllocation mIndexBufferAllocation;
     VmaAllocationInfo mIndexBufferAllocationInfo;
-    // Data 所有权在上层
-    const std::vector<Vertex> *mVertices{};
-    const std::vector<uint32_t> *mIndices{};
 
   public:
-    StaticMeshResource(const std::vector<Vertex> *vertices, const std::vector<uint32_t> *indices)
-        : RenderResource(), mVertices(vertices), mIndices(indices)
-    {
-    }
+    StaticMeshResource(StaticMesh *staticMesh);
     ~StaticMeshResource() override = default;
     void InitRHI(std::shared_ptr<Context> context) override;
     void ReleaseRHI(std::shared_ptr<Context> context) override;

@@ -1,8 +1,13 @@
 #include "StaticMeshResource.hpp"
+#include "StaticMesh.hpp"
 namespace MEngine::Resource
 {
+StaticMeshResource::StaticMeshResource(StaticMesh *staticMesh) : RenderResource(staticMesh)
+{
+}
 void StaticMeshResource::InitRHI(std::shared_ptr<Context> context)
 {
+    auto staticMesh = static_cast<StaticMesh *>(mOwnerAsset);
     auto device = context->Device.get();
     vk::UniqueCommandBuffer commandBuffer =
         std::move(device
@@ -14,7 +19,7 @@ void StaticMeshResource::InitRHI(std::shared_ptr<Context> context)
     vk::UniqueFence copyFence = device.createFenceUnique(vk::FenceCreateInfo{});
     //=====================================Vertex Buffer=====================================
     vk::BufferCreateInfo vertexBufferCreateInfo{};
-    vk::DeviceSize vertexBufferSize = sizeof(Vertex) * mVertices->size();
+    vk::DeviceSize vertexBufferSize = sizeof(Vertex) * staticMesh->GetVertices().size();
     vertexBufferCreateInfo.setSize(vertexBufferSize)
         .setUsage(vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst)
         .setSharingMode(vk::SharingMode::eExclusive);
@@ -46,7 +51,7 @@ void StaticMeshResource::InitRHI(std::shared_ptr<Context> context)
         throw std::runtime_error("Failed to create vertex staging buffer");
     }
     // Copy vertex data to staging buffer
-    memcpy(vertexStagingBufferAllocationInfo.pMappedData, mVertices->data(), (size_t)vertexBufferSize);
+    memcpy(vertexStagingBufferAllocationInfo.pMappedData, staticMesh->GetVertices().data(), (size_t)vertexBufferSize);
     // Copy data from staging buffer to vertex buffer
     commandBuffer->begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
     vk::BufferCopy vertexCopyRegion{};
@@ -67,7 +72,7 @@ void StaticMeshResource::InitRHI(std::shared_ptr<Context> context)
     device.resetFences(copyFence.get());
     //=====================================Index Buffer=====================================
     vk::BufferCreateInfo indexBufferCreateInfo{};
-    vk::DeviceSize indexBufferSize = sizeof(uint32_t) * mIndices->size();
+    vk::DeviceSize indexBufferSize = sizeof(uint32_t) * staticMesh->GetIndices().size();
     indexBufferCreateInfo.setSize(indexBufferSize)
         .setUsage(vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst)
         .setSharingMode(vk::SharingMode::eExclusive);
@@ -99,7 +104,7 @@ void StaticMeshResource::InitRHI(std::shared_ptr<Context> context)
         throw std::runtime_error("Failed to create index staging buffer");
     }
     // Copy index data to staging buffer
-    memcpy(indexStagingBufferAllocationInfo.pMappedData, mIndices->data(), (size_t)indexBufferSize);
+    memcpy(indexStagingBufferAllocationInfo.pMappedData, staticMesh->GetIndices().data(), (size_t)indexBufferSize);
     // Copy data from staging buffer to index buffer
     commandBuffer->begin(vk::CommandBufferBeginInfo{vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
     vk::BufferCopy indexCopyRegion{};

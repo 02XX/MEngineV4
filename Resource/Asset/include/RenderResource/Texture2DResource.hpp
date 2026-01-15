@@ -12,6 +12,7 @@ struct Texture2DMipMap
     uint32_t SizeY{0};
     uint32_t SizeZ{0};
 };
+class Texture2D;
 class Texture2DResource : public TextureResource
 {
 
@@ -19,9 +20,7 @@ class Texture2DResource : public TextureResource
     const std::vector<Texture2DMipMap> *mTextureData{};
 
   public:
-    Texture2DResource(vk::ImageCreateInfo imageCreateInfo, vk::SamplerCreateInfo samplerCreateInfo,
-                      const std::vector<Texture2DMipMap> *textureData)
-        : TextureResource(imageCreateInfo, samplerCreateInfo), mTextureData(textureData) {};
+    Texture2DResource(Texture2D *texture2D);
     ~Texture2DResource() override = default;
     virtual void InitRHI(std::shared_ptr<Context> context) override;
 };

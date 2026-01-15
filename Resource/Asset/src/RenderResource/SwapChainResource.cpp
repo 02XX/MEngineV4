@@ -4,6 +4,9 @@
 using namespace MEngine::Platform;
 namespace MEngine::Resource
 {
+SwapChainResource::SwapChainResource(vk::SurfaceKHR surface) : Surface(surface), RenderResource(nullptr)
+{
+}
 void SwapChainResource::InitRHI(std::shared_ptr<Context> context)
 {
     auto device = context->Device.get();

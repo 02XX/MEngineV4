@@ -1,11 +1,10 @@
 #include "TextureResource.hpp"
 #include "Logger.hpp"
 #include "RenderResource.hpp"
-
+#include "Texture.hpp"
 namespace MEngine::Resource
 {
-TextureResource::TextureResource(vk::ImageCreateInfo imageCreateInfo, vk::SamplerCreateInfo samplerCreateInfo)
-    : mImageCreateInfo(imageCreateInfo), mSamplerCreateInfo(samplerCreateInfo), RenderResource()
+TextureResource::TextureResource(Texture *texture) : RenderResource(texture)
 {
 }
 TextureResource::~TextureResource()

@@ -6,7 +6,7 @@ using namespace MEngine::Resource;
 using namespace MEngine::Platform;
 namespace MEngine::Resource
 {
-FrameResource::FrameResource(vk::Extent3D extent) : Extent(extent) {};
+FrameResource::FrameResource(vk::Extent3D extent) : Extent(extent), RenderResource(nullptr) {};
 void FrameResource::InitRHI(std::shared_ptr<Context> context)
 {
 

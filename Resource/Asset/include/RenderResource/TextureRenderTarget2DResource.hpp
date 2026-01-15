@@ -7,8 +7,7 @@ class TextureRenderTarget2DResource : public TextureResource
 {
 
   public:
-    TextureRenderTarget2DResource(vk::ImageCreateInfo imageCreateInfo, vk::SamplerCreateInfo samplerCreateInfo)
-        : TextureResource(imageCreateInfo, samplerCreateInfo) {};
+    TextureRenderTarget2DResource(TextureRenderTarget2D *textureRenderTarget2D);
     virtual void InitRHI(std::shared_ptr<Context> context) override;
     virtual void ReleaseRHI(std::shared_ptr<Context> context) override;
 };

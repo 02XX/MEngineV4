@@ -1,12 +1,16 @@
 #include "ShaderResource.hpp"
-
+#include "Shader.hpp"
 namespace MEngine::Resource
 {
+ShaderResource::ShaderResource(Shader *shader) : RenderResource(shader)
+{
+}
 void ShaderResource::InitRHI(std::shared_ptr<Context> context)
 {
+    auto shader = static_cast<Shader *>(mOwnerAsset);
     auto device = context->Device.get();
     vk::ShaderModuleCreateInfo shaderModuleCreateInfo{};
-    shaderModuleCreateInfo.setCode(mCode);
+    shaderModuleCreateInfo.setCode(shader->mSPIRVCode);
     mShaderModule = device.createShaderModule(shaderModuleCreateInfo);
     if (!mShaderModule)
     {

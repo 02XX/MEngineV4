@@ -6,14 +6,11 @@ namespace MEngine::Resource
 {
 class Pipeline : public Asset
 {
+    friend class PipelineResource;
+
   protected:
     std::vector<std::vector<vk::DescriptorSetLayoutBinding>> mDescriptorSetLayoutBindings{};
     std::vector<vk::PushConstantRange> mPushConstantRanges{};
-
-  protected:
-    Pipeline() : Asset()
-    {
-    }
 
   public:
     Pipeline(const std::string &name,
@@ -22,6 +19,7 @@ class Pipeline : public Asset
         : Asset(name), mDescriptorSetLayoutBindings(descriptorSetLayoutBindings),
           mPushConstantRanges(pushConstantRanges)
     {
+        
     }
     ~Pipeline() override = default;
 };

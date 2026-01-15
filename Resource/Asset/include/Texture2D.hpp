@@ -20,16 +20,11 @@ class Texture2D : public Texture
   private:
     std::vector<Texture2DMipMap> mTextureData{};
 
-  protected:
-    Texture2D() : Texture()
-    {
-    }
-
   public:
     Texture2D(const std::string &name, TextureSetting importSetting, SamplerSetting samplerSetting)
         : Texture(name, importSetting, samplerSetting)
     {
-        mResource = std::make_unique<Texture2DResource>(importSetting, samplerSetting, &mTextureData);
+        mResource = std::make_unique<Texture2DResource>(this);
     }
     ~Texture2D() override = default;
     inline void SetTextureData(std::vector<Texture2DMipMap> data)

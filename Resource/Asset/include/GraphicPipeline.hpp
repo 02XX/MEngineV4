@@ -11,6 +11,8 @@ namespace MEngine::Resource
 {
 class GraphicPipeline final : public Pipeline
 {
+    friend class GraphicPipelineResource;
+
   private:
     std::vector<std::shared_ptr<Shader>>
         mShaders{}; // RenderResource 不应该持有其他RenderResource的所有权，而是由上层的Asset来管理所有权
@@ -24,11 +26,6 @@ class GraphicPipeline final : public Pipeline
     std::vector<vk::PipelineColorBlendAttachmentState> mColorBlendAttachments{};
     std::vector<vk::Format> mColorAttachmentFormats{};
     vk::Format mDepthStencilAttachmentFormat{};
-
-  protected:
-    GraphicPipeline() : Pipeline()
-    {
-    }
 
   public:
     GraphicPipeline(const std::string &name,
@@ -55,10 +52,7 @@ class GraphicPipeline final : public Pipeline
         {
             shaderResources.push_back(shader->GetResourceAs<ShaderResource>());
         }
-        mResource = std::make_unique<GraphicPipelineResource>(
-            mDescriptorSetLayoutBindings, mPushConstantRanges, shaderResources, mVertexBindings, mVertexAttributes,
-            mInputAssemblyState, mRasterizationState, mMultisampleState, mDepthStencilState, mColorBlendState,
-            mColorBlendAttachments, mColorAttachmentFormats, mDepthStencilAttachmentFormat);
+        mResource = std::make_unique<GraphicPipelineResource>(this);
     }
     ~GraphicPipeline() override = default;
 };

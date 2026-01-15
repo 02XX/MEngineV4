@@ -3,6 +3,10 @@
 #include "RenderResource.hpp"
 namespace MEngine::Resource
 {
+TextureRenderTarget2DResource::TextureRenderTarget2DResource(TextureRenderTarget2D *textureRenderTarget2D)
+    : TextureResource(textureRenderTarget2D)
+{
+}
 void TextureRenderTarget2DResource::InitRHI(std::shared_ptr<Context> context)
 {
 

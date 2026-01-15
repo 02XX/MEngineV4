@@ -37,7 +37,7 @@ class SwapChainResource : public RenderResource
     std::vector<vk::Image> SwapChainImages{};
     std::vector<vk::ImageView> SwapChainImageViews{};
 
-    SwapChainResource(vk::SurfaceKHR surface) : Surface(surface) {};
+    SwapChainResource(vk::SurfaceKHR surface);
     ~SwapChainResource() override = default;
 
   protected:

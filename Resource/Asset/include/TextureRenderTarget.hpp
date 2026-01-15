@@ -4,12 +4,9 @@ namespace MEngine::Resource
 {
 class TextureRenderTarget : public Texture
 {
-  protected:
-  protected:
-    TextureRenderTarget() : Texture()
-    {
-    }
+    friend class TextureRenderTargetResource;
 
+  protected:
   public:
     TextureRenderTarget(const std::string &name, const TextureSetting &importSetting,
                         const SamplerSetting &samplerSetting)

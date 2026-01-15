@@ -10,6 +10,8 @@ namespace MEngine::Resource
 
 class StaticMesh final : public Asset
 {
+    friend class StaticMeshResource;
+
   protected:
     Matrix4 mModelMatrix{};
     std::vector<Vertex> mVertices{};
@@ -19,7 +21,7 @@ class StaticMesh final : public Asset
     StaticMesh(const std::string &name, std::vector<Vertex> vertices, std::vector<uint32_t> indices)
         : Asset(name), mVertices(std::move(vertices)), mIndices(std::move(indices))
     {
-        mResource = std::make_unique<StaticMeshResource>(&mVertices, &mIndices);
+        mResource = std::make_unique<StaticMeshResource>(this);
     }
     ~StaticMesh() override = default;
     inline const std::vector<Vertex> &GetVertices() const

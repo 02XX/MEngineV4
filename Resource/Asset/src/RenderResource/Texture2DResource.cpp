@@ -1,19 +1,21 @@
 #include "Texture2DResource.hpp"
 #include "Logger.hpp"
-#include "RenderResource.hpp"
-
+#include "Texture2D.hpp"
 namespace MEngine::Resource
 {
+Texture2DResource::Texture2DResource(Texture2D *texture2D) : TextureResource(texture2D)
+{
+}
 void Texture2DResource::InitRHI(std::shared_ptr<Context> context)
 {
-
+    auto texture2D = static_cast<Texture2D *>(mOwnerAsset);
     auto instance = context->Instance.get();
     auto device = context->Device.get();
     // vk::DispatchLoaderDynamic dld(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
-    mImageCreateInfo.imageType = vk::ImageType::e2D;
+    texture2D->mImageCreateInfo.imageType = vk::ImageType::e2D;
 
-    mImageCreateInfo.arrayLayers = 1;
-    mImageCreateInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled |
+    texture2D->mImageCreateInfo.arrayLayers = 1;
+    texture2D->mImageCreateInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled |
                              vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eHostTransferEXT;
 
     VmaAllocationCreateInfo imageAllocationCreateInfo{};
@@ -74,6 +76,5 @@ void Texture2DResource::InitRHI(std::shared_ptr<Context> context)
     //     mRHITextureHandler->TransitionImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
     // }
 }
-
 
 } // namespace MEngine::Resource

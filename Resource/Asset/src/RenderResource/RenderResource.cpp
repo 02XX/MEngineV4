@@ -1,7 +1,12 @@
 #include "RenderResource.hpp"
+#include "Asset.hpp"
 #include "Logger.hpp"
+
 namespace MEngine::Resource
 {
+RenderResource::RenderResource(Asset *ownerAsset) : mOwnerAsset(ownerAsset)
+{
+}
 RenderResource::RenderResource(const RenderResource &other)
 {
     mState = other.mState;
