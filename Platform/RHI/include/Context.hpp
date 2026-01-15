@@ -33,6 +33,12 @@ class Context
     // VMA
     VmaAllocator VmaAllocator{};
 
+    // Command Pool
+    // Command Pool非线程安全，因此需要保证CommandPool在单线程中使用!!!
+    // Command Pool的创建和销毁是耗时操作，因此在Context初始化时创建好需要的Command Pool
+    vk::UniqueCommandPool GraphicsCommandPool{};
+    vk::UniqueCommandPool TransferCommandPool{};
+
   private:
     void CreateInstance();
     void PickPhysicalDevice();
@@ -40,6 +46,7 @@ class Context
     void CreateLogicalDevice();
     void GetQueues();
     void CreateVMA();
+    void CreateCommandPools();
 
   public:
     Context(const ContextConfig &config);

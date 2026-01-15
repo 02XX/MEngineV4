@@ -26,23 +26,19 @@ class Texture2D : public Texture
     }
 
   public:
-    Texture2D(const std::string &name, const TextureSetting &importSetting, const SamplerSetting &samplerSetting)
+    Texture2D(const std::string &name, TextureSetting importSetting, SamplerSetting samplerSetting)
         : Texture(name, importSetting, samplerSetting)
     {
-        mResource = std::make_unique<Texture2DResource>(importSetting, samplerSetting, mTextureData);
+        mResource = std::make_unique<Texture2DResource>(importSetting, samplerSetting, &mTextureData);
     }
     ~Texture2D() override = default;
-    void SetTextureData(const std::vector<Texture2DMipMap> &data)
+    inline void SetTextureData(std::vector<Texture2DMipMap> data)
     {
-        mTextureData = data;
+        mTextureData = std::move(data);
     }
     inline const std::vector<Texture2DMipMap> &GetTextureData() const
     {
         return mTextureData;
-    }
-    inline void SetTextureData(std::vector<Texture2DMipMap> &&data)
-    {
-        mTextureData = std::move(data);
     }
 };
 } // namespace MEngine::Resource

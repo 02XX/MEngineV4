@@ -14,6 +14,7 @@ Context::Context(const ContextConfig &config) : Config(config)
     CreateLogicalDevice();
     GetQueues();
     CreateVMA();
+    CreateCommandPools();
 }
 Context::~Context()
 {
@@ -189,5 +190,18 @@ void Context::CreateVMA()
     allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
     // allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
     vmaCreateAllocator(&allocatorCreateInfo, &VmaAllocator);
+}
+void Context::CreateCommandPools()
+{
+    // Graphics Command Pool
+    vk::CommandPoolCreateInfo graphicsPoolCreateInfo{};
+    graphicsPoolCreateInfo.setQueueFamilyIndex(QueueFamilyIndicates.graphicsFamily.value())
+        .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+    GraphicsCommandPool = Device->createCommandPoolUnique(graphicsPoolCreateInfo);
+    // Transfer Command Pool
+    vk::CommandPoolCreateInfo transferPoolCreateInfo{};
+    transferPoolCreateInfo.setQueueFamilyIndex(QueueFamilyIndicates.transferFamily.value())
+        .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+    TransferCommandPool = Device->createCommandPoolUnique(transferPoolCreateInfo);
 }
 } // namespace MEngine::Platform

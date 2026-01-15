@@ -1,6 +1,7 @@
 #include "AssetManager.hpp"
 #include "Context.hpp"
 #include "GraphicPipelineManager.hpp"
+#include "MeshManager.hpp"
 #include "ShaderManager.hpp"
 #include <gtest/gtest.h>
 #include <memory>
@@ -29,9 +30,28 @@ class AssetManagerTest : public ::testing::Test
 TEST_F(AssetManagerTest, ShaderManager)
 {
     auto shaderManager = std::make_shared<ShaderManager>();
+    auto shaders = shaderManager->GetAll();
+    for (auto shader : shaders)
+    {
+        shader->GetResource()->InitResource(mContext);
+    }
 }
 TEST_F(AssetManagerTest, GraphicPipelineManager)
 {
     auto shaderManager = std::make_shared<ShaderManager>();
     auto graphicPipelineManager = std::make_shared<GraphicPipelineManager>(mContext, shaderManager);
+    auto pipelines = graphicPipelineManager->GetAll();
+    for (auto pipeline : pipelines)
+    {
+        pipeline->GetResource()->InitResource(mContext);
+    }
+}
+TEST_F(AssetManagerTest, MeshManager)
+{
+    auto meshManager = std::make_shared<MeshManager>();
+    auto meshes = meshManager->GetAll();
+    for (auto mesh : meshes)
+    {
+        mesh->GetResource()->InitResource(mContext);
+    }
 }

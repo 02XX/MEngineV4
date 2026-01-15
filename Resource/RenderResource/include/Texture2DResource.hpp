@@ -16,11 +16,11 @@ class Texture2DResource : public TextureResource
 {
 
   protected:
-    std::vector<Texture2DMipMap> mTextureData{};
+    const std::vector<Texture2DMipMap> *mTextureData{};
 
   public:
     Texture2DResource(vk::ImageCreateInfo imageCreateInfo, vk::SamplerCreateInfo samplerCreateInfo,
-                      std::vector<Texture2DMipMap> textureData)
+                      const std::vector<Texture2DMipMap> *textureData)
         : TextureResource(imageCreateInfo, samplerCreateInfo), mTextureData(textureData) {};
     ~Texture2DResource() override = default;
     virtual void InitRHI(std::shared_ptr<Context> context) override;
