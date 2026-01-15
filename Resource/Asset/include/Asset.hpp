@@ -43,6 +43,14 @@ class Asset
     {
         return mName;
     }
+    virtual inline void SetName(const std::string &name)
+    {
+        mName = name;
+    }
+    virtual inline void SetID(const MEngine::Core::UUID &id)
+    {
+        mID = id;
+    }
     inline RenderResource *GetResource() const
     {
         if (!mResource.get())

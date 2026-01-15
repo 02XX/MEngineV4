@@ -40,5 +40,9 @@ class Texture2D : public Texture
     {
         return mTextureData;
     }
+    inline void SetTextureData(std::vector<Texture2DMipMap> &&data)
+    {
+        mTextureData = std::move(data);
+    }
 };
 } // namespace MEngine::Resource

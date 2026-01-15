@@ -8,9 +8,9 @@ namespace MEngine::Platform
 
 struct ContextConfig
 {
-    std::vector<const char *> InstanceRequiredExtensions;
-    std::vector<const char *> InstanceRequiredLayers;
-    std::vector<const char *> DeviceRequiredExtensions;
+    std::vector<const char *> InstanceRequiredExtensions{};
+    std::vector<const char *> InstanceRequiredLayers{};
+    std::vector<const char *> DeviceRequiredExtensions{};
 };
 class Context
 {

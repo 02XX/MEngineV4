@@ -8,18 +8,15 @@ namespace MEngine::Resource
 class GraphicPipelineResource final : public PipelineResource
 {
   protected:
+    std::vector<ShaderResource *>
+        mShaders{}; // RenderResource 不应该持有其他RenderResource的所有权，而是由上层的Asset来管理所有权
     vk::VertexInputBindingDescription mVertexBindings{};
     std::vector<vk::VertexInputAttributeDescription> mVertexAttributes{};
     vk::PipelineInputAssemblyStateCreateInfo mInputAssemblyState{};
-
     vk::PipelineRasterizationStateCreateInfo mRasterizationState{};
     vk::PipelineMultisampleStateCreateInfo mMultisampleState{};
     vk::PipelineDepthStencilStateCreateInfo mDepthStencilState{};
     vk::PipelineColorBlendStateCreateInfo mColorBlendState{};
-
-    std::vector<ShaderResource *>
-        mShaders{}; // RenderResource 不应该持有其他RenderResource的所有权，而是由上层的Asset来管理所有权
-
     std::vector<vk::PipelineColorBlendAttachmentState> mColorBlendAttachments{};
     std::vector<vk::Format> mColorAttachmentFormats{};
     vk::Format mDepthStencilAttachmentFormat{};
@@ -27,14 +24,13 @@ class GraphicPipelineResource final : public PipelineResource
   public:
     GraphicPipelineResource(std::vector<std::vector<vk::DescriptorSetLayoutBinding>> descriptorSetLayoutBindings,
                             std::vector<vk::PushConstantRange> pushConstantRanges,
-                            vk::VertexInputBindingDescription vertexBindings,
+                            std::vector<ShaderResource *> shaders, vk::VertexInputBindingDescription vertexBindings,
                             std::vector<vk::VertexInputAttributeDescription> vertexAttributes,
                             vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState,
                             vk::PipelineRasterizationStateCreateInfo rasterizationState,
                             vk::PipelineMultisampleStateCreateInfo multisampleState,
                             vk::PipelineDepthStencilStateCreateInfo depthStencilState,
                             vk::PipelineColorBlendStateCreateInfo colorBlendState,
-                            std::vector<ShaderResource *> shaders,
                             std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments,
                             std::vector<vk::Format> colorAttachmentFormats, vk::Format depthStencilAttachmentFormat)
         : PipelineResource(descriptorSetLayoutBindings, pushConstantRanges), mVertexBindings(vertexBindings),
