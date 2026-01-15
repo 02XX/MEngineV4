@@ -72,15 +72,16 @@ void FrameResource::InitRHI(std::shared_ptr<Context> context)
         .setMipLodBias(0.0f)
         .setMinLod(0.0f)
         .setMaxLod(0.0f);
-    ColorTexture = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
-    AlbedoTexture = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
-    NormalTexture = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
-    ARMTexture = std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
+    ColorTexture = std::make_unique<TextureRenderTarget2D>("Color0", colorImageCreateInfo, colorImageSamplerCreateInfo);
+    AlbedoTexture =
+        std::make_unique<TextureRenderTarget2D>("Albedo1", colorImageCreateInfo, colorImageSamplerCreateInfo);
+    NormalTexture =
+        std::make_unique<TextureRenderTarget2D>("Normal2", colorImageCreateInfo, colorImageSamplerCreateInfo);
+    ARMTexture = std::make_unique<TextureRenderTarget2D>("ARM3", colorImageCreateInfo, colorImageSamplerCreateInfo);
     PositionTexture =
-        std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
+        std::make_unique<TextureRenderTarget2D>("Position4", colorImageCreateInfo, colorImageSamplerCreateInfo);
     EmissiveTexture =
-        std::make_unique<TextureRenderTarget2DResource>(colorImageCreateInfo, colorImageSamplerCreateInfo);
-
+        std::make_unique<TextureRenderTarget2D>("Emissive5", colorImageCreateInfo, colorImageSamplerCreateInfo);
     vk::ImageCreateInfo depthStencilImageCreateInfo{};
     depthStencilImageCreateInfo.setImageType(vk::ImageType::e2D)
         .setFormat(vk::Format::eD32SfloatS8Uint)
@@ -94,27 +95,27 @@ void FrameResource::InitRHI(std::shared_ptr<Context> context)
         .setSharingMode(vk::SharingMode::eExclusive)
         .setInitialLayout(vk::ImageLayout::eUndefined);
     vk::SamplerCreateInfo depthStencilImageSamplerCreateInfo{};
-    DepthStencilTexture =
-        std::make_unique<TextureRenderTarget2DResource>(depthStencilImageCreateInfo, colorImageSamplerCreateInfo);
+    DepthStencilTexture = std::make_unique<TextureRenderTarget2D>("DepthStencil6", depthStencilImageCreateInfo,
+                                                                  colorImageSamplerCreateInfo);
     // Init RHI
-    ColorTexture->InitRHI(context);
-    AlbedoTexture->InitRHI(context);
-    NormalTexture->InitRHI(context);
-    ARMTexture->InitRHI(context);
-    PositionTexture->InitRHI(context);
-    EmissiveTexture->InitRHI(context);
-    DepthStencilTexture->InitRHI(context);
+    ColorTexture->GetResource()->InitResource(context);
+    AlbedoTexture->GetResource()->InitResource(context);
+    NormalTexture->GetResource()->InitResource(context);
+    ARMTexture->GetResource()->InitResource(context);
+    PositionTexture->GetResource()->InitResource(context);
+    EmissiveTexture->GetResource()->InitResource(context);
+    DepthStencilTexture->GetResource()->InitResource(context);
 }
 void FrameResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
 
-    ColorTexture->ReleaseRHI(context);
-    AlbedoTexture->ReleaseRHI(context);
-    NormalTexture->ReleaseRHI(context);
-    ARMTexture->ReleaseRHI(context);
-    PositionTexture->ReleaseRHI(context);
-    EmissiveTexture->ReleaseRHI(context);
-    DepthStencilTexture->ReleaseRHI(context);
+    ColorTexture->GetResource()->ReleaseResource(context);
+    AlbedoTexture->GetResource()->ReleaseResource(context);
+    NormalTexture->GetResource()->ReleaseResource(context);
+    ARMTexture->GetResource()->ReleaseResource(context);
+    PositionTexture->GetResource()->ReleaseResource(context);
+    EmissiveTexture->GetResource()->ReleaseResource(context);
+    DepthStencilTexture->GetResource()->ReleaseResource(context);
     auto device = context->Device.get();
     device.freeCommandBuffers(GraphicsCommandPool, {GraphicsCommandBuffer});
     device.freeCommandBuffers(TransferCommandPool, {TransferCommandBuffer});

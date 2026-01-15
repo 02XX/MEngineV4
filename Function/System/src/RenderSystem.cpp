@@ -83,61 +83,68 @@ void RenderSystem::Prepare()
 void RenderSystem::RenderGBuffer()
 {
     auto currentGraphicCommandBuffer = mFrameResource->GraphicsCommandBuffer;
-    std::vector<vk::RenderingAttachmentInfo> colorAttachments{
+    auto colorAttachment = mFrameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto albedoAttachment = mFrameResource->AlbedoTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto normalAttachment = mFrameResource->NormalTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto armAttachment = mFrameResource->ARMTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto positionAttachment = mFrameResource->PositionTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto emissiveAttachment = mFrameResource->EmissiveTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto depthStencilAttachment = mFrameResource->DepthStencilTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    std::vector<vk::RenderingAttachmentInfo> colorAttachmentInfos{
         // Color
         vk::RenderingAttachmentInfo()
             .setClearValue(mFrameResource->ColorClearValue)
-            .setImageView(mFrameResource->ColorTexture->GetImageView())
+            .setImageView(colorAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Albedo
         vk::RenderingAttachmentInfo()
             .setClearValue(mFrameResource->AlbedoClearValue)
-            .setImageView(mFrameResource->AlbedoTexture->GetImageView())
+            .setImageView(albedoAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Normal
         vk::RenderingAttachmentInfo()
             .setClearValue(mFrameResource->NormalClearValue)
-            .setImageView(mFrameResource->NormalTexture->GetImageView())
+            .setImageView(normalAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // ARM
         vk::RenderingAttachmentInfo()
             .setClearValue(mFrameResource->ARMClearValue)
-            .setImageView(mFrameResource->ARMTexture->GetImageView())
+            .setImageView(armAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Position
         vk::RenderingAttachmentInfo()
             .setClearValue(mFrameResource->PositionClearValue)
-            .setImageView(mFrameResource->PositionTexture->GetImageView())
+            .setImageView(positionAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Emissive
         vk::RenderingAttachmentInfo()
             .setClearValue(mFrameResource->EmissiveClearValue)
-            .setImageView(mFrameResource->EmissiveTexture->GetImageView())
+            .setImageView(emissiveAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
     };
-    vk::RenderingAttachmentInfo depthStencilAttachment{};
-    depthStencilAttachment.setClearValue(mFrameResource->DepthClearValue)
+    vk::RenderingAttachmentInfo depthStencilAttachmentInfo{};
+    depthStencilAttachmentInfo.setClearValue(mFrameResource->DepthClearValue)
         .setImageLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal)
         .setLoadOp(vk::AttachmentLoadOp::eClear)
         .setStoreOp(vk::AttachmentStoreOp::eDontCare)
-        .setImageView(mFrameResource->DepthStencilTexture->GetImageView());
+        .setImageView(depthStencilAttachment->GetImageView());
     vk::RenderingInfo renderingInfo{};
     renderingInfo.setRenderArea(vk::Rect2D{{0, 0}, {mFrameResource->Extent.width, mFrameResource->Extent.height}})
         .setLayerCount(1)
-        .setColorAttachments(colorAttachments)
-        .setPDepthAttachment(&depthStencilAttachment);
+        .setColorAttachments(colorAttachmentInfos)
+        .setPDepthAttachment(&depthStencilAttachmentInfo);
     currentGraphicCommandBuffer.beginRendering(renderingInfo);
     vk::Viewport viewport;
     viewport.setX(0.0f)

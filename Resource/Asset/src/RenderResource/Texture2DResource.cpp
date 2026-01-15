@@ -12,33 +12,34 @@ void Texture2DResource::InitRHI(std::shared_ptr<Context> context)
     auto instance = context->Instance.get();
     auto device = context->Device.get();
     // vk::DispatchLoaderDynamic dld(instance, vkGetInstanceProcAddr, device, vkGetDeviceProcAddr);
-    texture2D->mImageCreateInfo.imageType = vk::ImageType::e2D;
+    texture2D->mTextureSettings.imageType = vk::ImageType::e2D;
 
-    texture2D->mImageCreateInfo.arrayLayers = 1;
-    texture2D->mImageCreateInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled |
-                             vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eHostTransferEXT;
+    texture2D->mTextureSettings.arrayLayers = 1;
+    texture2D->mTextureSettings.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled |
+                                        vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eHostTransferEXT;
 
     VmaAllocationCreateInfo imageAllocationCreateInfo{};
     imageAllocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     imageAllocationCreateInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
-    auto result = vmaCreateImage(context->VmaAllocator, reinterpret_cast<VkImageCreateInfo *>(&mImageCreateInfo),
-                                 &imageAllocationCreateInfo, reinterpret_cast<VkImage *>(&mImage), &mImageAllocation,
-                                 reinterpret_cast<VmaAllocationInfo *>(&mImageAllocationInfo));
+    auto result =
+        vmaCreateImage(context->VmaAllocator, reinterpret_cast<VkImageCreateInfo *>(&texture2D->mTextureSettings),
+                       &imageAllocationCreateInfo, reinterpret_cast<VkImage *>(&mImage), &mImageAllocation,
+                       reinterpret_cast<VmaAllocationInfo *>(&mImageAllocationInfo));
     if (result != VK_SUCCESS)
     {
         LogError("Failed to create image with VMA");
         return;
     }
-    mSampler = device.createSampler(mSamplerCreateInfo);
+    mSampler = device.createSampler(texture2D->mSamplerSettings);
 
     vk::ImageViewCreateInfo viewDesc{};
     viewDesc.image = mImage;
     viewDesc.viewType = vk::ImageViewType::e2D;
-    viewDesc.format = mImageCreateInfo.format;
+    viewDesc.format = texture2D->mTextureSettings.format;
     viewDesc.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
     viewDesc.subresourceRange.baseMipLevel = 0;
-    viewDesc.subresourceRange.levelCount = mImageCreateInfo.mipLevels;
+    viewDesc.subresourceRange.levelCount = texture2D->mTextureSettings.mipLevels;
     viewDesc.subresourceRange.baseArrayLayer = 0;
     viewDesc.subresourceRange.layerCount = 1;
     mImageView = device.createImageView(viewDesc);

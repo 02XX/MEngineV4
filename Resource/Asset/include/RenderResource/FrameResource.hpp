@@ -1,6 +1,6 @@
 #pragma once
 #include "RenderResource.hpp"
-#include "TextureRenderTarget2DResource.hpp"
+#include "TextureRenderTarget2D.hpp"
 #include <memory>
 
 using namespace MEngine::Platform;
@@ -12,14 +12,14 @@ class FrameResource final : public RenderResource
   public:
     // MRT
     vk::Extent3D Extent;
-    
-    std::unique_ptr<TextureRenderTarget2DResource> ColorTexture;
-    std::unique_ptr<TextureRenderTarget2DResource> AlbedoTexture;
-    std::unique_ptr<TextureRenderTarget2DResource> NormalTexture;
-    std::unique_ptr<TextureRenderTarget2DResource> ARMTexture;
-    std::unique_ptr<TextureRenderTarget2DResource> PositionTexture;
-    std::unique_ptr<TextureRenderTarget2DResource> EmissiveTexture;
-    std::unique_ptr<TextureRenderTarget2DResource> DepthStencilTexture;
+
+    std::unique_ptr<TextureRenderTarget2D> ColorTexture;
+    std::unique_ptr<TextureRenderTarget2D> AlbedoTexture;
+    std::unique_ptr<TextureRenderTarget2D> NormalTexture;
+    std::unique_ptr<TextureRenderTarget2D> ARMTexture;
+    std::unique_ptr<TextureRenderTarget2D> PositionTexture;
+    std::unique_ptr<TextureRenderTarget2D> EmissiveTexture;
+    std::unique_ptr<TextureRenderTarget2D> DepthStencilTexture;
 
     vk::ClearColorValue ColorClearValue = {std::array<float, 4>{0.5f, 0.0f, 0.0f, 1.0f}};
     vk::ClearColorValue AlbedoClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};

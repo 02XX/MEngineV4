@@ -1,16 +1,16 @@
-#pragma once
-#include "Texture.hpp"
-namespace MEngine::Resource
-{
-class TextureCube : public Texture
-{
-  private:
-  protected:
-    TextureCube() : Texture()
-    {
-    }
+// #pragma once
+// #include "Texture.hpp"
+// namespace MEngine::Resource
+// {
+// class TextureCube : public Texture
+// {
+//   private:
+//   protected:
+//     TextureCube() : Texture()
+//     {
+//     }
 
-  public:
-    ~TextureCube() override = default;
-};
-} // namespace MEngine::Resource
+//   public:
+//     ~TextureCube() override = default;
+// };
+// } // namespace MEngine::Resource

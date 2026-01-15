@@ -9,6 +9,7 @@ namespace MEngine::Resource
 using TextureSetting = vk::ImageCreateInfo;
 using SamplerSetting = vk::SamplerCreateInfo;
 // https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/Engine/UTexture
+// Abstract Class
 class Texture : public Asset
 {
     friend class TextureResource;
@@ -22,8 +23,10 @@ class Texture : public Asset
     Texture(const std::string &name, const TextureSetting &importSetting, const SamplerSetting &samplerSetting)
         : Asset(name), mTextureSettings(importSetting), mSamplerSettings(samplerSetting)
     {
-        mResource = std::make_unique<TextureResource>(this);
     }
-    ~Texture() override = default;
+    ~Texture() override = 0;
 };
+inline Texture::~Texture()
+{
+}
 } // namespace MEngine::Resource

@@ -1,6 +1,8 @@
 #include "Editor.hpp"
 #include "Logger.hpp"
 #include "RenderSystem.hpp"
+#include "TextureRenderTarget2D.hpp"
+#include "TextureRenderTarget2DResource.hpp"
 #include <cstddef>
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
@@ -125,6 +127,8 @@ void Editor::InitVulkan()
     {
         mFrameResources[i] = std::make_shared<FrameResource>(vk::Extent3D{800, 600, 1});
         mFrameResources[i]->InitResource(mContext);
+        auto colorAttachment = mFrameResources[i]->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
+
         mUICommandBuffers[i] =
             mContext->Device->allocateCommandBuffers(vk::CommandBufferAllocateInfo()
                                                          .setCommandPool(mFrameResources[i]->PresentCommandPool)
@@ -140,7 +144,7 @@ void Editor::InitVulkan()
             .setSrcAccessMask(vk::AccessFlagBits2::eNone)
             .setDstAccessMask(vk::AccessFlagBits2::eNone)
             .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-        colorAttachmentBarrier.setImage(mFrameResources[i]->ColorTexture->GetImage())
+        colorAttachmentBarrier.setImage(colorAttachment->GetImage())
             .setOldLayout(vk::ImageLayout::eUndefined)
             .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
@@ -206,7 +210,7 @@ void Editor::InitImGui()
     auto imageCount = mSwapChainResource->SwapChainImages.size();
     for (size_t i = 0; i < imageCount; i++)
     {
-        auto currentColorAttachment = mFrameResources[i]->ColorTexture.get();
+        auto currentColorAttachment = mFrameResources[i]->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
         mFrameDescriptorSets[i] =
             ImGui_ImplVulkan_AddTexture(static_cast<VkSampler>(currentColorAttachment->GetSampler()),
                                         static_cast<VkImageView>(currentColorAttachment->GetImageView()),
@@ -294,7 +298,8 @@ void Editor::Render()
         .setSrcAccessMask(vk::AccessFlagBits2::eNone)
         .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
         .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-    preRenderBarrier.setImage(currentFrameResource->ColorTexture->GetImage())
+    preRenderBarrier
+        .setImage(currentFrameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>()->GetImage())
         .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
         .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
         .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
@@ -320,7 +325,8 @@ void Editor::Render()
         .setSrcAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
         .setDstAccessMask(vk::AccessFlagBits2::eNone)
         .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-    postRenderBarrier.setImage(currentFrameResource->ColorTexture->GetImage())
+    postRenderBarrier
+        .setImage(currentFrameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>()->GetImage())
         .setOldLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
         .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
         .setSrcStageMask(vk::PipelineStageFlagBits2::eFragmentShader)

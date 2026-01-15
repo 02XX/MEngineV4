@@ -6,5 +6,5 @@ target_include_directories(Asset PUBLIC
 ${CMAKE_CURRENT_SOURCE_DIR}/include
 ${CMAKE_CURRENT_SOURCE_DIR}/include/RenderResource
 )
-target_link_libraries(Asset PUBLIC Core RenderResource)
+target_link_libraries(Asset PUBLIC Core)
 
