@@ -526,6 +526,158 @@ void Editor::ViewPort()
 }
 void Editor::Hierarchy()
 {
+    auto &registry = mScene->mRegistry;
+    ImGui::BeginChild("HierarchyList");
+    if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup) &&
+        ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+    {
+        if (!ImGui::IsAnyItemHovered())
+        {
+            mSelectedEntity = entt::null;
+        }
+    }
+    ImGuiWindow *window = ImGui::GetCurrentWindow();
+    ImRect windowRect = window->Rect();
+    auto view = registry->view<TransformComponent>();
+    for (auto entity : view)
+    {
+        if (view.get<TransformComponent>(entity).parent == NullEntity)
+        {
+            RenderEntityNode(entity);
+        }
+    }
+
+    if (ImGui::BeginDragDropTargetCustom(windowRect, ImGui::GetID("HierarchyList")))
+    {
+        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("ENTITY_TREENODE"))
+        {
+            Entity draggedEntity = *(const Entity *)payload->Data;
+            ReParentEntity(draggedEntity, NullEntity); // 设为根节点
+        }
+        ImGui::EndDragDropTarget();
+    }
+    if (ImGui::BeginPopupContextWindow("HierarchyContextMenu", ImGuiPopupFlags_MouseButtonRight))
+    {
+        if (ImGui::MenuItem("Create Empty Entity"))
+        {
+            auto newEntity = registry->create();
+            registry->emplace<TransformComponent>(newEntity);
+        }
+        if (mSelectedEntity != NullEntity)
+        {
+            if (ImGui::MenuItem("Delete Entity"))
+            {
+                DeleteEntityAndChildren(mSelectedEntity);
+                mSelectedEntity = NullEntity;
+            }
+        }
+        ImGui::EndPopup();
+    }
+
+    ImGui::EndChild();
+}
+void Editor::ReParentEntity(Entity entity, Entity newParent)
+{
+    auto registry = mScene->mRegistry;
+    auto &transform = registry->get<TransformComponent>(entity);
+
+    // 1. 如果新父节点就是旧父节点，或者就是自己，直接返回
+    if (transform.parent == newParent || entity == newParent)
+        return;
+
+    // 2. 循环引用检测 (防止把父节点拖给子节点)
+    Entity curr = newParent;
+    while (curr != NullEntity)
+    {
+        if (curr == entity)
+            return;
+        curr = registry->get<TransformComponent>(curr).parent;
+    }
+
+    // 3. 从旧父节点移除
+    if (transform.parent != NullEntity)
+    {
+        auto &oldParentTransform = registry->get<TransformComponent>(transform.parent);
+        auto &children = oldParentTransform.children;
+        children.erase(std::remove(children.begin(), children.end(), entity), children.end());
+    }
+
+    // 4. 设置新父节点
+    transform.parent = newParent;
+    if (newParent != NullEntity)
+    {
+        registry->get<TransformComponent>(newParent).children.push_back(entity);
+    }
+}
+void Editor::RenderEntityNode(Entity entity)
+{
+    auto &registry = mScene->mRegistry;
+    auto &transform = registry->get<TransformComponent>(entity);
+
+    ImGuiTreeNodeFlags flags =
+        ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
+
+    if (transform.children.empty())
+        flags |= ImGuiTreeNodeFlags_Leaf;
+    if (mSelectedEntity == entity)
+        flags |= ImGuiTreeNodeFlags_Selected;
+
+    bool opened = ImGui::TreeNodeEx((void *)(uint64_t)entity, flags, "%s", transform.name.c_str());
+
+    // 点击逻辑
+    if (ImGui::IsItemClicked())
+        mSelectedEntity = entity;
+    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+        mSelectedEntity = entity;
+
+    // --- 拖拽源 ---
+    if (ImGui::BeginDragDropSource())
+    {
+        ImGui::SetDragDropPayload("ENTITY_TREENODE", &entity, sizeof(Entity));
+        ImGui::Text("Move %s", transform.name.c_str());
+        ImGui::EndDragDropSource();
+    }
+
+    // --- 拖拽目标 ---
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("ENTITY_TREENODE"))
+        {
+            Entity draggedEntity = *(const Entity *)payload->Data;
+            ReParentEntity(draggedEntity, entity);
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    // 递归渲染
+    if (opened)
+    {
+        auto childrenCopy = transform.children;
+        for (auto child : childrenCopy)
+        {
+            RenderEntityNode(child);
+        }
+        ImGui::TreePop();
+    }
+}
+void Editor::DeleteEntityAndChildren(Entity entity)
+{
+    auto registry = mScene->mRegistry;
+    if (!registry->valid(entity))
+        return;
+    auto &transform = registry->get<TransformComponent>(entity);
+    for (auto child : transform.children)
+    {
+        DeleteEntityAndChildren(child);
+    }
+    if (transform.parent != NullEntity)
+    {
+        auto &parentTransform = registry->get<TransformComponent>(transform.parent);
+        parentTransform.children.erase(
+            std::remove(parentTransform.children.begin(), parentTransform.children.end(), entity),
+            parentTransform.children.end());
+    }
+    registry->destroy(entity);
 }
 void Editor::AssetBrowser()
 {

@@ -1,6 +1,7 @@
 #pragma once
 #include "CameraSystem.hpp"
 #include "Context.hpp"
+#include "ECS.hpp"
 #include "OffscreenFrameResource.hpp"
 #include "RenderSystem.hpp"
 #include "SwapChainResource.hpp"
@@ -72,6 +73,10 @@ class Editor
     tf::Taskflow mTaskflow{};
     tf::Executor mExecutor{};
 
+  private:
+    // Hierarchy Panel
+    Entity mSelectedEntity{NullEntity};
+
   public:
     Editor();
     ~Editor();
@@ -87,7 +92,14 @@ class Editor
     void UILayout();
 
     void ViewPort();
+
+    //===============
     void Hierarchy();
+    void ReParentEntity(Entity entity, Entity newParent);
+    void RenderEntityNode(Entity entity);
+    void DeleteEntityAndChildren(Entity entity);
+    //===============
+
     void AssetBrowser();
     void Console();
     void Inspector();
