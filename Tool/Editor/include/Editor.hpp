@@ -1,8 +1,10 @@
 #pragma once
+#include "CameraSystem.hpp"
 #include "Context.hpp"
 #include "FrameResource.hpp"
 #include "RenderSystem.hpp"
 #include "SwapChainResource.hpp"
+#include "TransformSystem.hpp"
 #include <GLFW/glfw3.h>
 
 #include <imgui.h>
@@ -33,6 +35,8 @@ class Editor
     std::shared_ptr<Context> mContext;
     std::shared_ptr<Scene> mScene;
     std::shared_ptr<AssetManager> mAssetManager;
+    std::shared_ptr<TransformSystem> mTransformSystem;
+    std::shared_ptr<CameraSystem> mCameraSystem;
     std::shared_ptr<RenderSystem> mRenderSystem;
 
   private:

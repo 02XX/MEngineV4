@@ -1,4 +1,5 @@
 #include "RenderSystem.hpp"
+#include "CameraComponent.hpp"
 #include "Logger.hpp"
 #include "MaterialComponent.hpp"
 #include "MeshComponent.hpp"
@@ -53,6 +54,23 @@ void RenderSystem::PrepareRenderQueues()
 void RenderSystem::Prepare()
 {
     auto device = mContext->Device.get();
+    mScene->GetResource()->InitResource(mContext);
+    SceneParameter sceneParams{};
+    auto cameraEntities = mScene->mRegistry->view<TransformComponent, CameraComponent>();
+    for (const auto &entity : cameraEntities)
+    {
+        auto &cameraComponent = mScene->mRegistry->get<CameraComponent>(entity);
+        auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+        if (cameraComponent.isMainCamera)
+        {
+            sceneParams.ViewMatrix = cameraComponent.viewMatrix;
+            sceneParams.ProjectionMatrix = cameraComponent.projectionMatrix;
+            sceneParams.CameraPosition = transformComponent.worldPosition;
+            break;
+        }
+    }
+    auto sceneResource = mScene->GetResourceAs<SceneResource>();
+    sceneResource->UpdateSceneUBO(sceneParams);
     mFrameResource->GraphicsCommandBuffer.begin(vk::CommandBufferBeginInfo{});
 }
 void RenderSystem::RenderGBuffer()
@@ -146,17 +164,24 @@ void RenderSystem::RenderGBuffer()
         for (const auto &entity : entities)
         {
             auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);
+            auto &meshComponent = mScene->mRegistry->get<MeshComponent>(entity);
+            auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+
             auto pbrMaterial = static_cast<PBRMaterial *>(materialComponent.Material.get());
             auto pbrMaterialResource = materialComponent.Material->GetResourceAs<PBRMaterialResource>();
+
+            auto modelMatrix = transformComponent.modelMatrix;
+
             PBRMaterialPushConstants pbrPushConstants{};
-            pbrPushConstants.SSBOAddress = mContext->SSBOAddress;
+            pbrPushConstants.ModelMatrix = modelMatrix;
+            pbrPushConstants.MaterialSSBOAddress = mContext->SSBOAddress;
+            pbrPushConstants.SceneSSBOAddress = mScene->GetResourceAs<SceneResource>()->mSceneSSBOAddress;
             pbrPushConstants.PropertiesOffset = pbrMaterialResource->mPropertiesOffset;
             currentGraphicCommandBuffer.pushConstants(graphicPipelineGBufferPipelineLayout,
                                                       vk::ShaderStageFlagBits::eVertex |
                                                           vk::ShaderStageFlagBits::eFragment,
                                                       0, sizeof(PBRMaterialPushConstants), &pbrPushConstants);
-            auto &meshComponent = mScene->mRegistry->get<MeshComponent>(entity);
-            auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+
             auto staticMeshResource = meshComponent.Mesh->GetResourceAs<StaticMeshResource>();
             auto vertexBuffer = staticMeshResource->GetVertexBuffer();
             auto indexBuffer = staticMeshResource->GetIndexBuffer();

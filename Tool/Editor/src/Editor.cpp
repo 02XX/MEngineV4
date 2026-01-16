@@ -1,7 +1,9 @@
 #include "Editor.hpp"
+#include "CameraComponent.hpp"
 #include "Logger.hpp"
 #include "Material.hpp"
 #include "MaterialComponent.hpp"
+#include "Math.hpp"
 #include "MeshComponent.hpp"
 #include "MeshManager.hpp"
 #include "PBRMaterial.hpp"
@@ -30,6 +32,10 @@ Editor::Editor()
     InitImGui();
     mScene = std::make_shared<Scene>("DefaultScene");
     mAssetManager = std::make_shared<AssetManager>(mContext);
+    mTransformSystem = std::make_shared<TransformSystem>(mScene, mAssetManager);
+    mTransformSystem->Init();
+    mCameraSystem = std::make_shared<CameraSystem>(mScene, mAssetManager);
+    mCameraSystem->Init();
     mRenderSystem = std::make_shared<RenderSystem>(mContext, mScene, mAssetManager);
     mRenderSystem->Init();
 
@@ -38,13 +44,19 @@ Editor::Editor()
     auto cubeMesh = mAssetManager->GetManager<StaticMesh, MeshManager>()->GetMesh(DefaultMeshType::Cube);
     auto defaultMat = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>()->GetMaterial(
         DefaultMaterialType::GBufferPBROpaque);
-    ecsRegister->emplace<TransformComponent>(cubeEntity);
-    MeshComponent cubeEntityMeshComp{};
-    cubeEntityMeshComp.Mesh = cubeMesh;
-    MaterialComponent cubeEntityMatComp{};
-    cubeEntityMatComp.Material = defaultMat;
-    ecsRegister->emplace<MeshComponent>(cubeEntity, cubeEntityMeshComp);
-    ecsRegister->emplace<MaterialComponent>(cubeEntity, cubeEntityMatComp);
+    auto &cubeEntityTransformComponent = ecsRegister->emplace<TransformComponent>(cubeEntity);
+    cubeEntityTransformComponent.Rotate(45, Vector3{1.0f, 0.0f, 0.0f});
+    auto &cubeEntityMeshComponent = ecsRegister->emplace<MeshComponent>(cubeEntity);
+    cubeEntityMeshComponent.Mesh = cubeMesh;
+    auto &cubeEntityMaterialComponent = ecsRegister->emplace<MaterialComponent>(cubeEntity);
+    cubeEntityMaterialComponent.Material = defaultMat;
+
+    auto cameraEntity = ecsRegister->create();
+    auto &cameraTransformComponent = ecsRegister->emplace<TransformComponent>(cameraEntity);
+    cameraTransformComponent.localPosition = Vector3(0.0f, 0.0f, -5.0f);
+    auto &cameraEntityCameraComponent = ecsRegister->emplace<CameraComponent>(cameraEntity);
+
+    cameraEntityCameraComponent.isMainCamera = true;
 };
 Editor::~Editor()
 {
@@ -58,6 +70,16 @@ Editor::~Editor()
     {
         mRenderSystem->Shutdown();
         mRenderSystem.reset();
+    }
+    if (mCameraSystem)
+    {
+        mCameraSystem->Shutdown();
+        mCameraSystem.reset();
+    }
+    if (mTransformSystem)
+    {
+        mTransformSystem->Shutdown();
+        mTransformSystem.reset();
     }
     if (mAssetManager)
     {
@@ -258,6 +280,8 @@ void Editor::Run()
         ImGui::NewFrame();
         UILayout();
         ImGui::Render();
+        mTransformSystem->Update(1.0);
+        mCameraSystem->Update(1.0);
         Render();
     }
     mIsRunning = false;

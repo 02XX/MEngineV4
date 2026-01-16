@@ -24,6 +24,10 @@ class TransformComponent : public Component
 
     Entity parent = NullEntity;
     std::vector<Entity> children;
+
+    void Translate(const Vector3 &delta);
+    void Rotate(float angle, const Vector3 &axis);
+    void Scale(const Vector3 &scale);
 };
 
 } // namespace MEngine::Function

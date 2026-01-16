@@ -23,8 +23,11 @@ layout(buffer_reference, std430) buffer pbrPropertiesBuffer
     uint ARMIndex;
     uint emissiveIndex;
 };
+
 layout(push_constant) uniform PC
 {
+    mat4 modelMatrix;
+    uint64_t sceneAddr;
     uint64_t materialAddr;
     uint offset;
 }
@@ -36,5 +39,6 @@ void main()
     pbrPropertiesBuffer mat = pbrPropertiesBuffer(targetAddr);
     uint albedoIndex = mat.albedoIndex;
     vec4 color = texture(textures[nonuniformEXT(albedoIndex)], fragTexCoord) * mat.albedo;
-    OutColor = color;
+    vec4 texCoordColor = vec4(fragTexCoord.x, fragTexCoord.y, 0.0, 1.0);
+    OutColor = texCoordColor;
 }

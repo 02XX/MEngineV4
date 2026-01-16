@@ -1,13 +1,17 @@
 #pragma once
 #include "MaterialResource.hpp"
+#include "Math.hpp"
 #include "RenderResource.hpp"
 #include <cstdint>
+#include <vulkan/vulkan_handles.hpp>
 using namespace MEngine::Platform;
 namespace MEngine::Resource
 {
 struct PBRMaterialPushConstants
 {
-    vk::DeviceAddress SSBOAddress;
+    Matrix4 ModelMatrix;
+    vk::DeviceAddress SceneSSBOAddress;
+    vk::DeviceAddress MaterialSSBOAddress;
     uint32_t PropertiesOffset;
 };
 class PBRMaterial;
