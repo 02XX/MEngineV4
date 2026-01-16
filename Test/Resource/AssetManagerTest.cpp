@@ -2,10 +2,12 @@
 #include "Context.hpp"
 #include "GraphicPipelineManager.hpp"
 #include "MeshManager.hpp"
+#include "PBRMaterialManager.hpp"
 #include "ShaderManager.hpp"
 #include "Texture2DManager.hpp"
 #include <gtest/gtest.h>
 #include <memory>
+
 
 using namespace MEngine::Resource;
 using namespace MEngine::Platform;
@@ -54,6 +56,18 @@ TEST_F(AssetManagerTest, Texture2DManager)
     for (auto texture : textures)
     {
         texture->GetResource()->InitResource(mContext);
+    }
+}
+TEST_F(AssetManagerTest, PBRMaterialManager)
+{
+    auto shaderManager = std::make_shared<ShaderManager>();
+    auto textureManager = std::make_shared<Texture2DManager>();
+    auto graphicPipelineManager = std::make_shared<GraphicPipelineManager>(mContext, shaderManager);
+    auto pbrMaterialManager = std::make_shared<PBRMaterialManager>(textureManager, graphicPipelineManager);
+    auto materials = pbrMaterialManager->GetAll();
+    for (auto material : materials)
+    {
+        material->GetResource()->InitResource(mContext);
     }
 }
 TEST_F(AssetManagerTest, MeshManager)
