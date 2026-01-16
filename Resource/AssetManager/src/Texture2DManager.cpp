@@ -29,9 +29,7 @@ std::shared_ptr<Texture2D> Texture2DManager::CreateWhiteTexture()
     texture->SetTextureData({
         Texture2DMipMap{
             .Data = {255, 255, 255, 255}, // White pixel
-            .SizeX = 1,
-            .SizeY = 1,
-            .SizeZ = 1,
+            .Extent = {1, 1, 1},
         },
     });
     return texture;
@@ -49,9 +47,7 @@ std::shared_ptr<Texture2D> Texture2DManager::CreateMagentaTexture()
     texture->SetTextureData({
         Texture2DMipMap{
             .Data = {255, 0, 255, 255}, // Magenta pixel
-            .SizeX = 1,
-            .SizeY = 1,
-            .SizeZ = 1,
+            .Extent = {1, 1, 1},
         },
     });
     return texture;
@@ -69,9 +65,7 @@ std::shared_ptr<Texture2D> Texture2DManager::CreateBlackTexture()
     texture->SetTextureData({
         Texture2DMipMap{
             .Data = {0, 0, 0, 255}, // Black pixel
-            .SizeX = 1,
-            .SizeY = 1,
-            .SizeZ = 1,
+            .Extent = {1, 1, 1},
         },
     });
     return texture;

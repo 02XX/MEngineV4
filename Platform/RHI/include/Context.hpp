@@ -1,5 +1,6 @@
 #pragma once
 #include "VMA.hpp"
+#include <cstdint>
 #include <optional>
 #include <vulkan/vulkan.hpp>
 
@@ -39,6 +40,13 @@ class Context
     vk::UniqueCommandPool GraphicsCommandPool{};
     vk::UniqueCommandPool TransferCommandPool{};
 
+    constexpr static uint32_t MAX_DESCRIPTOR_COUNT = 1024;
+    uint32_t NextDescriptorIndex =
+        0; // TODO: 当资源是动态加载和释放的，需要一个更复杂的管理方式用以回收不用的描述符槽位
+    vk::UniqueDescriptorPool DescriptorPool{};
+    vk::UniqueDescriptorSetLayout DescriptorSetLayout{};
+    vk::UniqueDescriptorSet DescriptorSet{};
+
   private:
     void CreateInstance();
     void PickPhysicalDevice();
@@ -47,6 +55,8 @@ class Context
     void GetQueues();
     void CreateVMA();
     void CreateCommandPools();
+    void CreateDescriptorPool();
+    void CreateDescriptorSet();
 
   public:
     Context(const ContextConfig &config);

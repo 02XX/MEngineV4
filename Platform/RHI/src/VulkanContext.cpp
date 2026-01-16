@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <set>
 #include <vector>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan_structs.hpp>
 #include <vulkan/vulkan_to_string.hpp>
 
 namespace MEngine::Platform
@@ -15,6 +18,8 @@ Context::Context(const ContextConfig &config) : Config(config)
     GetQueues();
     CreateVMA();
     CreateCommandPools();
+    CreateDescriptorPool();
+    CreateDescriptorSet();
 }
 Context::~Context()
 {
@@ -128,26 +133,35 @@ void Context::CreateLogicalDevice()
         queueCreateInfo.setQueueFamilyIndex(queueFamily).setQueueCount(1).setPQueuePriorities(&queuePriority);
         queueCreateInfos.push_back(queueCreateInfo);
     }
-    // extension
+    // std::vector<const char *> extensions = {"VK_EXT_host_image_copy"};
+    // Config.DeviceRequiredExtensions.insert_range(Config.DeviceRequiredExtensions.end(), extensions);
+    // features
+    // https://docs.vulkan.org/refpages/latest/refpages/source/VkPhysicalDeviceVulkan12Features.html
+    // https://docs.vulkan.org/spec/latest/chapters/features.html
+    vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features,
+                       vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features>
+        featureChain;
+    PhysicalDevice.getFeatures2(&featureChain.get<vk::PhysicalDeviceFeatures2>());
+    auto feature11 = featureChain.get<vk::PhysicalDeviceVulkan11Features>();
+    auto feature12 = featureChain.get<vk::PhysicalDeviceVulkan12Features>();
+    auto feature13 = featureChain.get<vk::PhysicalDeviceVulkan13Features>();
+    if (!feature13.dynamicRendering)
+    {
+        throw std::runtime_error("Physical device does not support dynamic rendering");
+    }
+    if (!feature12.bufferDeviceAddress)
+    {
+        throw std::runtime_error("Physical device does not support buffer device address");
+    }
+    if (!feature12.descriptorIndexing)
+    {
+        throw std::runtime_error("Physical device does not support descriptor indexing");
+    }
 
-    auto availableExtensions = PhysicalDevice.enumerateDeviceExtensionProperties();
-
-    std::vector<const char *> extensions = {"VK_KHR_maintenance1", "VK_EXT_host_image_copy", "VK_KHR_dynamic_rendering",
-                                            "VK_KHR_synchronization2"};
-    vk::PhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.setIndependentBlend(vk::True);
-    vk::PhysicalDeviceHostImageCopyFeaturesEXT hostImageCopyFeatures{};
-    vk::PhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{};
-    vk::PhysicalDeviceSynchronization2FeaturesKHR synchronization2Features{};
-    dynamicRenderingFeatures.setDynamicRendering(vk::True).setPNext(&hostImageCopyFeatures);
-    hostImageCopyFeatures.setHostImageCopy(vk::True).setPNext(&synchronization2Features);
-    synchronization2Features.setSynchronization2(vk::True);
-
-    Config.DeviceRequiredExtensions.insert_range(Config.DeviceRequiredExtensions.end(), extensions);
     deviceCreateInfo.setQueueCreateInfos(queueCreateInfos)
         .setPEnabledExtensionNames(Config.DeviceRequiredExtensions)
-        .setPEnabledFeatures(&deviceFeatures)
-        .setPNext(&dynamicRenderingFeatures);
+        .setPNext(&featureChain.get<vk::PhysicalDeviceFeatures2>());
+
     Device = PhysicalDevice.createDeviceUnique(deviceCreateInfo);
     if (!Device)
     {
@@ -203,5 +217,55 @@ void Context::CreateCommandPools()
     transferPoolCreateInfo.setQueueFamilyIndex(QueueFamilyIndicates.transferFamily.value())
         .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
     TransferCommandPool = Device->createCommandPoolUnique(transferPoolCreateInfo);
+}
+void Context::CreateDescriptorPool()
+{
+    std::vector<vk::DescriptorPoolSize> descriptorPoolSize{
+        vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, MAX_DESCRIPTOR_COUNT}};
+    vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo;
+    descriptorPoolCreateInfo
+        .setPoolSizes(descriptorPoolSize) // bindless descriptor set, 只需要一个texture采样器描述符类型
+        .setMaxSets(1)                    // bindless descriptor set, 只需要一个描述符集
+        .setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet |
+                  vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind); // 设置池的标志位
+    DescriptorPool = Device->createDescriptorPoolUnique(descriptorPoolCreateInfo);
+    if (!DescriptorPool)
+    {
+        throw std::runtime_error("Failed to create descriptor pool");
+    }
+}
+void Context::CreateDescriptorSet()
+{
+    vk::DescriptorSetLayoutBinding binding{};
+    binding.setBinding(0)
+        .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
+        .setDescriptorCount(
+            MAX_DESCRIPTOR_COUNT) // bindless descriptor set,
+                                  // 采样器描述符数量，最大支持MAX_DESCRIPTOR_COUNT个纹理采样器，即最多绑定MAX_DESCRIPTOR_COUNT个纹理图片
+        .setStageFlags(vk::ShaderStageFlagBits::eFragment)
+        .setPImmutableSamplers(nullptr);
+    vk::DescriptorBindingFlags bindingFlags =
+        vk::DescriptorBindingFlagBits::eUpdateAfterBind | vk::DescriptorBindingFlagBits::ePartiallyBound;
+    vk::DescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsCreateInfo{};
+    bindingFlagsCreateInfo.setBindingFlags({bindingFlags});
+    vk::DescriptorSetLayoutCreateInfo layoutCreateInfo{};
+    layoutCreateInfo.setBindings(binding)
+        .setFlags(vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool)
+        .setPNext(&bindingFlagsCreateInfo);
+    DescriptorSetLayout = Device->createDescriptorSetLayoutUnique(layoutCreateInfo);
+    if (!DescriptorSetLayout)
+    {
+        throw std::runtime_error("Failed to create descriptor set layout");
+    }
+    vk::DescriptorSetAllocateInfo allocateInfo{};
+    allocateInfo.setDescriptorPool(DescriptorPool.get())
+        .setSetLayouts(DescriptorSetLayout.get())
+        .setDescriptorSetCount(1);
+    auto descriptorSets = Device->allocateDescriptorSetsUnique(allocateInfo);
+    if (descriptorSets.empty())
+    {
+        throw std::runtime_error("Failed to allocate descriptor set");
+    }
+    DescriptorSet = std::move(descriptorSets.front());
 }
 } // namespace MEngine::Platform

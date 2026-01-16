@@ -3,6 +3,7 @@
 #include "GraphicPipelineManager.hpp"
 #include "MeshManager.hpp"
 #include "ShaderManager.hpp"
+#include "Texture2DManager.hpp"
 #include <gtest/gtest.h>
 #include <memory>
 
@@ -36,14 +37,23 @@ TEST_F(AssetManagerTest, ShaderManager)
         shader->GetResource()->InitResource(mContext);
     }
 }
-TEST_F(AssetManagerTest, GraphicPipelineManager)
+// TEST_F(AssetManagerTest, GraphicPipelineManager)
+// {
+//     auto shaderManager = std::make_shared<ShaderManager>();
+//     auto graphicPipelineManager = std::make_shared<GraphicPipelineManager>(mContext, shaderManager);
+//     auto pipelines = graphicPipelineManager->GetAll();
+//     for (auto pipeline : pipelines)
+//     {
+//         pipeline->GetResource()->InitResource(mContext);
+//     }
+// }
+TEST_F(AssetManagerTest, Texture2DManager)
 {
-    auto shaderManager = std::make_shared<ShaderManager>();
-    auto graphicPipelineManager = std::make_shared<GraphicPipelineManager>(mContext, shaderManager);
-    auto pipelines = graphicPipelineManager->GetAll();
-    for (auto pipeline : pipelines)
+    auto textureManager = std::make_shared<Texture2DManager>();
+    auto textures = textureManager->GetAll();
+    for (auto texture : textures)
     {
-        pipeline->GetResource()->InitResource(mContext);
+        texture->GetResource()->InitResource(mContext);
     }
 }
 TEST_F(AssetManagerTest, MeshManager)

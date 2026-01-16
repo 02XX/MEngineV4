@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
+#include <vulkan/vulkan_structs.hpp>
 
 using namespace MEngine::Core;
 namespace MEngine::Function
@@ -12,7 +13,11 @@ class Texture2DBuilder;
 }
 namespace MEngine::Resource
 {
-
+struct Texture2DMipMap
+{
+    std::vector<uint8_t> Data{};
+    vk::Extent3D Extent{};
+};
 class Texture2D : public Texture
 {
     friend class Texture2DResource;
