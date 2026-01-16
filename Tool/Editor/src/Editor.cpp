@@ -1,9 +1,17 @@
 #include "Editor.hpp"
 #include "Logger.hpp"
+#include "Material.hpp"
+#include "MaterialComponent.hpp"
+#include "MeshComponent.hpp"
+#include "MeshManager.hpp"
+#include "PBRMaterial.hpp"
+#include "PBRMaterialManager.hpp"
 #include "RenderSystem.hpp"
 #include "Scene.hpp"
+#include "StaticMesh.hpp"
 #include "TextureRenderTarget2D.hpp"
 #include "TextureRenderTarget2DResource.hpp"
+#include "TransformComponent.hpp"
 #include <cstddef>
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
@@ -24,6 +32,19 @@ Editor::Editor()
     mAssetManager = std::make_shared<AssetManager>(mContext);
     mRenderSystem = std::make_shared<RenderSystem>(mContext, mScene, mAssetManager);
     mRenderSystem->Init();
+
+    auto ecsRegister = mScene->mRegistry;
+    auto cubeEntity = ecsRegister->create();
+    auto cubeMesh = mAssetManager->GetManager<StaticMesh, MeshManager>()->GetMesh(DefaultMeshType::Cube);
+    auto defaultMat = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>()->GetMaterial(
+        DefaultMaterialType::GBufferPBROpaque);
+    ecsRegister->emplace<TransformComponent>(cubeEntity);
+    MeshComponent cubeEntityMeshComp{};
+    cubeEntityMeshComp.Mesh = cubeMesh;
+    MaterialComponent cubeEntityMatComp{};
+    cubeEntityMatComp.Material = defaultMat;
+    ecsRegister->emplace<MeshComponent>(cubeEntity, cubeEntityMeshComp);
+    ecsRegister->emplace<MaterialComponent>(cubeEntity, cubeEntityMatComp);
 };
 Editor::~Editor()
 {
@@ -59,6 +80,7 @@ Editor::~Editor()
         }
         mFrameResources.clear();
     }
+    mScene.reset();
     std::function<void(std::shared_ptr<Context> context)> item{};
     while (PendingDeletions.TryPop(item))
     {

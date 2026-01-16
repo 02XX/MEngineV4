@@ -108,7 +108,7 @@ void GraphicPipelineBuilderGBuffer::SetColorAttachmentFormats()
 {
     mColorAttachmentFormats.clear();
     mColorAttachmentFormats = {
-        vk::Format::eR8G8B8A8Srgb,       // color
+        vk::Format::eR32G32B32A32Sfloat, // color
         vk::Format::eR32G32B32A32Sfloat, // albedo
         vk::Format::eR32G32B32A32Sfloat, // normal
         vk::Format::eR32G32B32A32Sfloat, // arm

@@ -2,6 +2,7 @@
 #include "Context.hpp"
 #include "RenderResource.hpp"
 #include "Vertex.hpp"
+#include <cstdint>
 #include <vector>
 namespace MEngine::Resource
 {
@@ -24,5 +25,14 @@ class StaticMeshResource : public RenderResource
     ~StaticMeshResource() override = default;
     void InitRHI(std::shared_ptr<Context> context) override;
     void ReleaseRHI(std::shared_ptr<Context> context) override;
+    inline vk::Buffer GetVertexBuffer() const
+    {
+        return mVertexBuffer;
+    }
+    inline vk::Buffer GetIndexBuffer() const
+    {
+        return mIndexBuffer;
+    }
+    uint32_t GetIndexCount() const;
 };
 } // namespace MEngine::Resource

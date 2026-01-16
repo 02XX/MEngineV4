@@ -21,9 +21,9 @@ class FrameResource final : public RenderResource
     std::unique_ptr<TextureRenderTarget2D> EmissiveTexture;
     std::unique_ptr<TextureRenderTarget2D> DepthStencilTexture;
 
-    vk::ClearColorValue ColorClearValue = {std::array<float, 4>{0.5f, 0.0f, 0.0f, 1.0f}};
+    vk::ClearColorValue ColorClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
     vk::ClearColorValue AlbedoClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
-    vk::ClearColorValue NormalClearValue = {std::array<float, 4>{0.5f, 0.5f, 1.0f, 1.0f}};
+    vk::ClearColorValue NormalClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
     vk::ClearColorValue ARMClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
     vk::ClearColorValue PositionClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
     vk::ClearColorValue EmissiveClearValue = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};

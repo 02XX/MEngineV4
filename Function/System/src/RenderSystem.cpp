@@ -50,7 +50,6 @@ void RenderSystem::PrepareRenderQueues()
 void RenderSystem::Prepare()
 {
     auto device = mContext->Device.get();
-    // mContext->GetResourceAs<SceneResource>()->UpdateSceneUBO(mCurrentFrameBufferIndex);
     mFrameResource->GraphicsCommandBuffer.begin(vk::CommandBufferBeginInfo{});
 }
 void RenderSystem::RenderGBuffer()
@@ -130,46 +129,30 @@ void RenderSystem::RenderGBuffer()
     vk::Rect2D scissor;
     scissor.setOffset({0, 0}).setExtent({mFrameResource->Extent.width, mFrameResource->Extent.height});
     currentGraphicCommandBuffer.setScissor(0, {scissor});
-    // if (mRenderQueues.contains("GBufferPipeline"))
-    // {
-    //     auto &entities = mRenderQueues.at("GBufferPipeline");
-    //     auto pipeline = mAssetManager->GetByName<GraphicPipeline>("GBufferPipeline");
-    //     auto rhiPipeline = pipeline->GetResourceAs<GraphicPipelineResource>()->GetGraphicPipeline()->GetPipeline();
-    //     auto rhiPipelineLayout =
-    //         pipeline->GetResourceAs<GraphicPipelineResource>()->GetGraphicPipeline()->GetPipelineLayout();
-    //     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, rhiPipeline);
-    //     auto currentFrameDescriptorSet =
-    //         pipeline->GetResourceAs<GraphicPipelineResource>()->GetPerFrameDescriptorSet(mCurrentFrameBufferIndex);
-    //     mScene->GetResourceAs<SceneResource>()->UpdateSceneUBO(mCurrentFrameBufferIndex);
-    //     // commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, rhiPipelineLayout, 0,
-    //     //                                  currentFrameDescriptorSet->GetDescriptorSets().front(), {});
-    //     for (const auto &entity : entities)
-    //     {
-    //         auto &materialComponent = mScene->GetRegistry()->get<MaterialComponent>(entity);
-    //         auto &meshComponent = mScene->GetRegistry()->get<MeshComponent>(entity);
-    //         auto &transformComponent = mScene->GetRegistry()->get<TransformComponent>(entity);
-    //         auto materialDescriptorSet = materialComponent.Material->GetResourceAs<MaterialResource>()
-    //                                          ->GetDescriptorSet(mCurrentFrameBufferIndex)
-    //                                          ->GetDescriptorSets()
-    //                                          .front();
-    //         auto material = materialComponent.Material->GetResourceAs<MaterialResource>();
-    //         material->UpdateDescriptorSet(mCurrentFrameBufferIndex);
-    //         commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, rhiPipelineLayout, 1,
-    //                                          materialDescriptorSet, {});
-
-    //         commandBuffer.pushConstants(rhiPipelineLayout,
-    //                                     vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0,
-    //                                     sizeof(Matrix4), &transformComponent.modelMatrix);
-    //         auto staticMeshResource = meshComponent.Mesh->GetResourceAs<StaticMeshResource>();
-    //         auto vertexBufferResource = staticMeshResource->GetVertexResource();
-    //         auto indexBufferResource = staticMeshResource->GetIndexResource();
-    //         auto vertexBuffer = vertexBufferResource->GetVertexBuffer();
-    //         auto indexBuffer = indexBufferResource->GetIndexBuffer();
-    //         commandBuffer.bindVertexBuffers(0, vertexBuffer->GetBuffer(), {0});
-    //         commandBuffer.bindIndexBuffer(indexBuffer->GetBuffer(), 0, vk::IndexType::eUint32);
-    //         commandBuffer.drawIndexed(meshComponent.Mesh->GetIndices().size(), 1, 0, 0, 0);
-    //     }
-    // }
+    if (mRenderQueues.contains("GraphicPipeline_GBuffer"))
+    {
+        auto &entities = mRenderQueues.at("GraphicPipeline_GBuffer");
+        auto pipelineAsset = mAssetManager->GetByName<GraphicPipeline>("GraphicPipeline_GBuffer");
+        auto graphicPipelineGBufferPipeline = pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipeline();
+        auto graphicPipelineGBufferPipelineLayout =
+            pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipelineLayout();
+        currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelineGBufferPipeline);
+        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                                       graphicPipelineGBufferPipelineLayout, 0,
+                                                       mContext->DescriptorSet.get(), {});
+        for (const auto &entity : entities)
+        {
+            auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);
+            auto &meshComponent = mScene->mRegistry->get<MeshComponent>(entity);
+            auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+            auto staticMeshResource = meshComponent.Mesh->GetResourceAs<StaticMeshResource>();
+            auto vertexBuffer = staticMeshResource->GetVertexBuffer();
+            auto indexBuffer = staticMeshResource->GetIndexBuffer();
+            currentGraphicCommandBuffer.bindVertexBuffers(0, vertexBuffer, {0});
+            currentGraphicCommandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+            currentGraphicCommandBuffer.drawIndexed(staticMeshResource->GetIndexCount(), 1, 0, 0, 0);
+        }
+    }
     currentGraphicCommandBuffer.endRendering();
 }
 void RenderSystem::RenderLighting()

@@ -133,4 +133,9 @@ void StaticMeshResource::ReleaseRHI(std::shared_ptr<Context> context)
         vmaDestroyBuffer(context->VmaAllocator, mIndexBuffer, mIndexBufferAllocation);
     }
 }
+uint32_t StaticMeshResource::GetIndexCount() const
+{
+    auto staticMesh = static_cast<StaticMesh *>(mOwnerAsset);
+    return staticMesh->GetIndices().size();
+}
 } // namespace MEngine::Resource

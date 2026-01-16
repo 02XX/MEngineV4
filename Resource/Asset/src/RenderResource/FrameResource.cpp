@@ -46,7 +46,7 @@ void FrameResource::InitRHI(std::shared_ptr<Context> context)
     // Color Attachment
     vk::ImageCreateInfo colorImageCreateInfo{};
     colorImageCreateInfo.setImageType(vk::ImageType::e2D)
-        .setFormat(vk::Format::eR8G8B8A8Srgb)
+        .setFormat(vk::Format::eR32G32B32A32Sfloat)
         .setExtent(Extent)
         .setMipLevels(1)
         .setArrayLayers(1)

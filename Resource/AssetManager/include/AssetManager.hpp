@@ -53,6 +53,7 @@ class AssetManager
         auto manager = std::any_cast<std::shared_ptr<IManager<TAsset>>>(mManagers.at(type));
         return std::dynamic_pointer_cast<TManager>(manager);
     }
+    
     virtual ~AssetManager()
     {
         mManagers.clear();
