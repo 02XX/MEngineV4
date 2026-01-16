@@ -393,8 +393,8 @@ void Editor::Render()
 
     vk::SubmitInfo2 submitInfo{};
     std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
-        vk::CommandBufferSubmitInfo().setCommandBuffer(mUICommandBuffer),
         vk::CommandBufferSubmitInfo().setCommandBuffer(currentFrameResource->GraphicsCommandBuffer),
+        vk::CommandBufferSubmitInfo().setCommandBuffer(mUICommandBuffer),
     };
     std::vector<vk::SemaphoreSubmitInfo> signalSemaphoreInfos = {
         vk::SemaphoreSubmitInfo()
