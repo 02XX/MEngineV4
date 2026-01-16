@@ -4,8 +4,7 @@
 #include "RenderSystem.hpp"
 #include "SwapChainResource.hpp"
 #include <GLFW/glfw3.h>
-#include <array>
-#include <future>
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
@@ -15,7 +14,6 @@
 #include <taskflow/taskflow.hpp>
 #include <thread>
 #include <vector>
-#include <vulkan/vulkan_core.h>
 
 using namespace MEngine::Function;
 namespace MEngine::Tool
@@ -33,6 +31,8 @@ class Editor
 {
   private:
     std::shared_ptr<Context> mContext;
+    std::shared_ptr<Scene> mScene;
+    std::shared_ptr<AssetManager> mAssetManager;
     std::shared_ptr<RenderSystem> mRenderSystem;
 
   private:

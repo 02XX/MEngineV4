@@ -1,6 +1,7 @@
 #include "Editor.hpp"
 #include "Logger.hpp"
 #include "RenderSystem.hpp"
+#include "Scene.hpp"
 #include "TextureRenderTarget2D.hpp"
 #include "TextureRenderTarget2DResource.hpp"
 #include <cstddef>
@@ -8,7 +9,7 @@
 #include <imgui_impl_vulkan.h>
 #include <mutex>
 #include <vector>
-#include <vulkan/vulkan_core.h>
+
 namespace MEngine::Tool
 {
 
@@ -19,7 +20,9 @@ Editor::Editor()
     InitWindow();
     InitVulkan();
     InitImGui();
-    mRenderSystem = std::make_shared<RenderSystem>(mContext);
+    mScene = std::make_shared<Scene>("DefaultScene");
+    mAssetManager = std::make_shared<AssetManager>(mContext);
+    mRenderSystem = std::make_shared<RenderSystem>(mContext, mScene, mAssetManager);
     mRenderSystem->Init();
 };
 Editor::~Editor()
@@ -34,6 +37,10 @@ Editor::~Editor()
     {
         mRenderSystem->Shutdown();
         mRenderSystem.reset();
+    }
+    if (mAssetManager)
+    {
+        mAssetManager.reset();
     }
     if (mSwapChainResource)
     {

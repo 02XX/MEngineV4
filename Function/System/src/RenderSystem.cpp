@@ -1,12 +1,16 @@
 #include "RenderSystem.hpp"
 #include "Logger.hpp"
+#include "MaterialComponent.hpp"
+#include "MeshComponent.hpp"
 #include "RenderResource.hpp"
+#include "TransformComponent.hpp"
 #include <vector>
-#include <vulkan/vulkan_enums.hpp>
 
 namespace MEngine::Function
 {
-RenderSystem::RenderSystem(std::shared_ptr<Context> context) : System(), mContext(context)
+RenderSystem::RenderSystem(std::shared_ptr<Context> context, std::shared_ptr<Scene> scene,
+                           std::shared_ptr<AssetManager> assetManager)
+    : System(scene, assetManager), mContext(context)
 {
 }
 RenderSystem::~RenderSystem()
@@ -14,38 +18,10 @@ RenderSystem::~RenderSystem()
 }
 void RenderSystem::Init()
 {
-    // mScene->GetResourceAs<SceneResource>()->InitResource();
-    // for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
-    // {
-    //     mFrameResources[i] = std::make_unique<FrameResource>(vk::Extent3D{800, 600, 1});
-    //     mFrameResources[i]->InitResource(mContext);
-    //     vk::ImageMemoryBarrier2 colorAttachmentBarrier{};
-    //     colorAttachmentBarrier.setImage(mFrameResources[i]->ColorTexture->GetImage())
-    //         .setOldLayout(vk::ImageLayout::eUndefined)
-    //         .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
-    //         .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
-    //         .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
-    //         .setSrcAccessMask(vk::AccessFlagBits2::eNone)
-    //         .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
-    //         .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-    //     std::vector<vk::ImageMemoryBarrier2> barriers = {colorAttachmentBarrier};
-    //     auto commandBuffer = mFrameResources[i]->GraphicsCommandBuffer;
-    //     commandBuffer.begin(vk::CommandBufferBeginInfo{});
-    //     commandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(barriers));
-    //     commandBuffer.end();
-    //     vk::SubmitInfo2 submitInfo{};
-    //     std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
-    //         vk::CommandBufferSubmitInfo().setCommandBuffer(commandBuffer),
-    //     };
-    //     submitInfo.setCommandBufferInfos(commandBufferInfos);
-    //     mContext->GraphicsQueue.submit2(submitInfo, {});
-    //     mContext->Device->waitIdle();
-    // }
 }
 void RenderSystem::Update(double deltaTime)
 {
-    // PrepareRenderQueues();
-    // PrepareGlobalResources();
+    PrepareRenderQueues();
     Prepare();
     RenderGBuffer();
     RenderLighting();
@@ -54,26 +30,23 @@ void RenderSystem::Update(double deltaTime)
 void RenderSystem::Shutdown()
 {
 }
-// void RenderSystem::PrepareGlobalResources()
-// {
-//     auto mainCameraEntity = mScene->GetMainCameraEntity();
-// }
-// void RenderSystem::PrepareRenderQueues()
-// {
-//     mRenderQueues.clear();
-//     auto entities = mScene->GetRegistry()->view<TransformComponent, MeshComponent, MaterialComponent>();
-//     for (const auto &entity : entities)
-//     {
-//         auto &materialComponent = entities.get<MaterialComponent>(entity);
-//         auto pipeline = materialComponent.Material->GetPipeline();
-//         pipeline->GetResource()->InitResource();
-//         materialComponent.Material->GetResource()->InitResource();
-//         auto &meshComponent = entities.get<MeshComponent>(entity);
-//         meshComponent.Mesh->GetResource()->InitResource();
-//         auto &transformComponent = entities.get<TransformComponent>(entity);
-//         mRenderQueues[pipeline->GetName()].push_back(entity);
-//     }
-// }
+
+void RenderSystem::PrepareRenderQueues()
+{
+    mRenderQueues.clear();
+    auto entities = mScene->mRegistry->view<TransformComponent, MeshComponent, MaterialComponent>();
+    for (const auto &entity : entities)
+    {
+        auto &materialComponent = entities.get<MaterialComponent>(entity);
+        auto pipeline = materialComponent.Material->GetPipeline();
+        pipeline->GetResource()->InitResource(mContext);
+        materialComponent.Material->GetResource()->InitResource(mContext);
+        auto &meshComponent = entities.get<MeshComponent>(entity);
+        meshComponent.Mesh->GetResource()->InitResource(mContext);
+        auto &transformComponent = entities.get<TransformComponent>(entity);
+        mRenderQueues[pipeline->GetName()].push_back(entity);
+    }
+}
 void RenderSystem::Prepare()
 {
     auto device = mContext->Device.get();

@@ -28,7 +28,8 @@ class RenderSystem : public System
     FrameResource *mFrameResource{};
 
   public:
-    RenderSystem(std::shared_ptr<Context> context);
+    RenderSystem(std::shared_ptr<Context> context, std::shared_ptr<Scene> scene,
+                 std::shared_ptr<AssetManager> assetManager);
     ~RenderSystem() override;
     inline void SetFrameResource(FrameResource *frameResource)
     {
@@ -39,9 +40,7 @@ class RenderSystem : public System
     void Shutdown() override;
 
   private:
-    // void PrepareGlobalResources();
-    // void UpdateGlobalResources(vk::DescriptorSet globalDescriptorSet);
-    // void PrepareRenderQueues();
+    void PrepareRenderQueues();
     void Prepare();
     void RenderGBuffer();
     void RenderLighting();
