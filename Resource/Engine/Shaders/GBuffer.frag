@@ -29,13 +29,12 @@ layout(push_constant) uniform PC
     mat4 modelMatrix;
     uint64_t sceneAddr;
     uint64_t materialAddr;
-    uint offset;
 }
 pc;
 
 void main()
 {
-    uint64_t targetAddr = pc.materialAddr + uint64_t(pc.offset);
+    uint64_t targetAddr = pc.materialAddr;
     pbrPropertiesBuffer mat = pbrPropertiesBuffer(targetAddr);
     uint albedoIndex = mat.albedoIndex;
     vec4 color = texture(textures[nonuniformEXT(albedoIndex)], fragTexCoord) * mat.albedo;

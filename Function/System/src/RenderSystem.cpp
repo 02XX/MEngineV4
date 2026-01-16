@@ -174,9 +174,8 @@ void RenderSystem::RenderGBuffer()
 
             PBRMaterialPushConstants pbrPushConstants{};
             pbrPushConstants.ModelMatrix = modelMatrix;
-            pbrPushConstants.MaterialSSBOAddress = mContext->SSBOAddress;
+            pbrPushConstants.MaterialSSBOAddress = pbrMaterialResource->mSSBOAddress;
             pbrPushConstants.SceneSSBOAddress = mScene->GetResourceAs<SceneResource>()->mSceneSSBOAddress;
-            pbrPushConstants.PropertiesOffset = pbrMaterialResource->mPropertiesOffset;
             currentGraphicCommandBuffer.pushConstants(graphicPipelineGBufferPipelineLayout,
                                                       vk::ShaderStageFlagBits::eVertex |
                                                           vk::ShaderStageFlagBits::eFragment,

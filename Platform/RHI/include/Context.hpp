@@ -2,6 +2,7 @@
 #include "VMA.hpp"
 #include <cstdint>
 #include <optional>
+#include <queue>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_handles.hpp>
 
@@ -42,18 +43,12 @@ class Context
     vk::UniqueCommandPool TransferCommandPool{};
 
     constexpr static uint32_t MAX_DESCRIPTOR_COUNT = 1024;
+    std::queue<uint32_t> FreeDescriptorIndices{};
     uint32_t NextDescriptorIndex =
         0; // TODO: 当资源是动态加载和释放的，需要一个更复杂的管理方式用以回收不用的描述符槽位
     vk::UniqueDescriptorPool DescriptorPool{};
     vk::UniqueDescriptorSetLayout DescriptorSetLayout{};
     vk::UniqueDescriptorSet DescriptorSet{};
-
-    constexpr static uint32_t MAX_SSBO_SIZE = 1024 * 1024 * 10; // 10 MB
-    uint32_t NextSSBOOffset = 0;
-    vk::Buffer SSBO{};
-    VmaAllocation SSBOAllocation{};
-    VmaAllocationInfo SSBOAllocationInfo{};
-    vk::DeviceAddress SSBOAddress{};
 
   private:
     void CreateInstance();
@@ -66,11 +61,11 @@ class Context
     void CreateDescriptorPool();
     void CreateDescriptorSet();
 
-    void CreateSSBO();
-
   public:
     Context(const ContextConfig &config);
     ~Context();
+    uint32_t AllocateDescriptorIndex();
+    void FreeDescriptorIndex(uint32_t index);
 };
 
 } // namespace MEngine::Platform

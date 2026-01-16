@@ -23,7 +23,6 @@ layout(push_constant) uniform PC
     mat4 modelMatrix;
     uint64_t sceneAddr;
     uint64_t materialAddr;
-    uint offset;
 }
 pc;
 void main()

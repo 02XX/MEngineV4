@@ -12,13 +12,17 @@ struct PBRMaterialPushConstants
     Matrix4 ModelMatrix;
     vk::DeviceAddress SceneSSBOAddress;
     vk::DeviceAddress MaterialSSBOAddress;
-    uint32_t PropertiesOffset;
 };
 class PBRMaterial;
 class PBRMaterialResource final : public MaterialResource
 {
   public:
-    uint32_t mPropertiesOffset{}; // SSBO offset
+    vk::DeviceAddress mSSBOAddress{};
+
+  protected:
+    vk::Buffer mSSBO{};
+    VmaAllocation mSSBOAllocation{};
+    VmaAllocationInfo mSSBOAllocationInfo{};
 
   public:
     PBRMaterialResource(PBRMaterial *material) : MaterialResource((Material *)material)
@@ -27,5 +31,6 @@ class PBRMaterialResource final : public MaterialResource
     ~PBRMaterialResource() override = default;
     void InitRHI(std::shared_ptr<Context> context) override;
     void ReleaseRHI(std::shared_ptr<Context> context) override;
+    void UpdateProperties(std::shared_ptr<Context> context);
 };
 } // namespace MEngine::Resource

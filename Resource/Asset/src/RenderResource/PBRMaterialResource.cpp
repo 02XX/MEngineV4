@@ -14,6 +14,36 @@ void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
     pbrMaterial->mTextures.ARM->GetResource()->InitResource(context);
     pbrMaterial->mTextures.Emissive->GetResource()->InitResource(context);
 
+    vk::BufferCreateInfo bufferCreateInfo{};
+    bufferCreateInfo.setSize(sizeof(PBRProperties))
+        .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
+                  vk::BufferUsageFlagBits::eTransferDst)
+        .setSharingMode(vk::SharingMode::eExclusive);
+    VmaAllocationCreateInfo allocCreateInfo{};
+    allocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    if (vmaCreateBuffer(context->VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&bufferCreateInfo),
+                        &allocCreateInfo, reinterpret_cast<VkBuffer *>(&mSSBO), &mSSBOAllocation,
+                        &mSSBOAllocationInfo) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create SSBO buffer");
+    }
+    // Get Device Address
+    vk::BufferDeviceAddressInfo bufferDeviceAddressInfo{};
+    bufferDeviceAddressInfo.setBuffer(mSSBO);
+    mSSBOAddress = context->Device->getBufferAddress(bufferDeviceAddressInfo);
+
+    UpdateProperties(context);
+}
+void PBRMaterialResource::ReleaseRHI(std::shared_ptr<Context> context)
+{
+    if (mSSBO && mSSBOAllocation)
+    {
+        vmaDestroyBuffer(context->VmaAllocator, mSSBO, mSSBOAllocation);
+    }
+}
+void PBRMaterialResource::UpdateProperties(std::shared_ptr<Context> context)
+{
+    auto pbrMaterial = static_cast<PBRMaterial *>(mOwnerAsset);
     // Staging Buffer
     vk::BufferCreateInfo stagingBufferCreateInfo{};
     stagingBufferCreateInfo.setSize(sizeof(PBRProperties))
@@ -46,7 +76,6 @@ void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
     uint8_t *mappedData = static_cast<uint8_t *>(stagingBufferAllocationInfo.pMappedData);
     std::memcpy(mappedData, &pbrMaterial->mProperties, sizeof(PBRProperties));
 
-    mPropertiesOffset = context->NextSSBOOffset;
     // Copy to GPU
     vk::CommandBufferAllocateInfo cmdBufAllocInfo{};
     cmdBufAllocInfo.setCommandPool(context->TransferCommandPool.get())
@@ -56,8 +85,8 @@ void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
     vk::CommandBufferBeginInfo beginInfo{};
     cmdBuffer->begin(beginInfo);
     vk::BufferCopy copyRegion{};
-    copyRegion.setSize(sizeof(PBRProperties)).setSrcOffset(0).setDstOffset(context->NextSSBOOffset);
-    cmdBuffer->copyBuffer(stagingBuffer, context->SSBO, copyRegion);
+    copyRegion.setSize(sizeof(PBRProperties)).setSrcOffset(0).setDstOffset(0);
+    cmdBuffer->copyBuffer(stagingBuffer, mSSBO, copyRegion);
     vk::BufferMemoryBarrier2 bufferBarrier{};
     bufferBarrier.setSrcQueueFamilyIndex(context->QueueFamilyIndicates.transferFamily.value())
         .setDstQueueFamilyIndex(context->QueueFamilyIndicates.graphicsFamily.value())
@@ -65,8 +94,8 @@ void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
         .setDstStageMask(vk::PipelineStageFlagBits2::eVertexShader | vk::PipelineStageFlagBits2::eFragmentShader)
         .setSrcAccessMask(vk::AccessFlagBits2::eTransferWrite)
         .setDstAccessMask(vk::AccessFlagBits2::eShaderRead)
-        .setBuffer(context->SSBO)
-        .setOffset(context->NextSSBOOffset)
+        .setBuffer(mSSBO)
+        .setOffset(0)
         .setSize(sizeof(PBRProperties));
     vk::DependencyInfo depInfo{};
     depInfo.setBufferMemoryBarriers(bufferBarrier);
@@ -76,13 +105,8 @@ void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
     vk::SubmitInfo submitInfo{};
     submitInfo.setCommandBufferCount(1).setPCommandBuffers(&cmdBuffer.get());
     context->TransferQueue.submit(submitInfo, nullptr);
-    context->TransferQueue.waitIdle();
-    context->NextSSBOOffset += sizeof(PBRProperties);
+    context->Device->waitIdle();
     // Cleanup Staging Buffer
     vmaDestroyBuffer(context->VmaAllocator, stagingBuffer, stagingBufferAllocation);
 }
-void PBRMaterialResource::ReleaseRHI(std::shared_ptr<Context> context)
-{
-}
-
 } // namespace MEngine::Resource

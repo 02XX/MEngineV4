@@ -20,14 +20,10 @@ Context::Context(const ContextConfig &config) : Config(config)
     CreateCommandPools();
     CreateDescriptorPool();
     CreateDescriptorSet();
-    CreateSSBO();
+
 }
 Context::~Context()
 {
-    if (SSBO && SSBOAllocation)
-    {
-        vmaDestroyBuffer(VmaAllocator, SSBO, SSBOAllocation);
-    }
     if (VmaAllocator)
     {
         vmaDestroyAllocator(VmaAllocator);
@@ -274,23 +270,28 @@ void Context::CreateDescriptorSet()
     }
     DescriptorSet = std::move(descriptorSets.front());
 }
-void Context::CreateSSBO()
+uint32_t Context::AllocateDescriptorIndex()
 {
-    vk::BufferCreateInfo bufferCreateInfo{};
-    bufferCreateInfo.setSize(MAX_SSBO_SIZE)
-        .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
-                  vk::BufferUsageFlagBits::eTransferDst)
-        .setSharingMode(vk::SharingMode::eExclusive);
-    VmaAllocationCreateInfo allocCreateInfo{};
-    allocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    if (vmaCreateBuffer(VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&bufferCreateInfo), &allocCreateInfo,
-                        reinterpret_cast<VkBuffer *>(&SSBO), &SSBOAllocation, &SSBOAllocationInfo) != VK_SUCCESS)
+    if (!FreeDescriptorIndices.empty())
     {
-        throw std::runtime_error("Failed to create SSBO buffer");
+        uint32_t index = FreeDescriptorIndices.front();
+        FreeDescriptorIndices.pop();
+        return index;
     }
-    // Get Device Address
-    vk::BufferDeviceAddressInfo bufferDeviceAddressInfo{};
-    bufferDeviceAddressInfo.setBuffer(SSBO);
-    SSBOAddress = Device->getBufferAddress(bufferDeviceAddressInfo);
+    if (NextDescriptorIndex >= MAX_DESCRIPTOR_COUNT)
+    {
+        throw std::runtime_error("Exceeded maximum descriptor count");
+    }
+    return NextDescriptorIndex++;
+}
+
+void Context::FreeDescriptorIndex(uint32_t index)
+{
+    if (index >= MAX_DESCRIPTOR_COUNT)
+    {
+        throw std::runtime_error("Invalid descriptor index");
+    }
+    FreeDescriptorIndices.push(index);
+    // TODO: 销毁index对应的描述符资源
 }
 } // namespace MEngine::Platform

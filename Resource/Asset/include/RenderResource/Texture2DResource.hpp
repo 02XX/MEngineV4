@@ -18,5 +18,6 @@ class Texture2DResource : public TextureResource
     Texture2DResource(Texture2D *texture2D);
     ~Texture2DResource() override = default;
     virtual void InitRHI(std::shared_ptr<Context> context) override;
+    virtual void ReleaseRHI(std::shared_ptr<Context> context) override;
 };
 } // namespace MEngine::Resource

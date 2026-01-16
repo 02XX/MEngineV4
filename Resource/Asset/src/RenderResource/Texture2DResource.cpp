@@ -1,6 +1,7 @@
 #include "Texture2DResource.hpp"
 #include "Logger.hpp"
 #include "Texture2D.hpp"
+#include "TextureResource.hpp"
 #include "VMA.hpp"
 #include <algorithm>
 #include <vulkan/vulkan_handles.hpp>
@@ -160,18 +161,19 @@ void Texture2DResource::InitRHI(std::shared_ptr<Context> context)
     descriptorImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
         .setImageView(mImageView)
         .setSampler(mSampler);
-    uint32_t descriptorIndex = context->NextDescriptorIndex;
+    mBindlessDescriptorIndex = context->AllocateDescriptorIndex();
     vk::WriteDescriptorSet writeDescriptorSet{};
     writeDescriptorSet.setDstSet(context->DescriptorSet.get())
         .setDstBinding(0)
-        .setDstArrayElement(descriptorIndex)
+        .setDstArrayElement(mBindlessDescriptorIndex)
         .setDescriptorCount(1)
         .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
         .setImageInfo(descriptorImageInfo);
     device.updateDescriptorSets(writeDescriptorSet, nullptr);
-    mBindlessDescriptorIndex = descriptorIndex;
-    context->NextDescriptorIndex++;
-    LogDebug("Texture2DResource initialized with bindless descriptor index: {}", mBindlessDescriptorIndex);
 }
-
+void Texture2DResource::ReleaseRHI(std::shared_ptr<Context> context)
+{
+    TextureResource::ReleaseRHI(context);
+    context->FreeDescriptorIndex(mBindlessDescriptorIndex);
+}
 } // namespace MEngine::Resource
