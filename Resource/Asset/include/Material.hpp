@@ -7,6 +7,7 @@
 
 namespace MEngine::Resource
 {
+
 // Abstract class
 class Material : public Asset
 {

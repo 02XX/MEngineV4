@@ -20,9 +20,14 @@ Context::Context(const ContextConfig &config) : Config(config)
     CreateCommandPools();
     CreateDescriptorPool();
     CreateDescriptorSet();
+    CreateSSBO();
 }
 Context::~Context()
 {
+    if (SSBO && SSBOAllocation)
+    {
+        vmaDestroyBuffer(VmaAllocator, SSBO, SSBOAllocation);
+    }
     if (VmaAllocator)
     {
         vmaDestroyAllocator(VmaAllocator);
@@ -195,8 +200,9 @@ void Context::CreateVMA()
     allocatorCreateInfo.device = Device.get();
     allocatorCreateInfo.physicalDevice = PhysicalDevice;
     allocatorCreateInfo.instance = Instance.get();
-    allocatorCreateInfo.flags =
-        VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT | VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
+    allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT |
+                                VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT |
+                                VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     auto variant = vk::apiVersionVariant(Version);
     auto major = vk::apiVersionMajor(Version);
     auto minor = vk::apiVersionMinor(Version);
@@ -267,5 +273,24 @@ void Context::CreateDescriptorSet()
         throw std::runtime_error("Failed to allocate descriptor set");
     }
     DescriptorSet = std::move(descriptorSets.front());
+}
+void Context::CreateSSBO()
+{
+    vk::BufferCreateInfo bufferCreateInfo{};
+    bufferCreateInfo.setSize(MAX_SSBO_SIZE)
+        .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
+                  vk::BufferUsageFlagBits::eTransferDst)
+        .setSharingMode(vk::SharingMode::eExclusive);
+    VmaAllocationCreateInfo allocCreateInfo{};
+    allocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    if (vmaCreateBuffer(VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&bufferCreateInfo), &allocCreateInfo,
+                        reinterpret_cast<VkBuffer *>(&SSBO), &SSBOAllocation, &SSBOAllocationInfo) != VK_SUCCESS)
+    {
+        throw std::runtime_error("Failed to create SSBO buffer");
+    }
+    // Get Device Address
+    vk::BufferDeviceAddressInfo bufferDeviceAddressInfo{};
+    bufferDeviceAddressInfo.setBuffer(SSBO);
+    SSBOAddress = Device->getBufferAddress(bufferDeviceAddressInfo);
 }
 } // namespace MEngine::Platform

@@ -11,7 +11,7 @@ class Texture2D;
 class Texture2DResource : public TextureResource
 {
 
-  protected:
+  public:
     uint32_t mBindlessDescriptorIndex{0};
 
   public:

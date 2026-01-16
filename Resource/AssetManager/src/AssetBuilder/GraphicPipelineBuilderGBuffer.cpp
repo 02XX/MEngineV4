@@ -1,4 +1,5 @@
 #include "GraphicPipelineBuilderGBuffer.hpp"
+#include "PBRMaterialResource.hpp"
 
 namespace MEngine::Resource
 {
@@ -119,31 +120,11 @@ void GraphicPipelineBuilderGBuffer::SetColorAttachmentFormats()
 void GraphicPipelineBuilderGBuffer::SetLayout()
 {
     GraphicPipelineBuilder::SetLayout();
-    // TODO: bindless descriptor sets
-
-    //  mDescriptorSetLayoutBindings.push_back({
-    //      // set:1
-    //      // Binding: 0 PBR Parameters
-    //      vk::DescriptorSetLayoutBinding{0, vk::DescriptorType::eUniformBuffer, 1,
-    //                                     vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment},
-    //      // Binding: 1 Albedo Map
-    //      vk::DescriptorSetLayoutBinding{1, vk::DescriptorType::eCombinedImageSampler, 1,
-    //                                     vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment},
-    //      // Binding: 2 Normal Map
-    //      vk::DescriptorSetLayoutBinding{2, vk::DescriptorType::eCombinedImageSampler, 1,
-    //                                     vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment},
-    //      // Binding: 3 ARM Map
-    //      vk::DescriptorSetLayoutBinding{3, vk::DescriptorType::eCombinedImageSampler, 1,
-    //                                     vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment},
-    //      // Binding: 4 Emissive Map
-    //      vk::DescriptorSetLayoutBinding{4, vk::DescriptorType::eCombinedImageSampler, 1,
-    //                                     vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment},
-    //  });
-    //  mPushConstantRanges.push_back(
-    //      vk::PushConstantRange()
-    //          .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
-    //          .setOffset(0)
-    //          .setSize(sizeof(Matrix4)));
+    mPushConstantRanges.push_back(
+        vk::PushConstantRange()
+            .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
+            .setOffset(0)
+            .setSize(sizeof(PBRMaterialPushConstants)));
 }
 void GraphicPipelineBuilderGBuffer::SetName()
 {

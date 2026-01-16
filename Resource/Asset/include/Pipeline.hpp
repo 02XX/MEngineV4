@@ -1,9 +1,11 @@
 #pragma once
 #include "Asset.hpp"
+#include <cstdint>
 #include <vector>
 using namespace MEngine::Core;
 namespace MEngine::Resource
 {
+
 class Pipeline : public Asset
 {
     friend class PipelineResource;

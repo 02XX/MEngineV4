@@ -171,6 +171,7 @@ void Texture2DResource::InitRHI(std::shared_ptr<Context> context)
     device.updateDescriptorSets(writeDescriptorSet, nullptr);
     mBindlessDescriptorIndex = descriptorIndex;
     context->NextDescriptorIndex++;
+    LogDebug("Texture2DResource initialized with bindless descriptor index: {}", mBindlessDescriptorIndex);
 }
 
 } // namespace MEngine::Resource

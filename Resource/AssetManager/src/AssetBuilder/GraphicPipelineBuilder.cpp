@@ -95,6 +95,5 @@ void GraphicPipelineBuilder::SetDepthStencilAttachmentFormat()
 }
 void GraphicPipelineBuilder::SetLayout()
 {
-
 }
 } // namespace MEngine::Resource

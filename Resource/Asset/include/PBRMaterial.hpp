@@ -3,17 +3,22 @@
 #include "Math.hpp"
 #include "PBRMaterialResource.hpp"
 #include "Texture2D.hpp"
+#include <cstdint>
 #include <memory>
 namespace MEngine::Resource
 {
 struct PBRProperties
 {
-    alignas(16) Vector3 Albedo = Vector3(1.0f, 1.0f, 1.0f);
-    alignas(16) Vector3 Normal = Vector3(1.0f, 1.0f, 1.0f);
+    Vector4 Albedo = Vector4(1.0f, 1.0f, 0.0f, 1.0f);
+    Vector4 Normal = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
     float Metallic = 0.0f;
     float Roughness = 1.0f;
     float AO = 1.0f;
     float EmissiveIntensity = 1.0f;
+    uint32_t AlbedoIndex = 0;
+    uint32_t NormalIndex = 0;
+    uint32_t ARMIndex = 0;
+    uint32_t EmissiveIndex = 0;
 };
 struct PBRTextures
 {

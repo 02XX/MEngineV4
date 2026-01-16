@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_handles.hpp>
 
 namespace MEngine::Platform
 {
@@ -47,6 +48,13 @@ class Context
     vk::UniqueDescriptorSetLayout DescriptorSetLayout{};
     vk::UniqueDescriptorSet DescriptorSet{};
 
+    constexpr static uint32_t MAX_SSBO_SIZE = 1024 * 1024 * 10; // 10 MB
+    uint32_t NextSSBOOffset = 0;
+    vk::Buffer SSBO{};
+    VmaAllocation SSBOAllocation{};
+    VmaAllocationInfo SSBOAllocationInfo{};
+    vk::DeviceAddress SSBOAddress{};
+
   private:
     void CreateInstance();
     void PickPhysicalDevice();
@@ -57,6 +65,8 @@ class Context
     void CreateCommandPools();
     void CreateDescriptorPool();
     void CreateDescriptorSet();
+
+    void CreateSSBO();
 
   public:
     Context(const ContextConfig &config);

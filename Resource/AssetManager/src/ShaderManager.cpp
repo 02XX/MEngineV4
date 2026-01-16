@@ -50,18 +50,21 @@ std::shared_ptr<Shader> ShaderManager::CreateShader(const std::string &name, con
     auto extension = spirvPath.extension().string();
     spirvPath.replace_extension(extension + ".spv");
     std::vector<uint32_t> spirvCode;
-    if (!std::filesystem::exists(spirvPath))
-    {
-        // 编译着色器
-        LogDebug("Compiling shader: {}", path.GetPath().string());
-        spirvCode = ShaderUtils::CompileShader(path.GetPath(), true); // 编译并写入.spv文件
-    }
-    else
-    {
-        // 读取已编译的SPIR-V文件
-        LogDebug("Reading SPIR-V file: {}", spirvPath.string());
-        spirvCode = ShaderUtils::ReadSpirvFile(spirvPath);
-    }
+    // 编译着色器
+    LogDebug("Compiling shader: {}", path.GetPath().string());
+    spirvCode = ShaderUtils::CompileShader(path.GetPath(), true); // 编译并写入.spv文件
+    // if (!std::filesystem::exists(spirvPath))
+    // {
+    //     // 编译着色器
+    //     LogDebug("Compiling shader: {}", path.GetPath().string());
+    //     spirvCode = ShaderUtils::CompileShader(path.GetPath(), true); // 编译并写入.spv文件
+    // }
+    // else
+    // {
+    //     // 读取已编译的SPIR-V文件
+    //     LogDebug("Reading SPIR-V file: {}", spirvPath.string());
+    //     spirvCode = ShaderUtils::ReadSpirvFile(spirvPath);
+    // }
     // 创建Shader对象
     auto shader = std::make_shared<Shader>(name, spirvCode, GetShaderStageFromExtension(extension));
     LogInfo("Created「{}」shader from「{}」", name, path.GetPath().string());

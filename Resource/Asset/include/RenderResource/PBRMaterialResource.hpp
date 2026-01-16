@@ -1,15 +1,20 @@
 #pragma once
 #include "MaterialResource.hpp"
 #include "RenderResource.hpp"
+#include <cstdint>
 using namespace MEngine::Platform;
 namespace MEngine::Resource
 {
+struct PBRMaterialPushConstants
+{
+    vk::DeviceAddress SSBOAddress;
+    uint32_t PropertiesOffset;
+};
 class PBRMaterial;
 class PBRMaterialResource final : public MaterialResource
 {
-  private:
-    // BDA(Buffer Device Address) Vulkan 1.2+
-    vk::DeviceAddress mPropertiesBufferAddress{};
+  public:
+    uint32_t mPropertiesOffset{}; // SSBO offset
 
   public:
     PBRMaterialResource(PBRMaterial *material) : MaterialResource((Material *)material)

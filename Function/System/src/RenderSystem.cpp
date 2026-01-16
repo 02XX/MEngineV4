@@ -2,7 +2,10 @@
 #include "Logger.hpp"
 #include "MaterialComponent.hpp"
 #include "MeshComponent.hpp"
+#include "PBRMaterial.hpp"
+#include "PBRMaterialResource.hpp"
 #include "RenderResource.hpp"
+#include "Texture2DResource.hpp"
 #include "TransformComponent.hpp"
 #include <vector>
 
@@ -143,6 +146,15 @@ void RenderSystem::RenderGBuffer()
         for (const auto &entity : entities)
         {
             auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);
+            auto pbrMaterial = static_cast<PBRMaterial *>(materialComponent.Material.get());
+            auto pbrMaterialResource = materialComponent.Material->GetResourceAs<PBRMaterialResource>();
+            PBRMaterialPushConstants pbrPushConstants{};
+            pbrPushConstants.SSBOAddress = mContext->SSBOAddress;
+            pbrPushConstants.PropertiesOffset = pbrMaterialResource->mPropertiesOffset;
+            currentGraphicCommandBuffer.pushConstants(graphicPipelineGBufferPipelineLayout,
+                                                      vk::ShaderStageFlagBits::eVertex |
+                                                          vk::ShaderStageFlagBits::eFragment,
+                                                      0, sizeof(PBRMaterialPushConstants), &pbrPushConstants);
             auto &meshComponent = mScene->mRegistry->get<MeshComponent>(entity);
             auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
             auto staticMeshResource = meshComponent.Mesh->GetResourceAs<StaticMeshResource>();
