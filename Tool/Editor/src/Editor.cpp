@@ -15,6 +15,7 @@
 #include "TextureRenderTarget2DResource.hpp"
 #include "TransformComponent.hpp"
 #include <cstddef>
+#include <cstdint>
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 #include <mutex>
@@ -92,16 +93,9 @@ Editor::~Editor()
     }
     for (size_t i = 0; i < mUICommandBuffers.size(); ++i)
     {
-        mContext->Device->freeCommandBuffers(mFrameResources[i]->PresentCommandPool, {mUICommandBuffers[i]});
+        mContext->Device->freeCommandBuffers(mOffscreenFrameResources[i]->PresentCommandPool, {mUICommandBuffers[i]});
     }
-    if (mFrameResources.size() > 0)
-    {
-        for (auto &frameResource : mFrameResources)
-        {
-            frameResource->ReleaseResource(mContext);
-        }
-        mFrameResources.clear();
-    }
+    mOffscreenFrameResources.clear();
     mScene.reset();
     std::function<void(std::shared_ptr<Context> context)> item{};
     while (PendingDeletions.TryPop(item))
@@ -171,21 +165,21 @@ void Editor::InitVulkan()
     mSwapChainResource = std::make_unique<SwapChainResource>(mSurface);
     mSwapChainResource->InitResource(mContext);
     auto imageCount = mSwapChainResource->SwapChainImages.size();
-    mFrameResources.resize(imageCount);
+    mOffscreenFrameResources.resize(imageCount);
     mFrameDescriptorSets.resize(imageCount);
     mUICommandBuffers.resize(imageCount);
     for (size_t i = 0; i < imageCount; i++)
     {
-        mFrameResources[i] = std::make_shared<FrameResource>(vk::Extent3D{800, 600, 1});
-        mFrameResources[i]->InitResource(mContext);
-        auto colorAttachment = mFrameResources[i]->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
+        mOffscreenFrameResources[i] = std::make_shared<OffscreenFrameResource>(mContext, vk::Extent3D{800, 600, 1});
+        auto colorAttachment =
+            mOffscreenFrameResources[i]->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
 
-        mUICommandBuffers[i] =
-            mContext->Device->allocateCommandBuffers(vk::CommandBufferAllocateInfo()
-                                                         .setCommandPool(mFrameResources[i]->PresentCommandPool)
-                                                         .setLevel(vk::CommandBufferLevel::ePrimary)
-                                                         .setCommandBufferCount(1))[0];
-        auto commandBuffer = mFrameResources[i]->GraphicsCommandBuffer;
+        mUICommandBuffers[i] = mContext->Device->allocateCommandBuffers(
+            vk::CommandBufferAllocateInfo()
+                .setCommandPool(mOffscreenFrameResources[i]->PresentCommandPool)
+                .setLevel(vk::CommandBufferLevel::ePrimary)
+                .setCommandBufferCount(1))[0];
+        auto commandBuffer = mOffscreenFrameResources[i]->GraphicsCommandBuffer;
         vk::ImageMemoryBarrier2 swapChainBarrier{}, colorAttachmentBarrier{};
         swapChainBarrier.setImage(mSwapChainResource->SwapChainImages[i])
             .setOldLayout(vk::ImageLayout::eUndefined)
@@ -259,9 +253,15 @@ void Editor::InitImGui()
     io.FontDefault = notoSansFont;
 
     auto imageCount = mSwapChainResource->SwapChainImages.size();
+    mFrameConsumeCVs = std::vector<std::condition_variable>(imageCount);
+    mFrameProduceCVs = std::vector<std::condition_variable>(imageCount);
+    mFrameMutexes = std::vector<std::mutex>(imageCount);
+    mFrameSnapshots = std::vector<ImDrawDataSnapshot>(imageCount);
+    mHasFrameData = std::vector<bool>(imageCount, false);
     for (size_t i = 0; i < imageCount; i++)
     {
-        auto currentColorAttachment = mFrameResources[i]->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
+        auto currentColorAttachment =
+            mOffscreenFrameResources[i]->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
         mFrameDescriptorSets[i] =
             ImGui_ImplVulkan_AddTexture(static_cast<VkSampler>(currentColorAttachment->GetSampler()),
                                         static_cast<VkImageView>(currentColorAttachment->GetImageView()),
@@ -272,6 +272,165 @@ void Editor::Run()
 {
     mIsRunning = true;
     auto device = mContext->Device.get();
+    mTaskflow.emplace([this, device]() {
+        while (mIsRunning)
+        {
+            auto device = mContext->Device.get();
+            auto currentOffscreenFrameResource = mOffscreenFrameResources[mCurrentFrame].get();
+            auto mUICommandBuffer = mUICommandBuffers[mCurrentFrame];
+            auto currentRenderFinishedSemaphore = currentOffscreenFrameResource->RenderFinishedSemaphore.get();
+            auto currentImageAvailableSemaphore = currentOffscreenFrameResource->ImageAvailableSemaphore.get();
+            auto currentInFlightFence = currentOffscreenFrameResource->InFlightFence.get();
+            auto currentColorClearValue = currentOffscreenFrameResource->ColorClearValue;
+
+            auto result = device.waitForFences(currentInFlightFence, vk::True,
+                                               1000000000); // 1 second timeout
+            if (result != vk::Result::eSuccess)
+            {
+                LogError("Failed to wait for fence: {}", vk::to_string(result));
+                return;
+            }
+            vk::AcquireNextImageInfoKHR acquireInfo{};
+            acquireInfo.setTimeout(1000000000)
+                .setSwapchain(mSwapChainResource->SwapChain)
+                .setSemaphore(currentImageAvailableSemaphore)
+                .setDeviceMask(1);
+            mRenderSystem->SetOffscreenFrameResource(currentOffscreenFrameResource);
+            mRenderSystem->Update(1.0);
+
+            uint32_t imageIndex;
+            auto nextImageResult = device.acquireNextImage2KHR(&acquireInfo, &imageIndex);
+            if (nextImageResult == vk::Result::eErrorOutOfDateKHR)
+            {
+                HandleSwapchainOutOfDate();
+                return;
+            }
+            device.resetFences(currentInFlightFence);
+
+            // mRenderSystem->SetOffscreenFrameResource(currentOffscreenFrameResource);
+            // mRenderSystem->Update(1.0);
+
+            // UI Record Command Buffer
+            vk::CommandBufferBeginInfo beginInfo;
+            beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+            mUICommandBuffer.begin(beginInfo);
+            std::vector<vk::RenderingAttachmentInfo> colorAttachments{
+                // Color
+                vk::RenderingAttachmentInfo()
+                    .setClearValue(currentColorClearValue)
+                    .setImageView(mSwapChainResource->SwapChainImageViews[imageIndex])
+                    .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
+                    .setLoadOp(vk::AttachmentLoadOp::eClear)
+                    .setStoreOp(vk::AttachmentStoreOp::eStore),
+            };
+            vk::RenderingInfo renderingInfo{};
+            renderingInfo
+                .setRenderArea(vk::Rect2D{{0, 0},
+                                          {mSwapChainResource->SurfaceInfo.Capabilities.currentExtent.width,
+                                           mSwapChainResource->SurfaceInfo.Capabilities.currentExtent.height}})
+                .setLayerCount(1)
+                .setColorAttachments(colorAttachments)
+                .setPDepthAttachment(nullptr);
+            vk::ImageMemoryBarrier2 preBarrier{}, preRenderBarrier{};
+            preBarrier.setImage(mSwapChainResource->SwapChainImages[imageIndex])
+                .setOldLayout(vk::ImageLayout::ePresentSrcKHR)
+                .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
+                .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+                .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+                .setSrcAccessMask(vk::AccessFlagBits2::eNone)
+                .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+                .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+            preRenderBarrier
+                .setImage(currentOffscreenFrameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>()
+                              ->GetImage())
+                .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
+                .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+                .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+                .setDstStageMask(vk::PipelineStageFlagBits2::eFragmentShader)
+                .setSrcAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+                .setDstAccessMask(vk::AccessFlagBits2::eShaderRead)
+                .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+            std::vector<vk::ImageMemoryBarrier2> preBarriers = {preBarrier, preRenderBarrier};
+            mUICommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(preBarriers));
+
+            mUICommandBuffer.beginRendering(renderingInfo);
+            {
+                std::unique_lock<std::mutex> lck(mFrameMutexes[mCurrentFrame]);
+                mFrameConsumeCVs[mCurrentFrame].wait(lck,
+                                                     [this]() { return mHasFrameData[mCurrentFrame] || !mIsRunning; });
+                if (!mIsRunning)
+                    return;
+                ImGui_ImplVulkan_RenderDrawData(&mFrameSnapshots[mCurrentFrame].DrawData, mUICommandBuffer);
+                mHasFrameData[mCurrentFrame] = false;
+                mFrameProduceCVs[mCurrentFrame].notify_one();
+            }
+            mUICommandBuffer.endRendering();
+
+            vk::ImageMemoryBarrier2 postBarrier{}, postRenderBarrier{};
+            postBarrier.setImage(mSwapChainResource->SwapChainImages[imageIndex])
+                .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
+                .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
+                .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+                .setDstStageMask(vk::PipelineStageFlagBits2::eBottomOfPipe)
+                .setSrcAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+                .setDstAccessMask(vk::AccessFlagBits2::eNone)
+                .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+            postRenderBarrier
+                .setImage(currentOffscreenFrameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>()
+                              ->GetImage())
+                .setOldLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+                .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
+                .setSrcStageMask(vk::PipelineStageFlagBits2::eFragmentShader)
+                .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
+                .setSrcAccessMask(vk::AccessFlagBits2::eShaderRead)
+                .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
+                .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+            std::vector<vk::ImageMemoryBarrier2> postBarriers = {postBarrier, postRenderBarrier};
+            mUICommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(postBarriers));
+            mUICommandBuffer.end();
+
+            vk::SubmitInfo2 submitInfo{};
+            std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
+                vk::CommandBufferSubmitInfo().setCommandBuffer(currentOffscreenFrameResource->GraphicsCommandBuffer),
+                vk::CommandBufferSubmitInfo().setCommandBuffer(mUICommandBuffer),
+            };
+            std::vector<vk::SemaphoreSubmitInfo> signalSemaphoreInfos = {
+                vk::SemaphoreSubmitInfo()
+                    .setSemaphore(currentRenderFinishedSemaphore)
+                    .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)};
+            std::vector<vk::SemaphoreSubmitInfo> waitSemaphoreInfos = {
+                vk::SemaphoreSubmitInfo()
+                    .setSemaphore(currentImageAvailableSemaphore)
+                    .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
+            };
+
+            submitInfo.setCommandBufferInfos(commandBufferInfos)
+                .setSignalSemaphoreInfos(signalSemaphoreInfos)
+                .setWaitSemaphoreInfos(waitSemaphoreInfos);
+
+            mContext->GraphicsQueue.submit2({submitInfo}, currentInFlightFence);
+
+            vk::PresentInfoKHR presentInfo{};
+            presentInfo.setSwapchains({mSwapChainResource->SwapChain})
+                .setImageIndices({imageIndex})
+                .setWaitSemaphores({currentRenderFinishedSemaphore});
+            try
+            {
+                auto presentResult = mContext->GraphicsQueue.presentKHR(presentInfo);
+                if (presentResult != vk::Result::eSuccess && presentResult != vk::Result::eSuboptimalKHR)
+                {
+                    LogError("Failed to present image: {}", vk::to_string(presentResult));
+                    throw std::runtime_error("Failed to present image");
+                }
+            }
+            catch (vk::OutOfDateKHRError &)
+            {
+                HandleSwapchainOutOfDate();
+            }
+            mCurrentFrame = (mCurrentFrame + 1) % mSwapChainResource->SwapChainImages.size();
+        }
+    });
+    mExecutor.run(mTaskflow);
     while (!glfwWindowShouldClose(mWindow))
     {
         glfwPollEvents();
@@ -280,156 +439,25 @@ void Editor::Run()
         ImGui::NewFrame();
         UILayout();
         ImGui::Render();
+        {
+            std::unique_lock<std::mutex> lck(mFrameMutexes[mUIFrameIndex]);
+            mFrameProduceCVs[mUIFrameIndex].wait(lck,
+                                                 [this]() { return !mHasFrameData[mUIFrameIndex] || !mIsRunning; });
+            if (!mIsRunning)
+                break;
+            mFrameSnapshots[mUIFrameIndex].SnapUsingSwap(ImGui::GetDrawData(), ImGui::GetTime());
+            mHasFrameData[mUIFrameIndex] = true;
+            mFrameConsumeCVs[mUIFrameIndex].notify_one();
+        }
         mTransformSystem->Update(1.0);
         mCameraSystem->Update(1.0);
-        Render();
+        mUIFrameIndex = (mUIFrameIndex + 1) % mSwapChainResource->SwapChainImages.size();
     }
     mIsRunning = false;
+    mExecutor.wait_for_all();
 }
 void Editor::Render()
 {
-
-    auto device = mContext->Device.get();
-    auto currentFrameResource = mFrameResources[mCurrentFrame].get();
-    auto mUICommandBuffer = mUICommandBuffers[mCurrentFrame];
-    auto currentRenderFinishedSemaphore = currentFrameResource->RenderFinishedSemaphore.get();
-    auto currentImageAvailableSemaphore = currentFrameResource->ImageAvailableSemaphore.get();
-    auto currentInFlightFence = currentFrameResource->InFlightFence.get();
-    auto currentColorClearValue = currentFrameResource->ColorClearValue;
-
-    auto result = device.waitForFences(currentInFlightFence, vk::True,
-                                       1000000000); // 1 second timeout
-    if (result != vk::Result::eSuccess)
-    {
-        LogError("Failed to wait for fence: {}", vk::to_string(result));
-        return;
-    }
-    vk::AcquireNextImageInfoKHR acquireInfo{};
-    acquireInfo.setTimeout(1000000000)
-        .setSwapchain(mSwapChainResource->SwapChain)
-        .setSemaphore(currentImageAvailableSemaphore)
-        .setDeviceMask(1);
-    uint32_t imageIndex;
-    auto nextImageResult = device.acquireNextImage2KHR(&acquireInfo, &imageIndex);
-    if (nextImageResult == vk::Result::eErrorOutOfDateKHR)
-    {
-        HandleSwapchainOutOfDate();
-        return;
-    }
-    device.resetFences(currentInFlightFence);
-
-    mRenderSystem->SetFrameResource(currentFrameResource);
-    mRenderSystem->Update(1.0);
-
-    // UI Record Command Buffer
-    vk::CommandBufferBeginInfo beginInfo;
-    beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-    mUICommandBuffer.begin(beginInfo);
-    std::vector<vk::RenderingAttachmentInfo> colorAttachments{
-        // Color
-        vk::RenderingAttachmentInfo()
-            .setClearValue(currentColorClearValue)
-            .setImageView(mSwapChainResource->SwapChainImageViews[imageIndex])
-            .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
-            .setLoadOp(vk::AttachmentLoadOp::eClear)
-            .setStoreOp(vk::AttachmentStoreOp::eStore),
-    };
-    vk::RenderingInfo renderingInfo{};
-    renderingInfo
-        .setRenderArea(vk::Rect2D{{0, 0},
-                                  {mSwapChainResource->SurfaceInfo.Capabilities.currentExtent.width,
-                                   mSwapChainResource->SurfaceInfo.Capabilities.currentExtent.height}})
-        .setLayerCount(1)
-        .setColorAttachments(colorAttachments)
-        .setPDepthAttachment(nullptr);
-    vk::ImageMemoryBarrier2 preBarrier{}, preRenderBarrier{};
-    preBarrier.setImage(mSwapChainResource->SwapChainImages[imageIndex])
-        .setOldLayout(vk::ImageLayout::ePresentSrcKHR)
-        .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
-        .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
-        .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
-        .setSrcAccessMask(vk::AccessFlagBits2::eNone)
-        .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
-        .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-    preRenderBarrier
-        .setImage(currentFrameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>()->GetImage())
-        .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
-        .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-        .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
-        .setDstStageMask(vk::PipelineStageFlagBits2::eFragmentShader)
-        .setSrcAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
-        .setDstAccessMask(vk::AccessFlagBits2::eShaderRead)
-        .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-    std::vector<vk::ImageMemoryBarrier2> preBarriers = {preBarrier, preRenderBarrier};
-    mUICommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(preBarriers));
-
-    mUICommandBuffer.beginRendering(renderingInfo);
-    {
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), mUICommandBuffer);
-    }
-    mUICommandBuffer.endRendering();
-
-    vk::ImageMemoryBarrier2 postBarrier{}, postRenderBarrier{};
-    postBarrier.setImage(mSwapChainResource->SwapChainImages[imageIndex])
-        .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
-        .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
-        .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
-        .setDstStageMask(vk::PipelineStageFlagBits2::eBottomOfPipe)
-        .setSrcAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
-        .setDstAccessMask(vk::AccessFlagBits2::eNone)
-        .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-    postRenderBarrier
-        .setImage(currentFrameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>()->GetImage())
-        .setOldLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-        .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
-        .setSrcStageMask(vk::PipelineStageFlagBits2::eFragmentShader)
-        .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
-        .setSrcAccessMask(vk::AccessFlagBits2::eShaderRead)
-        .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
-        .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-    std::vector<vk::ImageMemoryBarrier2> postBarriers = {postBarrier, postRenderBarrier};
-    mUICommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(postBarriers));
-    mUICommandBuffer.end();
-
-    vk::SubmitInfo2 submitInfo{};
-    std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
-        vk::CommandBufferSubmitInfo().setCommandBuffer(currentFrameResource->GraphicsCommandBuffer),
-        vk::CommandBufferSubmitInfo().setCommandBuffer(mUICommandBuffer),
-    };
-    std::vector<vk::SemaphoreSubmitInfo> signalSemaphoreInfos = {
-        vk::SemaphoreSubmitInfo()
-            .setSemaphore(currentRenderFinishedSemaphore)
-            .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)};
-    std::vector<vk::SemaphoreSubmitInfo> waitSemaphoreInfos = {
-        vk::SemaphoreSubmitInfo()
-            .setSemaphore(currentImageAvailableSemaphore)
-            .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
-    };
-
-    submitInfo.setCommandBufferInfos(commandBufferInfos)
-        .setSignalSemaphoreInfos(signalSemaphoreInfos)
-        .setWaitSemaphoreInfos(waitSemaphoreInfos);
-
-    mContext->GraphicsQueue.submit2({submitInfo}, currentInFlightFence);
-
-    vk::PresentInfoKHR presentInfo{};
-    presentInfo.setSwapchains({mSwapChainResource->SwapChain})
-        .setImageIndices({imageIndex})
-        .setWaitSemaphores({currentRenderFinishedSemaphore});
-    try
-    {
-        auto presentResult = mContext->GraphicsQueue.presentKHR(presentInfo);
-        if (presentResult != vk::Result::eSuccess && presentResult != vk::Result::eSuboptimalKHR)
-        {
-            LogError("Failed to present image: {}", vk::to_string(presentResult));
-            throw std::runtime_error("Failed to present image");
-        }
-    }
-    catch (vk::OutOfDateKHRError &)
-    {
-        HandleSwapchainOutOfDate();
-    }
-    mCurrentFrame = (mCurrentFrame + 1) % mSwapChainResource->SwapChainImages.size();
 }
 void Editor::UILayout()
 {
@@ -492,9 +520,9 @@ void Editor::UILayout()
 }
 void Editor::ViewPort()
 {
-    auto currentFrameResource = mFrameResources[mCurrentFrame].get();
-    ImGui::Image(reinterpret_cast<ImTextureID>(mFrameDescriptorSets[mCurrentFrame]),
-                 ImVec2(currentFrameResource->Extent.width, currentFrameResource->Extent.height));
+    auto currentOffscreenFrameResource = mOffscreenFrameResources[mUIFrameIndex].get();
+    ImGui::Image(reinterpret_cast<ImTextureID>(mFrameDescriptorSets[mUIFrameIndex]),
+                 ImVec2(currentOffscreenFrameResource->Extent.width, currentOffscreenFrameResource->Extent.height));
 }
 void Editor::Hierarchy()
 {
@@ -517,8 +545,8 @@ void Editor::HandleSwapchainOutOfDate()
     auto imageCount = mSwapChainResource->SwapChainImages.size();
     for (size_t i = 0; i < imageCount; i++)
     {
-        auto currentFrameResource = mFrameResources[i].get();
-        auto mUICommandBuffer = currentFrameResource->GraphicsCommandBuffer;
+        auto currentOffscreenFrameResource = mOffscreenFrameResources[i].get();
+        auto mUICommandBuffer = currentOffscreenFrameResource->GraphicsCommandBuffer;
         vk::ImageMemoryBarrier2 barrier{};
         barrier.setImage(mSwapChainResource->SwapChainImages[i])
             .setOldLayout(vk::ImageLayout::eUndefined)

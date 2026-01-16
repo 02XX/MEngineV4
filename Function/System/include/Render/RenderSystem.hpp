@@ -2,7 +2,7 @@
 #include "ConcurrentQueue.hpp"
 #include "Context.hpp"
 #include "ECS.hpp"
-#include "FrameResource.hpp"
+#include "OffscreenFrameResource.hpp"
 #include "System.hpp"
 #include <array>
 #include <cstdint>
@@ -25,15 +25,15 @@ class RenderSystem : public System
     // 使用bindless descriptor ！！！！！！！！！！！！！
   private:
     std::unordered_map<std::string, std::vector<Entity>> mRenderQueues{};
-    FrameResource *mFrameResource{};
+    OffscreenFrameResource *mOffscreenFrameResource{};
 
   public:
     RenderSystem(std::shared_ptr<Context> context, std::shared_ptr<Scene> scene,
                  std::shared_ptr<AssetManager> assetManager);
     ~RenderSystem() override;
-    inline void SetFrameResource(FrameResource *frameResource)
+    inline void SetOffscreenFrameResource(OffscreenFrameResource *frameResource)
     {
-        mFrameResource = frameResource;
+        mOffscreenFrameResource = frameResource;
     }
     void Init() override;
     void Update(double deltaTime) override;

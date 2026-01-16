@@ -10,6 +10,7 @@ class TextureRenderTarget2D : public TextureRenderTarget
     friend class TextureRenderTarget2DResource;
 
   private:
+    
   public:
     TextureRenderTarget2D(const std::string &name, const TextureSetting &importSetting,
                           const SamplerSetting &samplerSetting)

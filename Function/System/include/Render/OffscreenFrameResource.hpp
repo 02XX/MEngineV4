@@ -1,14 +1,16 @@
 #pragma once
-#include "RenderResource.hpp"
 #include "TextureRenderTarget2D.hpp"
 #include <memory>
 
 using namespace MEngine::Platform;
 using namespace MEngine::Resource;
-namespace MEngine::Resource
+namespace MEngine::Function
 {
-class FrameResource final : public RenderResource
+class OffscreenFrameResource
 {
+  protected:
+    std::shared_ptr<Context> mContext;
+
   public:
     // MRT
     vk::Extent3D Extent;
@@ -38,15 +40,11 @@ class FrameResource final : public RenderResource
     vk::CommandPool GraphicsCommandPool;
     vk::CommandPool TransferCommandPool;
     vk::CommandPool PresentCommandPool;
-
-    vk::CommandBuffer GraphicsCommandBuffer;
+    // Primary CommandBuffer
+    vk::CommandBuffer GraphicsCommandBuffer; // 可以派出次级命令缓冲区，然后汇总到这个缓冲区中执行
     vk::CommandBuffer TransferCommandBuffer;
     vk::CommandBuffer PresentCommandBuffer;
-    FrameResource(vk::Extent3D extent = {800, 600, 1});
-    ~FrameResource() override = default;
-
-  protected:
-    void InitRHI(std::shared_ptr<Context> context) override;
-    void ReleaseRHI(std::shared_ptr<Context> context) override;
+    OffscreenFrameResource(std::shared_ptr<Context> context, vk::Extent3D extent = {800, 600, 1});
+    virtual ~OffscreenFrameResource();
 };
-} // namespace MEngine::Resource
+} // namespace MEngine::Function

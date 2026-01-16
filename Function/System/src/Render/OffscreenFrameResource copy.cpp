@@ -1,16 +1,15 @@
-#include "FrameResource.hpp"
+#include "OffscreenFrameResource.hpp"
 #include "RenderResource.hpp"
 #include "TextureRenderTarget2DResource.hpp"
 #include <memory>
 using namespace MEngine::Resource;
 using namespace MEngine::Platform;
-namespace MEngine::Resource
+namespace MEngine::Function
 {
-FrameResource::FrameResource(vk::Extent3D extent) : Extent(extent), RenderResource(nullptr) {};
-void FrameResource::InitRHI(std::shared_ptr<Context> context)
+OffscreenFrameResource::OffscreenFrameResource(std::shared_ptr<Context> context, vk::Extent3D extent)
+    : mContext(context), Extent(extent)
 {
-
-    auto device = context->Device.get();
+    auto device = mContext->Device.get();
     // Semaphore
     ImageAvailableSemaphore = device.createSemaphoreUnique(vk::SemaphoreCreateInfo{});
     RenderFinishedSemaphore = device.createSemaphoreUnique(vk::SemaphoreCreateInfo{});
@@ -21,15 +20,15 @@ void FrameResource::InitRHI(std::shared_ptr<Context> context)
     GraphicsCommandPool =
         device.createCommandPool(vk::CommandPoolCreateInfo{}
                                      .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
-                                     .setQueueFamilyIndex(context->QueueFamilyIndicates.graphicsFamily.value()));
+                                     .setQueueFamilyIndex(mContext->QueueFamilyIndicates.graphicsFamily.value()));
     TransferCommandPool =
         device.createCommandPool(vk::CommandPoolCreateInfo{}
                                      .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
-                                     .setQueueFamilyIndex(context->QueueFamilyIndicates.transferFamily.value()));
+                                     .setQueueFamilyIndex(mContext->QueueFamilyIndicates.transferFamily.value()));
     PresentCommandPool =
         device.createCommandPool(vk::CommandPoolCreateInfo{}
                                      .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
-                                     .setQueueFamilyIndex(context->QueueFamilyIndicates.graphicsFamily.value()));
+                                     .setQueueFamilyIndex(mContext->QueueFamilyIndicates.graphicsFamily.value()));
     GraphicsCommandBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo{}
                                                               .setCommandPool(GraphicsCommandPool)
                                                               .setLevel(vk::CommandBufferLevel::ePrimary)
@@ -98,30 +97,29 @@ void FrameResource::InitRHI(std::shared_ptr<Context> context)
     DepthStencilTexture = std::make_unique<TextureRenderTarget2D>("DepthStencil6", depthStencilImageCreateInfo,
                                                                   colorImageSamplerCreateInfo);
     // Init RHI
-    ColorTexture->GetResource()->InitResource(context);
-    AlbedoTexture->GetResource()->InitResource(context);
-    NormalTexture->GetResource()->InitResource(context);
-    ARMTexture->GetResource()->InitResource(context);
-    PositionTexture->GetResource()->InitResource(context);
-    EmissiveTexture->GetResource()->InitResource(context);
-    DepthStencilTexture->GetResource()->InitResource(context);
-}
-void FrameResource::ReleaseRHI(std::shared_ptr<Context> context)
+    ColorTexture->GetResource()->InitResource(mContext);
+    AlbedoTexture->GetResource()->InitResource(mContext);
+    NormalTexture->GetResource()->InitResource(mContext);
+    ARMTexture->GetResource()->InitResource(mContext);
+    PositionTexture->GetResource()->InitResource(mContext);
+    EmissiveTexture->GetResource()->InitResource(mContext);
+    DepthStencilTexture->GetResource()->InitResource(mContext);
+};
+OffscreenFrameResource::~OffscreenFrameResource()
 {
-
-    ColorTexture->GetResource()->ReleaseResource(context);
-    AlbedoTexture->GetResource()->ReleaseResource(context);
-    NormalTexture->GetResource()->ReleaseResource(context);
-    ARMTexture->GetResource()->ReleaseResource(context);
-    PositionTexture->GetResource()->ReleaseResource(context);
-    EmissiveTexture->GetResource()->ReleaseResource(context);
-    DepthStencilTexture->GetResource()->ReleaseResource(context);
-    auto device = context->Device.get();
+    ColorTexture->GetResource()->ReleaseResource(mContext);
+    AlbedoTexture->GetResource()->ReleaseResource(mContext);
+    NormalTexture->GetResource()->ReleaseResource(mContext);
+    ARMTexture->GetResource()->ReleaseResource(mContext);
+    PositionTexture->GetResource()->ReleaseResource(mContext);
+    EmissiveTexture->GetResource()->ReleaseResource(mContext);
+    DepthStencilTexture->GetResource()->ReleaseResource(mContext);
+    auto device = mContext->Device.get();
     device.freeCommandBuffers(GraphicsCommandPool, {GraphicsCommandBuffer});
     device.freeCommandBuffers(TransferCommandPool, {TransferCommandBuffer});
     device.freeCommandBuffers(PresentCommandPool, {PresentCommandBuffer});
     device.destroyCommandPool(GraphicsCommandPool);
     device.destroyCommandPool(TransferCommandPool);
     device.destroyCommandPool(PresentCommandPool);
-}
-} // namespace MEngine::Resource
+};
+} // namespace MEngine::Function
