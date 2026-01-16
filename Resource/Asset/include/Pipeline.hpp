@@ -9,17 +9,14 @@ class Pipeline : public Asset
     friend class PipelineResource;
 
   protected:
-    std::vector<std::vector<vk::DescriptorSetLayoutBinding>> mDescriptorSetLayoutBindings{};
     std::vector<vk::PushConstantRange> mPushConstantRanges{};
 
   public:
     Pipeline(const std::string &name,
              std::vector<std::vector<vk::DescriptorSetLayoutBinding>> descriptorSetLayoutBindings,
              std::vector<vk::PushConstantRange> pushConstantRanges)
-        : Asset(name), mDescriptorSetLayoutBindings(descriptorSetLayoutBindings),
-          mPushConstantRanges(pushConstantRanges)
+        : Asset(name), mPushConstantRanges(pushConstantRanges)
     {
-        
     }
     ~Pipeline() override = default;
 };

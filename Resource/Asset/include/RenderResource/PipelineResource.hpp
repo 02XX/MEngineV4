@@ -10,7 +10,6 @@ class PipelineResource : public RenderResource
   protected:
     vk::Pipeline mPipeline{};
     vk::PipelineLayout mPipelineLayout{};
-    std::vector<vk::DescriptorSetLayout> mDescriptorSetLayouts{};
 
   public:
     PipelineResource(Pipeline *pipeline);
