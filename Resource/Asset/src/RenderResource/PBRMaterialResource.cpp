@@ -32,7 +32,7 @@ void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
     bufferDeviceAddressInfo.setBuffer(mSSBO);
     mSSBOAddress = context->Device->getBufferAddress(bufferDeviceAddressInfo);
 
-    UpdateProperties(context);
+    UpdateMaterial(context);
 }
 void PBRMaterialResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
@@ -41,7 +41,7 @@ void PBRMaterialResource::ReleaseRHI(std::shared_ptr<Context> context)
         vmaDestroyBuffer(context->VmaAllocator, mSSBO, mSSBOAllocation);
     }
 }
-void PBRMaterialResource::UpdateProperties(std::shared_ptr<Context> context)
+void PBRMaterialResource::UpdateMaterial(std::shared_ptr<Context> context)
 {
     auto pbrMaterial = static_cast<PBRMaterial *>(mOwnerAsset);
     // Staging Buffer

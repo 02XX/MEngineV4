@@ -1,6 +1,7 @@
 #include "Editor.hpp"
 #include "CameraComponent.hpp"
 #include "Logger.hpp"
+#include "MReflection.hpp"
 #include "Material.hpp"
 #include "MaterialComponent.hpp"
 #include "Math.hpp"
@@ -8,6 +9,8 @@
 #include "MeshManager.hpp"
 #include "PBRMaterial.hpp"
 #include "PBRMaterialManager.hpp"
+#include "PBRMaterialResource.hpp"
+#include "Reflection.hpp"
 #include "RenderSystem.hpp"
 #include "Scene.hpp"
 #include "StaticMesh.hpp"
@@ -18,6 +21,7 @@
 #include <cstdint>
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
+#include <imgui_stdlib.h>
 #include <mutex>
 #include <vector>
 
@@ -31,6 +35,9 @@ Editor::Editor()
     InitWindow();
     InitVulkan();
     InitImGui();
+    RegisterAssets();
+    RegisterComponents();
+
     mScene = std::make_shared<Scene>("DefaultScene");
     mAssetManager = std::make_shared<AssetManager>(mContext);
     mTransformSystem = std::make_shared<TransformSystem>(mScene, mAssetManager);
@@ -54,9 +61,10 @@ Editor::Editor()
 
     auto cameraEntity = ecsRegister->create();
     auto &cameraTransformComponent = ecsRegister->emplace<TransformComponent>(cameraEntity);
+    cameraTransformComponent.name = "EditorCamera";
     cameraTransformComponent.localPosition = Vector3(0.0f, 0.0f, -5.0f);
     auto &cameraEntityCameraComponent = ecsRegister->emplace<CameraComponent>(cameraEntity);
-
+    cameraEntityCameraComponent.isEditorCamera = true;
     cameraEntityCameraComponent.isMainCamera = true;
 };
 Editor::~Editor()
@@ -613,7 +621,12 @@ void Editor::RenderEntityNode(Entity entity)
 {
     auto &registry = mScene->mRegistry;
     auto &transform = registry->get<TransformComponent>(entity);
-
+    if (registry->any_of<CameraComponent>(entity))
+    {
+        auto &cameraComp = registry->get<CameraComponent>(entity);
+        if (cameraComp.isEditorCamera)
+            return;
+    }
     ImGuiTreeNodeFlags flags =
         ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
 
@@ -687,6 +700,77 @@ void Editor::Console()
 }
 void Editor::Inspector()
 {
+    auto registry = mScene->mRegistry;
+    if (mSelectedEntity != NullEntity && registry->valid(mSelectedEntity))
+    {
+        if (registry->any_of<TransformComponent>(mSelectedEntity))
+        {
+            auto &transform = registry->get<TransformComponent>(mSelectedEntity);
+            if (ImGui::CollapsingHeader("TransformComponent", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                ImGui::InputText("Name", &transform.name);
+                ImGui::DragFloat3("Position", &transform.localPosition.x, 0.1f);
+                glm::vec3 euler = glm::degrees(glm::eulerAngles(transform.localRotation));
+                if (ImGui::DragFloat3("Rotation", glm::value_ptr(euler), 0.01f))
+                {
+                    transform.localRotation = glm::quat(glm::radians(euler));
+                }
+                ImGui::DragFloat3("Scale", &transform.localScale.x, 0.1f);
+            }
+        }
+        if (registry->any_of<CameraComponent>(mSelectedEntity))
+        {
+        }
+        if (registry->any_of<MeshComponent>(mSelectedEntity))
+        {
+            if (ImGui::CollapsingHeader("MeshComponent", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                auto &meshComp = registry->get<MeshComponent>(mSelectedEntity);
+                auto mesh = meshComp.Mesh;
+                if (mesh)
+                {
+                    ImGui::Text("Mesh: %s", mesh->GetName().c_str());
+                }
+                else
+                {
+                    ImGui::Text("Mesh: None");
+                }
+            }
+        }
+        if (registry->any_of<MaterialComponent>(mSelectedEntity))
+        {
+            if (ImGui::CollapsingHeader("MaterialComponent", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                auto &materialComp = registry->get<MaterialComponent>(mSelectedEntity);
+                auto material = materialComp.Material;
+                if (auto pbrMat = std::dynamic_pointer_cast<PBRMaterial>(material))
+                {
+                    auto &pbrProps = pbrMat->mProperties;
+                    if (ImGui::ColorEdit4("Albedo", glm::value_ptr(pbrProps.Albedo)))
+                    {
+                        pbrProps.Albedo = glm::clamp(pbrProps.Albedo, glm::vec4(0.0f), glm::vec4(1.0f));
+                        materialComp.dirty = true;
+                    }
+                }
+                else
+                {
+                    ImGui::Text("Material: None");
+                }
+            }
+        }
+    }
+}
+void Editor::ReflectObject(std::any object, std::string typeName)
+{
+    if (ImGui::CollapsingHeader(typeName.data(), ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        auto &typeRegistry = MReflection::Registry::GetInstance();
+        auto typeInfo = typeRegistry.GetType(typeName);
+        auto fields = typeInfo->GetFields();
+        for (auto field : fields)
+        {
+        }
+    }
 }
 
 void Editor::HandleSwapchainOutOfDate()

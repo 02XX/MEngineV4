@@ -102,7 +102,9 @@ class Editor
 
     void AssetBrowser();
     void Console();
+
     void Inspector();
+    void ReflectObject(std::any object, std::string typeName);
 
     void Render();
 

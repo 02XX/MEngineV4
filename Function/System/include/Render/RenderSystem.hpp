@@ -40,6 +40,7 @@ class RenderSystem : public System
     void Shutdown() override;
 
   private:
+    void UpdateMaterial();
     void PrepareRenderQueues();
     void Prepare();
     void RenderGBuffer();

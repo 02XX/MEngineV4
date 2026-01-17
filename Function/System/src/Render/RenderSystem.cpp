@@ -2,6 +2,7 @@
 #include "CameraComponent.hpp"
 #include "Logger.hpp"
 #include "MaterialComponent.hpp"
+#include "MaterialResource.hpp"
 #include "MeshComponent.hpp"
 #include "PBRMaterial.hpp"
 #include "PBRMaterialResource.hpp"
@@ -25,11 +26,27 @@ void RenderSystem::Init()
 }
 void RenderSystem::Update(double deltaTime)
 {
+    UpdateMaterial();
     PrepareRenderQueues();
     Prepare();
     RenderGBuffer();
     RenderLighting();
     End();
+}
+void RenderSystem::UpdateMaterial()
+{
+    auto entities = mScene->mRegistry->view<MaterialComponent>();
+    for (const auto &entity : entities)
+    {
+        auto &materialComponent = entities.get<MaterialComponent>(entity);
+        if (materialComponent.dirty)
+        {
+            auto material = materialComponent.Material;
+            auto materialResource = material->GetResourceAs<MaterialResource>();
+            materialResource->UpdateMaterial(mContext);
+            materialComponent.dirty = false;
+        }
+    }
 }
 void RenderSystem::Shutdown()
 {

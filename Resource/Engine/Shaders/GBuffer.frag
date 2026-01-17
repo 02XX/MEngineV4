@@ -39,5 +39,5 @@ void main()
     uint albedoIndex = mat.albedoIndex;
     vec4 color = texture(textures[nonuniformEXT(albedoIndex)], fragTexCoord) * mat.albedo;
     vec4 texCoordColor = vec4(fragTexCoord.x, fragTexCoord.y, 0.0, 1.0);
-    OutColor = texCoordColor;
+    OutColor = color;
 }

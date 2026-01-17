@@ -31,6 +31,6 @@ class PBRMaterialResource final : public MaterialResource
     ~PBRMaterialResource() override = default;
     void InitRHI(std::shared_ptr<Context> context) override;
     void ReleaseRHI(std::shared_ptr<Context> context) override;
-    void UpdateProperties(std::shared_ptr<Context> context);
+    void UpdateMaterial(std::shared_ptr<Context> context) override;
 };
 } // namespace MEngine::Resource
