@@ -9,10 +9,10 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <taskflow/taskflow.hpp>
 #include <unordered_map>
 #include <vector>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_structs.hpp>
+
 inline constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 using namespace MEngine::Resource;
 namespace MEngine::Function
@@ -27,6 +27,9 @@ class RenderSystem : public System
     std::unordered_map<std::string, std::vector<Entity>> mRenderQueues{};
     OffscreenFrameResource *mOffscreenFrameResource{};
 
+    tf::Executor mTransferExecutor{4};
+    tf::Taskflow mTransferTaskflow{};
+
   public:
     RenderSystem(std::shared_ptr<Context> context, std::shared_ptr<Scene> scene,
                  std::shared_ptr<AssetManager> assetManager);
@@ -40,11 +43,12 @@ class RenderSystem : public System
     void Shutdown() override;
 
   private:
+    void Prepare();
+    void Render();
+
     void UpdateMaterial();
     void PrepareRenderQueues();
-    void Prepare();
     void RenderGBuffer();
     void RenderLighting();
-    void End();
 };
 } // namespace MEngine::Function

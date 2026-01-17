@@ -1,6 +1,7 @@
 #include "RenderSystem.hpp"
 #include "CameraComponent.hpp"
 #include "Logger.hpp"
+#include "Material.hpp"
 #include "MaterialComponent.hpp"
 #include "MaterialResource.hpp"
 #include "MeshComponent.hpp"
@@ -10,6 +11,7 @@
 #include "Texture2DResource.hpp"
 #include "TransformComponent.hpp"
 #include <vector>
+#include <vulkan/vulkan_structs.hpp>
 
 namespace MEngine::Function
 {
@@ -26,27 +28,87 @@ void RenderSystem::Init()
 }
 void RenderSystem::Update(double deltaTime)
 {
-    UpdateMaterial();
     PrepareRenderQueues();
     Prepare();
-    RenderGBuffer();
-    RenderLighting();
-    End();
+    Render();
 }
-void RenderSystem::UpdateMaterial()
+void RenderSystem::Prepare()
 {
+    mOffscreenFrameResource->SubTransferCommandBuffers.clear();
+    auto transferCommandBuffer = mOffscreenFrameResource->TransferCommandBuffer;
+    //  准备数据
     auto entities = mScene->mRegistry->view<MaterialComponent>();
+    std::vector<Entity> dirtyEntities{};
     for (const auto &entity : entities)
     {
         auto &materialComponent = entities.get<MaterialComponent>(entity);
         if (materialComponent.dirty)
+            dirtyEntities.push_back(entity);
+    }
+    if (!dirtyEntities.empty())
+    {
+        vk::CommandBufferAllocateInfo subCmdAllocInfo{};
+        subCmdAllocInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
+            .setLevel(vk::CommandBufferLevel::eSecondary)
+            .setCommandBufferCount(dirtyEntities.size());
+        mOffscreenFrameResource->SubTransferCommandBuffers =
+            mContext->Device->allocateCommandBuffersUnique(subCmdAllocInfo);
+        vk::CommandBufferInheritanceInfo inheritanceInfo{};
+        mTransferTaskflow.clear();
+        for (size_t i = 0; i < dirtyEntities.size(); ++i)
         {
+            auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(dirtyEntities[i]);
+            auto subCommandBuffer = mOffscreenFrameResource->SubTransferCommandBuffers[i].get();
             auto material = materialComponent.Material;
             auto materialResource = material->GetResourceAs<MaterialResource>();
-            materialResource->UpdateMaterial(mContext);
+
+            materialResource->UpdateMaterial(mContext, subCommandBuffer, &inheritanceInfo);
+
             materialComponent.dirty = false;
         }
     }
+
+    mTransferExecutor.run(mTransferTaskflow).wait();
+
+    mScene->GetResource()->InitResource(mContext);
+    SceneParameter sceneParams{};
+    auto cameraEntities = mScene->mRegistry->view<TransformComponent, CameraComponent>();
+    for (const auto &entity : cameraEntities)
+    {
+        auto &cameraComponent = mScene->mRegistry->get<CameraComponent>(entity);
+        auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+        if (cameraComponent.isMainCamera)
+        {
+            sceneParams.ViewMatrix = cameraComponent.viewMatrix;
+            sceneParams.ProjectionMatrix = cameraComponent.projectionMatrix;
+            sceneParams.CameraPosition = transformComponent.worldPosition;
+            break;
+        }
+    }
+    auto sceneResource = mScene->GetResourceAs<SceneResource>();
+    sceneResource->UpdateSceneUBO(sceneParams);
+
+    std::vector<vk::CommandBuffer> rawCommandBuffers{};
+    rawCommandBuffers.reserve(mOffscreenFrameResource->SubTransferCommandBuffers.size());
+    for (const auto &cmdBuf : mOffscreenFrameResource->SubTransferCommandBuffers)
+    {
+        rawCommandBuffers.push_back(cmdBuf.get());
+    }
+
+    vk::CommandBufferBeginInfo transferBeginInfo{};
+    transferCommandBuffer.begin(transferBeginInfo);
+    if (!rawCommandBuffers.empty())
+        transferCommandBuffer.executeCommands(rawCommandBuffers);
+    transferCommandBuffer.end();
+}
+void RenderSystem::Render()
+{
+    vk::CommandBufferBeginInfo graphicsBeginInfo{};
+    auto currentGraphicCommandBuffer = mOffscreenFrameResource->GraphicsCommandBuffer;
+    currentGraphicCommandBuffer.begin(graphicsBeginInfo);
+    RenderGBuffer();
+    RenderLighting();
+    currentGraphicCommandBuffer.end();
 }
 void RenderSystem::Shutdown()
 {
@@ -67,28 +129,6 @@ void RenderSystem::PrepareRenderQueues()
         auto &transformComponent = entities.get<TransformComponent>(entity);
         mRenderQueues[pipeline->GetName()].push_back(entity);
     }
-}
-void RenderSystem::Prepare()
-{
-    auto device = mContext->Device.get();
-    mScene->GetResource()->InitResource(mContext);
-    SceneParameter sceneParams{};
-    auto cameraEntities = mScene->mRegistry->view<TransformComponent, CameraComponent>();
-    for (const auto &entity : cameraEntities)
-    {
-        auto &cameraComponent = mScene->mRegistry->get<CameraComponent>(entity);
-        auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
-        if (cameraComponent.isMainCamera)
-        {
-            sceneParams.ViewMatrix = cameraComponent.viewMatrix;
-            sceneParams.ProjectionMatrix = cameraComponent.projectionMatrix;
-            sceneParams.CameraPosition = transformComponent.worldPosition;
-            break;
-        }
-    }
-    auto sceneResource = mScene->GetResourceAs<SceneResource>();
-    sceneResource->UpdateSceneUBO(sceneParams);
-    mOffscreenFrameResource->GraphicsCommandBuffer.begin(vk::CommandBufferBeginInfo{});
 }
 void RenderSystem::RenderGBuffer()
 {
@@ -214,11 +254,5 @@ void RenderSystem::RenderGBuffer()
 }
 void RenderSystem::RenderLighting()
 {
-}
-void RenderSystem::End()
-{
-    auto device = mContext->Device.get();
-    auto currentGraphicCommandBuffer = mOffscreenFrameResource->GraphicsCommandBuffer;
-    currentGraphicCommandBuffer.end();
 }
 } // namespace MEngine::Function

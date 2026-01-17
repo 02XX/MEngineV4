@@ -24,6 +24,10 @@ class PBRMaterialResource final : public MaterialResource
     VmaAllocation mSSBOAllocation{};
     VmaAllocationInfo mSSBOAllocationInfo{};
 
+    vk::Buffer mStagingBuffer{};
+    VmaAllocation mStagingBufferAllocation{};
+    VmaAllocationInfo mStagingBufferAllocationInfo{};
+
   public:
     PBRMaterialResource(PBRMaterial *material) : MaterialResource((Material *)material)
     {
@@ -31,6 +35,7 @@ class PBRMaterialResource final : public MaterialResource
     ~PBRMaterialResource() override = default;
     void InitRHI(std::shared_ptr<Context> context) override;
     void ReleaseRHI(std::shared_ptr<Context> context) override;
-    void UpdateMaterial(std::shared_ptr<Context> context) override;
+    void UpdateMaterial(std::shared_ptr<Context> context, vk::CommandBuffer commandBuffer,
+                        vk::CommandBufferInheritanceInfo *inheritanceInfo) override;
 };
 } // namespace MEngine::Resource

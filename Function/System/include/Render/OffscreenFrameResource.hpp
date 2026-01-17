@@ -1,6 +1,8 @@
 #pragma once
 #include "TextureRenderTarget2D.hpp"
 #include <memory>
+#include <vector>
+#include <vulkan/vulkan_handles.hpp>
 
 using namespace MEngine::Platform;
 using namespace MEngine::Resource;
@@ -33,6 +35,8 @@ class OffscreenFrameResource
     // Semaphore
     vk::UniqueSemaphore ImageAvailableSemaphore;
     vk::UniqueSemaphore RenderFinishedSemaphore;
+    vk::UniqueSemaphore TransferFinishedSemaphore;
+    std::vector<vk::UniqueCommandBuffer> SubTransferCommandBuffers{};
     // Fence
     vk::UniqueFence InFlightFence;
     vk::UniqueFence CopyFence;

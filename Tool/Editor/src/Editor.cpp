@@ -10,7 +10,6 @@
 #include "PBRMaterial.hpp"
 #include "PBRMaterialManager.hpp"
 #include "PBRMaterialResource.hpp"
-#include "Reflection.hpp"
 #include "RenderSystem.hpp"
 #include "Scene.hpp"
 #include "StaticMesh.hpp"
@@ -35,8 +34,6 @@ Editor::Editor()
     InitWindow();
     InitVulkan();
     InitImGui();
-    RegisterAssets();
-    RegisterComponents();
 
     mScene = std::make_shared<Scene>("DefaultScene");
     mAssetManager = std::make_shared<AssetManager>(mContext);
@@ -303,8 +300,6 @@ void Editor::Run()
                 .setSwapchain(mSwapChainResource->SwapChain)
                 .setSemaphore(currentImageAvailableSemaphore)
                 .setDeviceMask(1);
-            mRenderSystem->SetOffscreenFrameResource(currentOffscreenFrameResource);
-            mRenderSystem->Update(1.0);
 
             uint32_t imageIndex;
             auto nextImageResult = device.acquireNextImage2KHR(&acquireInfo, &imageIndex);
@@ -314,11 +309,11 @@ void Editor::Run()
                 return;
             }
             device.resetFences(currentInFlightFence);
+            //==============================Render System========================================
+            mRenderSystem->SetOffscreenFrameResource(currentOffscreenFrameResource);
+            mRenderSystem->Update(1.0);
 
-            // mRenderSystem->SetOffscreenFrameResource(currentOffscreenFrameResource);
-            // mRenderSystem->Update(1.0);
-
-            // UI Record Command Buffer
+            //==============================UI===================================================
             vk::CommandBufferBeginInfo beginInfo;
             beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
             mUICommandBuffer.begin(beginInfo);
@@ -397,7 +392,17 @@ void Editor::Run()
             mUICommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(postBarriers));
             mUICommandBuffer.end();
 
-            vk::SubmitInfo2 submitInfo{};
+            //==============================Submit & Present===================================
+            vk::SubmitInfo2 transferSubmitInfo{};
+            transferSubmitInfo.setCommandBufferInfos(
+                {vk::CommandBufferSubmitInfo().setCommandBuffer(currentOffscreenFrameResource->TransferCommandBuffer)});
+            transferSubmitInfo.setSignalSemaphoreInfos(
+                {vk::SemaphoreSubmitInfo()
+                     .setSemaphore(currentOffscreenFrameResource->TransferFinishedSemaphore.get())
+                     .setStageMask(vk::PipelineStageFlagBits2::eTransfer)});
+            mContext->TransferQueue.submit2({transferSubmitInfo}, {});
+
+            vk::SubmitInfo2 graphicSumbitInfo{};
             std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
                 vk::CommandBufferSubmitInfo().setCommandBuffer(currentOffscreenFrameResource->GraphicsCommandBuffer),
                 vk::CommandBufferSubmitInfo().setCommandBuffer(mUICommandBuffer),
@@ -410,13 +415,16 @@ void Editor::Run()
                 vk::SemaphoreSubmitInfo()
                     .setSemaphore(currentImageAvailableSemaphore)
                     .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
+                vk::SemaphoreSubmitInfo()
+                    .setSemaphore(currentOffscreenFrameResource->TransferFinishedSemaphore.get())
+                    .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
             };
 
-            submitInfo.setCommandBufferInfos(commandBufferInfos)
+            graphicSumbitInfo.setCommandBufferInfos(commandBufferInfos)
                 .setSignalSemaphoreInfos(signalSemaphoreInfos)
                 .setWaitSemaphoreInfos(waitSemaphoreInfos);
 
-            mContext->GraphicsQueue.submit2({submitInfo}, currentInFlightFence);
+            mContext->GraphicsQueue.submit2({graphicSumbitInfo}, currentInFlightFence);
 
             vk::PresentInfoKHR presentInfo{};
             presentInfo.setSwapchains({mSwapChainResource->SwapChain})

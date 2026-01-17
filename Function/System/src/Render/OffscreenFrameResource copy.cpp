@@ -13,6 +13,7 @@ OffscreenFrameResource::OffscreenFrameResource(std::shared_ptr<Context> context,
     // Semaphore
     ImageAvailableSemaphore = device.createSemaphoreUnique(vk::SemaphoreCreateInfo{});
     RenderFinishedSemaphore = device.createSemaphoreUnique(vk::SemaphoreCreateInfo{});
+    TransferFinishedSemaphore = device.createSemaphoreUnique(vk::SemaphoreCreateInfo{});
     // Fence
     InFlightFence = device.createFenceUnique(vk::FenceCreateInfo().setFlags(vk::FenceCreateFlagBits::eSignaled));
     CopyFence = device.createFenceUnique(vk::FenceCreateInfo().setFlags(vk::FenceCreateFlagBits::eSignaled));
