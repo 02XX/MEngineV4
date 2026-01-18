@@ -71,6 +71,7 @@ class Editor
     ImGuiID mDockSpaceID{};
 
     //====render thread====
+    double FPS = 144; // 目标帧率
     vk::SurfaceKHR mSurface{};
     std::unique_ptr<SwapChainResource> mSwapChainResource{};
     std::vector<std::shared_ptr<OffscreenFrameResource>> mOffscreenFrameResources{};

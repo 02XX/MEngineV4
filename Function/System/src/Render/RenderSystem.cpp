@@ -13,6 +13,7 @@
 #include "Texture2DManager.hpp"
 #include "TransformComponent.hpp"
 #include <vector>
+#include <vulkan/vulkan_structs.hpp>
 
 namespace MEngine::Function
 {
@@ -81,6 +82,53 @@ void RenderSystem::Render()
         texture2DManager->UpdateAssetRenderResource(mContext, secondaryTextureCommandBuffers, &inheritanceInfo);
         mOffscreenFrameResource->SecondaryTransferCommandBuffers.push_back(std::move(secondaryTextureCommandBuffers));
     }
+    // Scene
+    vk::CommandBufferAllocateInfo sceneCommandAllocateInfo{};
+    sceneCommandAllocateInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
+        .setLevel(vk::CommandBufferLevel::eSecondary)
+        .setCommandBufferCount(1);
+    auto sceneSecondaryCommandBuffer = device.allocateCommandBuffers(sceneCommandAllocateInfo).front();
+    auto cameraEntities = mScene->mRegistry->view<TransformComponent, CameraComponent>();
+    for (const auto &entity : cameraEntities)
+    {
+        auto &cameraComponent = mScene->mRegistry->get<CameraComponent>(entity);
+        auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+        if (cameraComponent.isMainCamera)
+        {
+            mOffscreenFrameResource->SceneParams.ViewMatrix = cameraComponent.viewMatrix;
+            mOffscreenFrameResource->SceneParams.ProjectionMatrix = cameraComponent.projectionMatrix;
+            mOffscreenFrameResource->SceneParams.CameraPosition = transformComponent.worldPosition;
+            break;
+        }
+    }
+    auto mappedData = static_cast<uint8_t *>(mOffscreenFrameResource->SceneStagingBufferAllocationInfo.pMappedData);
+    std::memcpy(mappedData, &mOffscreenFrameResource->SceneParams, sizeof(SceneParameter));
+
+    vk::CommandBufferBeginInfo sceneBeginInfo{};
+    sceneBeginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit).setPInheritanceInfo(&inheritanceInfo);
+    sceneSecondaryCommandBuffer.begin(sceneBeginInfo);
+    vk::BufferCopy2 copyRegion{};
+    copyRegion.setSize(sizeof(SceneParameter)).setSrcOffset(0).setDstOffset(0);
+    vk::CopyBufferInfo2 copyBufferInfo{};
+    copyBufferInfo.setSrcBuffer(mOffscreenFrameResource->SceneStagingBuffer)
+        .setDstBuffer(mOffscreenFrameResource->SceneSSBO)
+        .setRegions(copyRegion);
+    sceneSecondaryCommandBuffer.copyBuffer2(copyBufferInfo);
+    vk::BufferMemoryBarrier2 sceneBufferBarrier{};
+    sceneBufferBarrier.setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
+        .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
+        .setSrcStageMask(vk::PipelineStageFlagBits2::eTransfer)
+        .setDstStageMask(vk::PipelineStageFlagBits2::eVertexShader | vk::PipelineStageFlagBits2::eFragmentShader)
+        .setSrcAccessMask(vk::AccessFlagBits2::eTransferWrite)
+        .setDstAccessMask(vk::AccessFlagBits2::eShaderRead)
+        .setBuffer(mOffscreenFrameResource->SceneSSBO)
+        .setOffset(0)
+        .setSize(sizeof(SceneParameter));
+    vk::DependencyInfo sceneDepInfo{};
+    sceneDepInfo.setBufferMemoryBarriers({sceneBufferBarrier});
+    sceneSecondaryCommandBuffer.pipelineBarrier2(sceneDepInfo);
+    sceneSecondaryCommandBuffer.end();
+    mOffscreenFrameResource->SecondaryTransferCommandBuffers.push_back(sceneSecondaryCommandBuffer);
 
     vk::CommandBufferBeginInfo transferBeginInfo{};
     transferCommandBuffer.begin(transferBeginInfo);
@@ -97,24 +145,6 @@ void RenderSystem::Render()
              .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
              .setStageMask(vk::PipelineStageFlagBits2::eTransfer)});
     mContext->TransferQueue.submit2({transferSubmitInfo}, {});
-
-    mScene->GetResource()->InitResource(mContext);
-    SceneParameter sceneParams{};
-    auto cameraEntities = mScene->mRegistry->view<TransformComponent, CameraComponent>();
-    for (const auto &entity : cameraEntities)
-    {
-        auto &cameraComponent = mScene->mRegistry->get<CameraComponent>(entity);
-        auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
-        if (cameraComponent.isMainCamera)
-        {
-            sceneParams.ViewMatrix = cameraComponent.viewMatrix;
-            sceneParams.ProjectionMatrix = cameraComponent.projectionMatrix;
-            sceneParams.CameraPosition = transformComponent.worldPosition;
-            break;
-        }
-    }
-    auto sceneResource = mScene->GetResourceAs<SceneResource>();
-    sceneResource->UpdateSceneUBO(sceneParams);
     //=========================开始渲染=========================
     for (const auto &preRecord : mPreRecord)
     {
@@ -292,7 +322,7 @@ void RenderSystem::GBuffer(OffscreenFrameResource *frameResource)
             PBRMaterialPushConstants pbrPushConstants{};
             pbrPushConstants.ModelMatrix = modelMatrix;
             pbrPushConstants.MaterialSSBOAddress = pbrMaterialResource->mSSBOAddress;
-            pbrPushConstants.SceneSSBOAddress = mScene->GetResourceAs<SceneResource>()->mSceneSSBOAddress;
+            pbrPushConstants.SceneSSBOAddress = frameResource->SceneSSBOAddress;
             currentGraphicCommandBuffer.pushConstants(graphicPipelineGBufferPipelineLayout,
                                                       vk::ShaderStageFlagBits::eVertex |
                                                           vk::ShaderStageFlagBits::eFragment,

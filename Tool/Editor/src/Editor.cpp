@@ -329,6 +329,7 @@ void Editor::Run()
         uint64_t frameIndex = 0;
         while (mIsRunning)
         {
+            auto frameStart = std::chrono::high_resolution_clock::now();
             auto currentFrameResource = mOffscreenFrameResources[frameIndex].get();
             mRenderSystem->SetOffscreenFrameResource(currentFrameResource);
             // 是否需要重新创建帧资源
@@ -396,6 +397,14 @@ void Editor::Run()
             mCurrentFrameDrawDataSnapshot = mFrameDrawDataSnapshots.Pop();
             mRenderSystem->Update(1.0);
             frameIndex = (frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
+            auto frameEnd = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> frameDuration = frameEnd - frameStart;
+            double targetFrameTime = 1000.0 / FPS; // 目标144 FPS
+            if (frameDuration.count() < targetFrameTime)
+            {
+                std::this_thread::sleep_for(
+                    std::chrono::duration<double, std::milli>(targetFrameTime - frameDuration.count()));
+            }
         }
     });
     mExecutor.run(mTaskflow);
@@ -465,6 +474,8 @@ void Editor::UILayout()
 void Editor::Toolbar()
 {
     ImGui::Begin("Toolbar", nullptr, ImGuiWindowFlags_None);
+    // 帧率
+    ImGui::TextColored(ImVec4(1, 1, 0, 1), "FPS: %.1f", ImGui::GetIO().Framerate);
     // ImGui::BeginGroup();
     // {
     //     ImGui::TextColored(ImVec4(1, 1, 0, 1), "FPS: %1.f", ImGui::GetIO().Framerate);

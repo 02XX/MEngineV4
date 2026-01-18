@@ -1,13 +1,19 @@
 #pragma once
+#include "Math.hpp"
 #include "TextureRenderTarget2D.hpp"
 #include <memory>
 #include <vector>
-#include <vulkan/vulkan_handles.hpp>
 
 using namespace MEngine::Platform;
 using namespace MEngine::Resource;
 namespace MEngine::Function
 {
+struct SceneParameter
+{
+    Matrix4 ViewMatrix;
+    Matrix4 ProjectionMatrix;
+    Vector3 CameraPosition;
+};
 class OffscreenFrameResource
 {
   protected:
@@ -50,6 +56,12 @@ class OffscreenFrameResource
     std::vector<vk::CommandBuffer> SecondaryTransferCommandBuffers;
     std::vector<vk::CommandBuffer> SecondaryGraphicCommandBuffers;
     std::vector<vk::CommandBuffer> SecondaryPresentCommandBuffers;
+    // Scene SSBO
+    SceneParameter SceneParams{};
+    vk::Buffer SceneSSBO{}, SceneStagingBuffer{};
+    VmaAllocation SceneSSBOAllocation{}, SceneStagingBufferAllocation{};
+    VmaAllocationInfo SceneSSBOAllocationInfo{}, SceneStagingBufferAllocationInfo{};
+    vk::DeviceAddress SceneSSBOAddress{};
 
     OffscreenFrameResource(std::shared_ptr<Context> context, vk::Extent3D extent = {800, 600, 1});
     virtual ~OffscreenFrameResource();

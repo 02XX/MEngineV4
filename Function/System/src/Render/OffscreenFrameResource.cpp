@@ -43,6 +43,41 @@ OffscreenFrameResource::OffscreenFrameResource(std::shared_ptr<Context> context,
                                                              .setLevel(vk::CommandBufferLevel::ePrimary)
                                                              .setCommandBufferCount(1))[0];
     RecreateMRT(extent);
+    // Scene SSBO
+    vk::BufferCreateInfo sceneSSBOCreateInfo{}, sceneStagingBufferCreateInfo{};
+    VmaAllocationCreateInfo sceneSSBOAllocCreateInfo{}, sceneStagingBufferAllocCreateInfo{};
+    size_t sceneSSBOSize = sizeof(SceneParameter);
+    sceneSSBOCreateInfo.setSize(sceneSSBOSize)
+        .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst |
+                  vk::BufferUsageFlagBits::eShaderDeviceAddress)
+        .setSharingMode(vk::SharingMode::eExclusive);
+    sceneSSBOAllocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    if (vmaCreateBuffer(mContext->VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&sceneSSBOCreateInfo),
+                        &sceneSSBOAllocCreateInfo, reinterpret_cast<VkBuffer *>(&SceneSSBO), &SceneSSBOAllocation,
+                        reinterpret_cast<VmaAllocationInfo *>(&SceneSSBOAllocationInfo)) != VK_SUCCESS)
+    {
+        LogError("Failed to create Scene SSBO buffer");
+        return;
+    }
+    // Get Device Address
+    vk::BufferDeviceAddressInfo sceneSSBOAddressInfo{};
+    sceneSSBOAddressInfo.setBuffer(SceneSSBO);
+    SceneSSBOAddress = mContext->Device->getBufferAddress(sceneSSBOAddressInfo);
+
+    sceneStagingBufferCreateInfo.setSize(sceneSSBOSize)
+        .setUsage(vk::BufferUsageFlagBits::eTransferSrc)
+        .setSharingMode(vk::SharingMode::eExclusive);
+    sceneStagingBufferAllocCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    sceneStagingBufferAllocCreateInfo.flags =
+        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    if (vmaCreateBuffer(mContext->VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&sceneStagingBufferCreateInfo),
+                        &sceneStagingBufferAllocCreateInfo, reinterpret_cast<VkBuffer *>(&SceneStagingBuffer),
+                        &SceneStagingBufferAllocation,
+                        reinterpret_cast<VmaAllocationInfo *>(&SceneStagingBufferAllocationInfo)) != VK_SUCCESS)
+    {
+        LogError("Failed to create Scene staging buffer");
+        return;
+    }
 };
 OffscreenFrameResource::~OffscreenFrameResource()
 {
@@ -60,6 +95,14 @@ OffscreenFrameResource::~OffscreenFrameResource()
     device.destroyCommandPool(GraphicsCommandPool);
     device.destroyCommandPool(TransferCommandPool);
     device.destroyCommandPool(PresentCommandPool);
+    if (SceneSSBO && SceneSSBOAllocation)
+    {
+        vmaDestroyBuffer(mContext->VmaAllocator, SceneSSBO, SceneSSBOAllocation);
+    }
+    if (SceneStagingBuffer && SceneStagingBufferAllocation)
+    {
+        vmaDestroyBuffer(mContext->VmaAllocator, SceneStagingBuffer, SceneStagingBufferAllocation);
+    }
 };
 void OffscreenFrameResource::RecreateMRT(vk::Extent3D extent)
 {
