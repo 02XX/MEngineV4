@@ -26,7 +26,8 @@ template <typename T> class ConcurrentQueue final : public IConcurrentQueue<T>
     }
     void Push(const T &item) override
     {
-        mQueue.enqueue(item);
+        T copy = item;
+        Push(std::move(copy));
     }
     bool TryPop(T &item) override
     {
