@@ -65,6 +65,7 @@ class Editor
 
   private:
     uint64_t mUIFrameIndex = 0;
+    uint32_t mImageIndex = 0;
     std::vector<std::mutex> mFrameMutexes{};
     std::vector<std::condition_variable> mFrameProduceCVs{}, mFrameConsumeCVs{};
     std::vector<ImDrawDataSnapshot> mFrameSnapshots{};
@@ -107,6 +108,10 @@ class Editor
     void ReflectObject(std::any object, std::string typeName);
 
     void Render();
+
+    void UIAcquireSwapChainImage(OffscreenFrameResource *frameResource);
+    void UIRenderPass(OffscreenFrameResource *frameResource);
+    void UIPresent(OffscreenFrameResource *frameResource);
 
   private:
     void HandleSwapchainOutOfDate();

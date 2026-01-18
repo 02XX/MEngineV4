@@ -5,6 +5,7 @@
 #include "MaterialComponent.hpp"
 #include "MaterialResource.hpp"
 #include "MeshComponent.hpp"
+#include "OffscreenFrameResource.hpp"
 #include "PBRMaterial.hpp"
 #include "PBRMaterialResource.hpp"
 #include "RenderResource.hpp"
@@ -25,14 +26,16 @@ RenderSystem::~RenderSystem()
 }
 void RenderSystem::Init()
 {
+    // Configure Render Passes
+    PushRenderPass([this](OffscreenFrameResource *frameResource) { GBuffer(frameResource); });
+    PushRenderPass([this](OffscreenFrameResource *frameResource) { Lighting(frameResource); });
 }
 void RenderSystem::Update(double deltaTime)
 {
     PrepareRenderQueues();
-    Prepare();
     Render();
 }
-void RenderSystem::Prepare()
+void RenderSystem::PrePareRenderResource()
 {
     mOffscreenFrameResource->SubTransferCommandBuffers.clear();
     auto transferCommandBuffer = mOffscreenFrameResource->TransferCommandBuffer;
@@ -68,8 +71,6 @@ void RenderSystem::Prepare()
         }
     }
 
-    mTransferExecutor.run(mTransferTaskflow).wait();
-
     mScene->GetResource()->InitResource(mContext);
     SceneParameter sceneParams{};
     auto cameraEntities = mScene->mRegistry->view<TransformComponent, CameraComponent>();
@@ -103,12 +104,72 @@ void RenderSystem::Prepare()
 }
 void RenderSystem::Render()
 {
+    auto device = mContext->Device.get();
+    auto result = device.waitForFences(mOffscreenFrameResource->InFlightFence.get(), vk::True,
+                                       1000000000); // 1 second timeout
+    if (result != vk::Result::eSuccess)
+    {
+        LogError("Failed to wait for fence: {}", vk::to_string(result));
+        return;
+    }
+    device.resetFences(mOffscreenFrameResource->InFlightFence.get());
+    PrePareRenderResource();
+    for (const auto &preRecord : mPreRecord)
+    {
+        preRecord(mOffscreenFrameResource);
+    }
     vk::CommandBufferBeginInfo graphicsBeginInfo{};
-    auto currentGraphicCommandBuffer = mOffscreenFrameResource->GraphicsCommandBuffer;
-    currentGraphicCommandBuffer.begin(graphicsBeginInfo);
-    RenderGBuffer();
-    RenderLighting();
-    currentGraphicCommandBuffer.end();
+    auto graphicCommandBuffer = mOffscreenFrameResource->GraphicsCommandBuffer;
+    graphicCommandBuffer.begin(graphicsBeginInfo);
+    for (const auto &preProcessPass : mPreProcessPasses)
+    {
+        preProcessPass(mOffscreenFrameResource);
+    }
+    for (const auto &renderPass : mRenderPasses)
+    {
+        renderPass(mOffscreenFrameResource);
+    }
+    for (const auto &postProcessPass : mPostProcessPasses)
+    {
+        postProcessPass(mOffscreenFrameResource);
+    }
+    graphicCommandBuffer.end();
+
+    vk::SubmitInfo2 transferSubmitInfo{};
+    transferSubmitInfo.setCommandBufferInfos(
+        {vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->TransferCommandBuffer)});
+    transferSubmitInfo.setSignalSemaphoreInfos(
+        {vk::SemaphoreSubmitInfo()
+             .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
+             .setStageMask(vk::PipelineStageFlagBits2::eTransfer)});
+    mContext->TransferQueue.submit2({transferSubmitInfo}, {});
+
+    vk::SubmitInfo2 graphicSumbitInfo{};
+    std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
+        vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->GraphicsCommandBuffer),
+    };
+    std::vector<vk::SemaphoreSubmitInfo> signalSemaphoreInfos = {
+        vk::SemaphoreSubmitInfo()
+            .setSemaphore(mOffscreenFrameResource->RenderFinishedSemaphore.get())
+            .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)};
+    std::vector<vk::SemaphoreSubmitInfo> waitSemaphoreInfos = {
+        vk::SemaphoreSubmitInfo()
+            .setSemaphore(mOffscreenFrameResource->ImageAvailableSemaphore.get())
+            .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
+        vk::SemaphoreSubmitInfo()
+            .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
+            .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
+    };
+
+    graphicSumbitInfo.setCommandBufferInfos(commandBufferInfos)
+        .setSignalSemaphoreInfos(signalSemaphoreInfos)
+        .setWaitSemaphoreInfos(waitSemaphoreInfos);
+
+    mContext->GraphicsQueue.submit2({graphicSumbitInfo}, mOffscreenFrameResource->InFlightFence.get());
+    for (const auto &postSubmitPass : mPostSubmit)
+    {
+        postSubmitPass(mOffscreenFrameResource);
+    }
 }
 void RenderSystem::Shutdown()
 {
@@ -130,86 +191,82 @@ void RenderSystem::PrepareRenderQueues()
         mRenderQueues[pipeline->GetName()].push_back(entity);
     }
 }
-void RenderSystem::RenderGBuffer()
+void RenderSystem::GBuffer(OffscreenFrameResource *frameResource)
 {
-    auto currentGraphicCommandBuffer = mOffscreenFrameResource->GraphicsCommandBuffer;
-    auto colorAttachment = mOffscreenFrameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
-    auto albedoAttachment = mOffscreenFrameResource->AlbedoTexture->GetResourceAs<TextureRenderTarget2DResource>();
-    auto normalAttachment = mOffscreenFrameResource->NormalTexture->GetResourceAs<TextureRenderTarget2DResource>();
-    auto armAttachment = mOffscreenFrameResource->ARMTexture->GetResourceAs<TextureRenderTarget2DResource>();
-    auto positionAttachment = mOffscreenFrameResource->PositionTexture->GetResourceAs<TextureRenderTarget2DResource>();
-    auto emissiveAttachment = mOffscreenFrameResource->EmissiveTexture->GetResourceAs<TextureRenderTarget2DResource>();
-    auto depthStencilAttachment =
-        mOffscreenFrameResource->DepthStencilTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto currentGraphicCommandBuffer = frameResource->GraphicsCommandBuffer;
+    auto colorAttachment = frameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto albedoAttachment = frameResource->AlbedoTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto normalAttachment = frameResource->NormalTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto armAttachment = frameResource->ARMTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto positionAttachment = frameResource->PositionTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto emissiveAttachment = frameResource->EmissiveTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto depthStencilAttachment = frameResource->DepthStencilTexture->GetResourceAs<TextureRenderTarget2DResource>();
     std::vector<vk::RenderingAttachmentInfo> colorAttachmentInfos{
         // Color
         vk::RenderingAttachmentInfo()
-            .setClearValue(mOffscreenFrameResource->ColorClearValue)
+            .setClearValue(frameResource->ColorClearValue)
             .setImageView(colorAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Albedo
         vk::RenderingAttachmentInfo()
-            .setClearValue(mOffscreenFrameResource->AlbedoClearValue)
+            .setClearValue(frameResource->AlbedoClearValue)
             .setImageView(albedoAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Normal
         vk::RenderingAttachmentInfo()
-            .setClearValue(mOffscreenFrameResource->NormalClearValue)
+            .setClearValue(frameResource->NormalClearValue)
             .setImageView(normalAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // ARM
         vk::RenderingAttachmentInfo()
-            .setClearValue(mOffscreenFrameResource->ARMClearValue)
+            .setClearValue(frameResource->ARMClearValue)
             .setImageView(armAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Position
         vk::RenderingAttachmentInfo()
-            .setClearValue(mOffscreenFrameResource->PositionClearValue)
+            .setClearValue(frameResource->PositionClearValue)
             .setImageView(positionAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
         // Emissive
         vk::RenderingAttachmentInfo()
-            .setClearValue(mOffscreenFrameResource->EmissiveClearValue)
+            .setClearValue(frameResource->EmissiveClearValue)
             .setImageView(emissiveAttachment->GetImageView())
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
             .setStoreOp(vk::AttachmentStoreOp::eStore),
     };
     vk::RenderingAttachmentInfo depthStencilAttachmentInfo{};
-    depthStencilAttachmentInfo.setClearValue(mOffscreenFrameResource->DepthClearValue)
+    depthStencilAttachmentInfo.setClearValue(frameResource->DepthClearValue)
         .setImageLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal)
         .setLoadOp(vk::AttachmentLoadOp::eClear)
         .setStoreOp(vk::AttachmentStoreOp::eDontCare)
         .setImageView(depthStencilAttachment->GetImageView());
     vk::RenderingInfo renderingInfo{};
-    renderingInfo
-        .setRenderArea(
-            vk::Rect2D{{0, 0}, {mOffscreenFrameResource->Extent.width, mOffscreenFrameResource->Extent.height}})
+    renderingInfo.setRenderArea(vk::Rect2D{{0, 0}, {frameResource->Extent.width, frameResource->Extent.height}})
         .setLayerCount(1)
         .setColorAttachments(colorAttachmentInfos)
         .setPDepthAttachment(&depthStencilAttachmentInfo);
     currentGraphicCommandBuffer.beginRendering(renderingInfo);
     vk::Viewport viewport;
     viewport.setX(0.0f)
-        .setY(mOffscreenFrameResource->Extent.height)
-        .setWidth(static_cast<float>(mOffscreenFrameResource->Extent.width))
-        .setHeight(-static_cast<float>(mOffscreenFrameResource->Extent.height))
+        .setY(frameResource->Extent.height)
+        .setWidth(static_cast<float>(frameResource->Extent.width))
+        .setHeight(-static_cast<float>(frameResource->Extent.height))
         .setMinDepth(0.0f)
         .setMaxDepth(1.0f);
     currentGraphicCommandBuffer.setViewport(0, {viewport});
     vk::Rect2D scissor;
-    scissor.setOffset({0, 0}).setExtent(
-        {mOffscreenFrameResource->Extent.width, mOffscreenFrameResource->Extent.height});
+    scissor.setOffset({0, 0}).setExtent({frameResource->Extent.width, frameResource->Extent.height});
     currentGraphicCommandBuffer.setScissor(0, {scissor});
     if (mRenderQueues.contains("GraphicPipeline_GBuffer"))
     {
@@ -252,7 +309,8 @@ void RenderSystem::RenderGBuffer()
     }
     currentGraphicCommandBuffer.endRendering();
 }
-void RenderSystem::RenderLighting()
+void RenderSystem::Lighting(OffscreenFrameResource *frameResource)
 {
 }
+
 } // namespace MEngine::Function

@@ -30,6 +30,12 @@ class RenderSystem : public System
     tf::Executor mTransferExecutor{4};
     tf::Taskflow mTransferTaskflow{};
 
+    std::vector<std::function<void(OffscreenFrameResource *frameResource)>> mPreRecord{};
+    std::vector<std::function<void(OffscreenFrameResource *frameResource)>> mPreProcessPasses{};
+    std::vector<std::function<void(OffscreenFrameResource *frameResource)>> mRenderPasses{};
+    std::vector<std::function<void(OffscreenFrameResource *frameResource)>> mPostProcessPasses{};
+    std::vector<std::function<void(OffscreenFrameResource *frameResource)>> mPostSubmit{};
+
   public:
     RenderSystem(std::shared_ptr<Context> context, std::shared_ptr<Scene> scene,
                  std::shared_ptr<AssetManager> assetManager);
@@ -41,14 +47,34 @@ class RenderSystem : public System
     void Init() override;
     void Update(double deltaTime) override;
     void Shutdown() override;
+    inline void PushPreRecord(std::function<void(OffscreenFrameResource *frameResource)> preRecord)
+    {
+        mPreRecord.push_back(preRecord);
+    }
+    inline void PushRenderPass(std::function<void(OffscreenFrameResource *frameResource)> renderPass)
+    {
+        mRenderPasses.push_back(renderPass);
+    }
+    inline void PushPreProcessPass(std::function<void(OffscreenFrameResource *frameResource)> preProcessPass)
+    {
+        mPreProcessPasses.push_back(preProcessPass);
+    }
+    inline void PushPostProcessPass(std::function<void(OffscreenFrameResource *frameResource)> postProcessPass)
+    {
+        mPostProcessPasses.push_back(postProcessPass);
+    }
+    inline void PushPostSubmitPass(std::function<void(OffscreenFrameResource *frameResource)> postSubmitPass)
+    {
+        mPostSubmit.push_back(postSubmitPass);
+    }
 
   private:
-    void Prepare();
+    void PrePareRenderResource();
     void Render();
 
     void UpdateMaterial();
     void PrepareRenderQueues();
-    void RenderGBuffer();
-    void RenderLighting();
+    void GBuffer(OffscreenFrameResource *frameResource);
+    void Lighting(OffscreenFrameResource *frameResource);
 };
 } // namespace MEngine::Function
