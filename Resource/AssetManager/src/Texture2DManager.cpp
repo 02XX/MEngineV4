@@ -2,6 +2,7 @@
 #include "Context.hpp"
 #include "Texture.hpp"
 #include "VMA.hpp"
+#include <unordered_set>
 #include <vector>
 #include <vulkan/vulkan_structs.hpp>
 
@@ -19,9 +20,9 @@ void Texture2DManager::CreateDefault()
     Add(whiteTexture);
     Add(blackTexture);
     Add(magentaTexture);
-    mPendingAssets.Push(whiteTexture);
-    mPendingAssets.Push(blackTexture);
-    mPendingAssets.Push(magentaTexture);
+    PushPendingUpdateAsset(whiteTexture);
+    PushPendingUpdateAsset(blackTexture);
+    PushPendingUpdateAsset(magentaTexture);
 }
 std::shared_ptr<Texture2D> Texture2DManager::CreateWhiteTexture()
 {
@@ -86,19 +87,16 @@ std::shared_ptr<Texture2D> Texture2DManager::GetTexture2D(DefaultTextureType typ
     LogError("Default texture type {} not found", static_cast<int>(type));
     return nullptr;
 }
-void Texture2DManager::CollectUpdateAssets()
-{
-    mTexturesToUpdate.clear();
-
-    std::shared_ptr<Texture2D> texture{};
-    while (mPendingAssets.TryPop(texture))
-    {
-        mTexturesToUpdate.insert(texture);
-    }
-}
 void Texture2DManager::UpdateAssetRenderResource(std::shared_ptr<Context> context, vk::CommandBuffer commandBuffer,
                                                  vk::CommandBufferInheritanceInfo *inheritanceInfo)
 {
+    std::unordered_set<std::shared_ptr<Texture2D>> texturesToUpdate{};
+
+    std::shared_ptr<Texture2D> texture{};
+    while (mPendingUpdateAssets.TryPop(texture))
+    {
+        texturesToUpdate.insert(texture);
+    }
     vk::CommandBufferBeginInfo beginInfo{};
     beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit).setPInheritanceInfo(inheritanceInfo);
     commandBuffer.begin(beginInfo);
@@ -110,7 +108,7 @@ void Texture2DManager::UpdateAssetRenderResource(std::shared_ptr<Context> contex
     //  driver doesn’t really like to handle barriers like this, and it performs better if it does a single
     //  VkCmdPipelineBarrier that does multiple barriers at a time, instead of multiple vkCmdPipelineBarrier calls.
     std::vector<vk::ImageMemoryBarrier2> preBarriers{}, postBarriers{};
-    for (auto texture : mTexturesToUpdate)
+    for (auto texture : texturesToUpdate)
     {
         vk::ImageMemoryBarrier2 preBarrier{};
         auto texture2DResource = texture->GetResourceAs<Texture2DResource>();
@@ -150,7 +148,7 @@ void Texture2DManager::UpdateAssetRenderResource(std::shared_ptr<Context> contex
     vk::DependencyInfo dependencyInfo{};
     dependencyInfo.setImageMemoryBarriers(preBarriers);
     commandBuffer.pipelineBarrier2(dependencyInfo);
-    for (auto texture : mTexturesToUpdate)
+    for (auto texture : texturesToUpdate)
     {
         auto texture2DResource = texture->GetResourceAs<Texture2DResource>();
         auto &textureSetting = texture->GetTextureSettings();
@@ -198,7 +196,7 @@ void Texture2DManager::UpdateAssetRenderResource(std::shared_ptr<Context> contex
             .setRegions(copyRegions);
         commandBuffer.copyBufferToImage2(copyInfo);
     }
-    for (auto texture : mTexturesToUpdate)
+    for (auto texture : texturesToUpdate)
     {
         auto texture2DResource = texture->GetResourceAs<Texture2DResource>();
         auto &textureSetting = texture->GetTextureSettings();

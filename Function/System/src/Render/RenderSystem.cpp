@@ -13,8 +13,6 @@
 #include "Texture2DManager.hpp"
 #include "TransformComponent.hpp"
 #include <vector>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_structs.hpp>
 
 namespace MEngine::Function
 {
@@ -37,30 +35,29 @@ void RenderSystem::Update(double deltaTime)
     PrepareRenderQueues();
     Render();
 }
-void RenderSystem::PrePareRenderResource()
-{
 
+void RenderSystem::Render()
+{
     auto device = mContext->Device.get();
-    auto waitResult = device.waitForFences(mOffscreenFrameResource->TransferFence.get(), vk::True,
-                                           1000000000); // 1 second timeout
-    if (waitResult != vk::Result::eSuccess)
+    auto result = device.waitForFences(mOffscreenFrameResource->InFlightFence.get(), vk::True,
+                                       1000000000); // 1 second timeout
+    if (result != vk::Result::eSuccess)
     {
-        LogError("Failed to wait for transfer fence: {}", vk::to_string(waitResult));
+        LogError("Failed to wait for fence: {}", vk::to_string(result));
         return;
     }
-    device.resetFences(mOffscreenFrameResource->TransferFence.get());
-    device.resetCommandPool(mOffscreenFrameResource->TransferCommandPool);
+    device.resetFences(mOffscreenFrameResource->InFlightFence.get());
+    //=========================准备渲染资源=========================
     auto transferCommandBuffer = mOffscreenFrameResource->TransferCommandBuffer;
-    for (auto subCommandBuffer : mOffscreenFrameResource->mSecondaryTransferCommandBuffers)
+    for (auto subCommandBuffer : mOffscreenFrameResource->SecondaryTransferCommandBuffers)
     {
         device.freeCommandBuffers(mOffscreenFrameResource->TransferCommandPool, subCommandBuffer);
     }
-    mOffscreenFrameResource->mSecondaryTransferCommandBuffers.clear();
+    mOffscreenFrameResource->SecondaryTransferCommandBuffers.clear();
     vk::CommandBufferInheritanceInfo inheritanceInfo{};
     // PBRMaterialResource
     auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
-    pbrMaterialManager->CollectUpdateAssets();
-    if (!pbrMaterialManager->mMaterialToUpdate.empty())
+    if (pbrMaterialManager->GetPendingUpdateAssetCount() != 0)
     {
         vk::CommandBufferAllocateInfo materialCommandAllocateInfo{};
         materialCommandAllocateInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
@@ -68,12 +65,11 @@ void RenderSystem::PrePareRenderResource()
             .setCommandBufferCount(1);
         auto secondaryMaterialCommandBuffers = device.allocateCommandBuffers(materialCommandAllocateInfo).front();
         pbrMaterialManager->UpdateAssetRenderResource(mContext, secondaryMaterialCommandBuffers, &inheritanceInfo);
-        mOffscreenFrameResource->mSecondaryTransferCommandBuffers.push_back(secondaryMaterialCommandBuffers);
+        mOffscreenFrameResource->SecondaryTransferCommandBuffers.push_back(secondaryMaterialCommandBuffers);
     }
     //   Texture2DResource
     auto texture2DManager = mAssetManager->GetManager<Texture2D, Texture2DManager>();
-    texture2DManager->CollectUpdateAssets();
-    if (!texture2DManager->mTexturesToUpdate.empty())
+    if (texture2DManager->GetPendingUpdateAssetCount() != 0)
     {
         vk::CommandBufferAllocateInfo textureCommandAllocateInfo{};
         textureCommandAllocateInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
@@ -81,24 +77,24 @@ void RenderSystem::PrePareRenderResource()
             .setCommandBufferCount(1);
         auto secondaryTextureCommandBuffers = device.allocateCommandBuffers(textureCommandAllocateInfo).front();
         texture2DManager->UpdateAssetRenderResource(mContext, secondaryTextureCommandBuffers, &inheritanceInfo);
-        mOffscreenFrameResource->mSecondaryTransferCommandBuffers.push_back(std::move(secondaryTextureCommandBuffers));
+        mOffscreenFrameResource->SecondaryTransferCommandBuffers.push_back(std::move(secondaryTextureCommandBuffers));
     }
 
     vk::CommandBufferBeginInfo transferBeginInfo{};
     transferCommandBuffer.begin(transferBeginInfo);
     std::vector<vk::CommandBuffer> secondaryBuffers{};
-    if (!mOffscreenFrameResource->mSecondaryTransferCommandBuffers.empty())
-        transferCommandBuffer.executeCommands(mOffscreenFrameResource->mSecondaryTransferCommandBuffers);
+    if (!mOffscreenFrameResource->SecondaryTransferCommandBuffers.empty())
+        transferCommandBuffer.executeCommands(mOffscreenFrameResource->SecondaryTransferCommandBuffers);
     transferCommandBuffer.end();
 
     vk::SubmitInfo2 transferSubmitInfo{};
     transferSubmitInfo.setCommandBufferInfos(
         {vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->TransferCommandBuffer)});
-    // transferSubmitInfo.setSignalSemaphoreInfos(
-    //     {vk::SemaphoreSubmitInfo()
-    //          .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
-    //          .setStageMask(vk::PipelineStageFlagBits2::eAllCommands)});
-    mContext->TransferQueue.submit2({transferSubmitInfo}, mOffscreenFrameResource->TransferFence.get());
+    transferSubmitInfo.setSignalSemaphoreInfos(
+        {vk::SemaphoreSubmitInfo()
+             .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
+             .setStageMask(vk::PipelineStageFlagBits2::eTransfer)});
+    mContext->TransferQueue.submit2({transferSubmitInfo}, {});
 
     mScene->GetResource()->InitResource(mContext);
     SceneParameter sceneParams{};
@@ -117,19 +113,7 @@ void RenderSystem::PrePareRenderResource()
     }
     auto sceneResource = mScene->GetResourceAs<SceneResource>();
     sceneResource->UpdateSceneUBO(sceneParams);
-}
-void RenderSystem::Render()
-{
-    auto device = mContext->Device.get();
-    auto result = device.waitForFences(mOffscreenFrameResource->InFlightFence.get(), vk::True,
-                                       1000000000); // 1 second timeout
-    if (result != vk::Result::eSuccess)
-    {
-        LogError("Failed to wait for fence: {}", vk::to_string(result));
-        return;
-    }
-    device.resetFences(mOffscreenFrameResource->InFlightFence.get());
-    PrePareRenderResource();
+    //=========================开始渲染=========================
     for (const auto &preRecord : mPreRecord)
     {
         preRecord(mOffscreenFrameResource);
@@ -163,10 +147,9 @@ void RenderSystem::Render()
         vk::SemaphoreSubmitInfo()
             .setSemaphore(mOffscreenFrameResource->ImageAvailableSemaphore.get())
             .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
-        // vk::SemaphoreSubmitInfo()
-        //     .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
-        //     .setStageMask(vk::PipelineStageFlagBits2::eFragmentShader),
-    };
+        vk::SemaphoreSubmitInfo()
+            .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
+            .setStageMask(vk::PipelineStageFlagBits2::eTransfer)};
 
     graphicSumbitInfo.setCommandBufferInfos(commandBufferInfos)
         .setSignalSemaphoreInfos(signalSemaphoreInfos)
@@ -192,7 +175,9 @@ void RenderSystem::PrepareRenderQueues()
         if (materialComponent.dirty)
         {
             auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
-            pbrMaterialManager->mPendingAssets.Push(std::static_pointer_cast<PBRMaterial>(materialComponent.Material));
+            pbrMaterialManager->PushPendingUpdateAsset(
+                std::static_pointer_cast<PBRMaterial>(materialComponent.Material));
+            materialComponent.dirty = false;
         }
         auto pipeline = materialComponent.Material->GetPipeline();
         pipeline->GetResource()->InitResource(mContext);

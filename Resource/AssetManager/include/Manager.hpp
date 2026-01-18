@@ -17,9 +17,6 @@ template <std::derived_from<Asset> TAsset> class Manager : public virtual IManag
     std::unordered_map<std::string, Core::UUID> mNameToIDMap;
 
   public:
-    ConcurrentQueue<std::shared_ptr<TAsset>> mPendingAssets{};
-
-  public:
     ~Manager() override = default;
     virtual void Add(std::shared_ptr<TAsset> asset) override
     {
@@ -63,9 +60,6 @@ template <std::derived_from<Asset> TAsset> class Manager : public virtual IManag
         {
             mAssets.erase(id);
         }
-    }
-    virtual void CollectUpdateAssets() override
-    {
     }
 };
 } // namespace MEngine::Resource

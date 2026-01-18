@@ -8,7 +8,6 @@ class PBRMaterialManager final : public MaterialManager<PBRMaterial>, public vir
 {
   public:
   public:
-    std::vector<std::shared_ptr<PBRMaterial>> mMaterialToUpdate{};
     PBRMaterialManager(std::shared_ptr<Texture2DManager> textureManager,
                        std::shared_ptr<GraphicPipelineManager> pipelineManager)
         : MaterialManager<PBRMaterial>(textureManager, pipelineManager)
@@ -20,7 +19,6 @@ class PBRMaterialManager final : public MaterialManager<PBRMaterial>, public vir
     std::shared_ptr<PBRMaterial> CreateGBufferOpaqueMaterial();
     void CreateDefault() override;
     void UpdateAssetRenderResource(std::shared_ptr<Context> context, vk::CommandBuffer commandBuffer,
-                                   vk::CommandBufferInheritanceInfo *inheritanceInfo = nullptr);
-    void CollectUpdateAssets() override;
+                                   vk::CommandBufferInheritanceInfo *inheritanceInfo = nullptr) override;
 };
 } // namespace MEngine::Resource

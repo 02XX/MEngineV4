@@ -14,7 +14,7 @@ enum class DefaultMaterialType
     GBufferPBRTransparent,
 };
 template <std::derived_from<Material> TAsset>
-class MaterialManager : public Manager<TAsset>, public virtual IManager<TAsset>
+class MaterialManager : public UpdateManager<TAsset>, public virtual IManager<TAsset>
 {
   protected:
     std::shared_ptr<Texture2DManager> mTextureManager;

@@ -17,7 +17,7 @@ template <typename T> class ConcurrentQueue final : public IConcurrentQueue<T>
     }
     size_t Size() const override
     {
-        return mCount.load(std::memory_order_relaxed) == 0;
+        return mCount.load(std::memory_order_relaxed);
     }
     void Push(T &&item) override
     {
@@ -26,8 +26,8 @@ template <typename T> class ConcurrentQueue final : public IConcurrentQueue<T>
     }
     void Push(const T &item) override
     {
-        T copy = item;
-        Push(std::move(copy));
+        mQueue.enqueue(item);
+        mCount.fetch_add(1, std::memory_order_relaxed);
     }
     bool TryPop(T &item) override
     {

@@ -19,7 +19,5 @@ template <std::derived_from<Asset> TAsset> class IManager
     //  virtual void Update(std::shared_ptr<TAsset> asset) = 0;
     virtual void Remove(const Core::UUID &id) = 0;
     virtual void CreateDefault() = 0;
-    virtual void CollectUpdateAssets() = 0;
-    // virtual void UpdateAssetRenderResource(std::shared_ptr<Context> context, vk::CommandBuffer commandBuffer) = 0;
 };
 } // namespace MEngine::Resource

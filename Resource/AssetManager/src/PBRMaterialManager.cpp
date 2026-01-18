@@ -1,6 +1,7 @@
 #include "PBRMaterialManager.hpp"
 #include "Logger.hpp"
 #include "PBRMaterial.hpp"
+#include <unordered_set>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 namespace MEngine::Resource
@@ -14,8 +15,7 @@ void PBRMaterialManager::CreateDefault()
     lightingMaterial->mID = mDefaultMaterials.at(DefaultMaterialType::GBufferPBRTransparent);
     Add(gBufferMaterial);
     Add(lightingMaterial);
-    mPendingAssets.Push(gBufferMaterial);
-    // mPendingAssets.Push(lightingMaterial);
+    PushPendingUpdateAsset(gBufferMaterial);
 }
 std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateGBufferOpaqueMaterial()
 {
@@ -28,9 +28,9 @@ std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateGBufferOpaqueMaterial()
         .ARM = texture,
         .Emissive = texture,
     };
-    auto material = std::make_shared<PBRMaterial>("GBufferPBR_Opaque", pipeline, props, textures);
-    LogInfo("Created「Default GBufferPBR_Opaque」material");
-    return material;
+    auto pbrMaterial = std::make_shared<PBRMaterial>("GBufferPBR_Opaque", pipeline, props, textures);
+    LogInfo("Created「Default GBufferPBR_Opaque」pbrMaterial");
+    return pbrMaterial;
 }
 std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateLightMaterial()
 {
@@ -43,44 +43,42 @@ std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateLightMaterial()
         .ARM = texture,
         .Emissive = texture,
     };
-    auto material = std::make_shared<PBRMaterial>("Lighting_PBR", pipeline, props, textures);
-    LogInfo("Created「Default Lighting_PBR」material");
-    return material;
-}
-void PBRMaterialManager::CollectUpdateAssets()
-{
-    mMaterialToUpdate.clear();
-    mMaterialToUpdate.reserve(mPendingAssets.Size());
-    std::shared_ptr<PBRMaterial> material{};
-    while (mPendingAssets.TryPop(material))
-    {
-        mMaterialToUpdate.push_back(material);
-    }
+    auto pbrMaterial = std::make_shared<PBRMaterial>("Lighting_PBR", pipeline, props, textures);
+    LogInfo("Created「Default Lighting_PBR」pbrMaterial");
+    return pbrMaterial;
 }
 void PBRMaterialManager::UpdateAssetRenderResource(std::shared_ptr<Context> context, vk::CommandBuffer commandBuffer,
                                                    vk::CommandBufferInheritanceInfo *inheritanceInfo)
 {
+    std::unordered_set<std::shared_ptr<PBRMaterial>> pbrMaterialToUpdate{};
+    pbrMaterialToUpdate.reserve(mPendingUpdateAssets.Size());
+    std::shared_ptr<PBRMaterial> pbrMaterial{};
+    while (mPendingUpdateAssets.TryPop(pbrMaterial))
+    {
+        pbrMaterialToUpdate.insert(pbrMaterial);
+    }
+
     vk::CommandBufferBeginInfo beginInfo{};
     beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit).setPInheritanceInfo(inheritanceInfo);
     commandBuffer.begin(beginInfo);
-    for (auto &material : mMaterialToUpdate)
+    for (auto &pbrMaterial : pbrMaterialToUpdate)
     {
-        auto materialResource = material->GetResourceAs<PBRMaterialResource>();
-        mTextureManager->mPendingAssets.Push(material->mTextures.Albedo);
-        mTextureManager->mPendingAssets.Push(material->mTextures.Normal);
-        mTextureManager->mPendingAssets.Push(material->mTextures.ARM);
-        mTextureManager->mPendingAssets.Push(material->mTextures.Emissive);
+        auto pbrMaterialResource = pbrMaterial->GetResourceAs<PBRMaterialResource>();
+        mTextureManager->PushPendingUpdateAsset(pbrMaterial->mTextures.Albedo);
+        mTextureManager->PushPendingUpdateAsset(pbrMaterial->mTextures.Normal);
+        mTextureManager->PushPendingUpdateAsset(pbrMaterial->mTextures.ARM);
+        mTextureManager->PushPendingUpdateAsset(pbrMaterial->mTextures.Emissive);
         void *data;
-        uint8_t *mappedData = static_cast<uint8_t *>(materialResource->GetStagingBufferAllocationInfo().pMappedData);
-        std::memcpy(mappedData, &material->mProperties, sizeof(PBRProperties));
+        uint8_t *mappedData = static_cast<uint8_t *>(pbrMaterialResource->GetStagingBufferAllocationInfo().pMappedData);
+        std::memcpy(mappedData, &pbrMaterial->mProperties, sizeof(PBRProperties));
         vk::BufferCopy copyRegion{};
         copyRegion.setSize(sizeof(PBRProperties)).setSrcOffset(0).setDstOffset(0);
-        commandBuffer.copyBuffer(materialResource->GetStagingBuffer(), materialResource->GetSSBO(), copyRegion);
+        commandBuffer.copyBuffer(pbrMaterialResource->GetStagingBuffer(), pbrMaterialResource->GetSSBO(), copyRegion);
     }
     std::vector<vk::BufferMemoryBarrier2> bufferBarriers{};
-    for (auto &material : mMaterialToUpdate)
+    for (auto &pbrMaterial : pbrMaterialToUpdate)
     {
-        auto materialResource = material->GetResourceAs<PBRMaterialResource>();
+        auto pbrMaterialResource = pbrMaterial->GetResourceAs<PBRMaterialResource>();
         vk::BufferMemoryBarrier2 bufferBarrier{};
         bufferBarrier.setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
             .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
@@ -88,7 +86,7 @@ void PBRMaterialManager::UpdateAssetRenderResource(std::shared_ptr<Context> cont
             .setDstStageMask(vk::PipelineStageFlagBits2::eVertexShader | vk::PipelineStageFlagBits2::eFragmentShader)
             .setSrcAccessMask(vk::AccessFlagBits2::eTransferWrite)
             .setDstAccessMask(vk::AccessFlagBits2::eShaderRead)
-            .setBuffer(materialResource->GetSSBO())
+            .setBuffer(pbrMaterialResource->GetSSBO())
             .setOffset(0)
             .setSize(sizeof(PBRProperties));
         bufferBarriers.push_back(bufferBarrier);

@@ -72,7 +72,6 @@ class RenderSystem : public System
     }
 
   private:
-    void PrePareRenderResource();
     void Render();
 
     void UpdateMaterial();
