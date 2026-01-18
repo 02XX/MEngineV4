@@ -38,7 +38,7 @@ template <std::derived_from<Asset> TAsset> class Manager : public virtual IManag
         {
             return mAssets.at(id);
         }
-        LogWarn("Asset with ID {} not found", id.ToString());
+        LogError("Asset with ID {} not found", id.ToString());
         return nullptr;
     }
     virtual std::shared_ptr<TAsset> GetByName(const std::string &name) const override
@@ -47,7 +47,7 @@ template <std::derived_from<Asset> TAsset> class Manager : public virtual IManag
         {
             return Get(mNameToIDMap.at(name));
         }
-        LogWarn("Asset with name {} not found", name);
+        LogError("Asset with name {} not found", name);
         return nullptr;
     }
     virtual std::vector<std::shared_ptr<TAsset>> GetAll() const override

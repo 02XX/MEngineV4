@@ -44,9 +44,6 @@ class GraphicPipelineBuilder : public Builder<GraphicPipeline>, public virtual I
     virtual void SetRasterizationState() override;
     virtual void SetMultiSampleState() override;
     virtual void SetDepthStencilState() override;
-    virtual void SetColorBlendState() override;
-    virtual void SetColorAttachmentFormats() override;
     virtual void SetDepthStencilAttachmentFormat() override;
-    virtual void SetLayout() override;
 };
 } // namespace MEngine::Resource

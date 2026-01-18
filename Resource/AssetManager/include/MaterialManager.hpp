@@ -8,21 +8,13 @@
 
 namespace MEngine::Resource
 {
-enum class DefaultMaterialType
-{
-    GBufferPBROpaque,
-    GBufferPBRTransparent,
-};
+
 template <std::derived_from<Material> TAsset>
 class MaterialManager : public UpdateManager<TAsset>, public virtual IManager<TAsset>
 {
   protected:
     std::shared_ptr<Texture2DManager> mTextureManager;
     std::shared_ptr<GraphicPipelineManager> mPipelineManager;
-    std::unordered_map<DefaultMaterialType, Core::UUID> mDefaultMaterials{
-        {DefaultMaterialType::GBufferPBROpaque, Core::UUID{"00000000-0000-0000-0000-000000000000"}},
-        {DefaultMaterialType::GBufferPBRTransparent, Core::UUID{"00000000-0000-0000-0000-000000000001"}},
-    };
 
   public:
     MaterialManager(std::shared_ptr<Texture2DManager> textureManager,
@@ -31,14 +23,5 @@ class MaterialManager : public UpdateManager<TAsset>, public virtual IManager<TA
     {
     }
     ~MaterialManager() override = default;
-    inline std::shared_ptr<Material> GetMaterial(DefaultMaterialType type) const
-    {
-        if (mDefaultMaterials.contains(type))
-        {
-            return this->Get(mDefaultMaterials.at(type));
-        }
-        LogError("Default material type {} not found", static_cast<int>(type));
-        return nullptr;
-    }
 };
 } // namespace MEngine::Resource

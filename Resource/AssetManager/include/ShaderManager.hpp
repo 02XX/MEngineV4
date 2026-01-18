@@ -6,20 +6,37 @@
 
 namespace MEngine::Resource
 {
+struct DefaultShaderType
+{
+    static constexpr const char *ForwardOpaquePBRVert = "forward_opaque_pbr_vert";
+    static constexpr const char *ForwardOpaquePBRFrag = "forward_opaque_pbr_frag";
+    static constexpr const char *GBufferOpaquePBRVert = "gbuffer_opaque_pbr_vert";
+    static constexpr const char *GBufferOpaquePBRFrag = "gbuffer_opaque_pbr_frag";
+    static constexpr const char *LightingOpaquePBRVert = "lighting_opaque_pbr_vert";
+    static constexpr const char *LightingOpaquePBRFrag = "lighting_opaque_pbr_frag";
+    static constexpr const char *SkyboxVert = "skybox_vert";
+    static constexpr const char *SkyboxFrag = "skybox_frag";
+    static constexpr const char *PostprocessVert = "postprocess_vert";
+    static constexpr const char *PostprocessFrag = "postprocess_frag";
+    static constexpr const char *UIVert = "ui_vert";
+    static constexpr const char *UIFrag = "ui_frag";
+};
 class ShaderManager final : public Manager<Shader>, public virtual IManager<Shader>
 {
   private:
-    std::unordered_map<std::string, Core::UUID> mDefaultShaders{
-        {"gbuffer_vert", Core::UUID{"00000000-0000-0000-0000-000000000000"}},
-        {"gbuffer_frag", Core::UUID{"00000000-0000-0000-0000-000000000001"}},
-        {"lighting_vert", Core::UUID{"00000000-0000-0000-0000-000000000002"}},
-        {"lighting_frag", Core::UUID{"00000000-0000-0000-0000-000000000003"}},
-        {"skybox_vert", Core::UUID{"00000000-0000-0000-0000-000000000004"}},
-        {"skybox_frag", Core::UUID{"00000000-0000-0000-0000-000000000005"}},
-        {"postprocess_vert", Core::UUID{"00000000-0000-0000-0000-000000000006"}},
-        {"postprocess_frag", Core::UUID{"00000000-0000-0000-0000-000000000007"}},
-        {"ui_vert", Core::UUID{"00000000-0000-0000-0000-000000000008"}},
-        {"ui_frag", Core::UUID{"10000000-0000-1000-8000-100000001234"}},
+    static inline const std::unordered_map<std::string, Core::UUID> sDefaultShaders{
+        {DefaultShaderType::ForwardOpaquePBRVert, Core::UUID{"00000000-0000-0000-0000-000000000000"}},
+        {DefaultShaderType::ForwardOpaquePBRFrag, Core::UUID{"00000000-0000-0000-0000-000000000001"}},
+        {DefaultShaderType::LightingOpaquePBRVert, Core::UUID{"00000000-0000-0000-0000-000000000002"}},
+        {DefaultShaderType::LightingOpaquePBRFrag, Core::UUID{"00000000-0000-0000-0000-000000000003"}},
+        {DefaultShaderType::SkyboxVert, Core::UUID{"00000000-0000-0000-0000-000000000004"}},
+        {DefaultShaderType::SkyboxFrag, Core::UUID{"00000000-0000-0000-0000-000000000005"}},
+        {DefaultShaderType::GBufferOpaquePBRVert, Core::UUID{"00000000-0000-0000-0000-000000000006"}},
+        {DefaultShaderType::GBufferOpaquePBRFrag, Core::UUID{"00000000-0000-0000-0000-000000000007"}},
+        {DefaultShaderType::PostprocessVert, Core::UUID{"00000000-0000-0000-0000-000000000008"}},
+        {DefaultShaderType::PostprocessFrag, Core::UUID{"00000000-0000-0000-0000-000000000009"}},
+        {DefaultShaderType::UIVert, Core::UUID{"00000000-0000-0000-0000-000000000010"}},
+        {DefaultShaderType::UIFrag, Core::UUID{"00000000-0000-0000-0000-000000000011"}},
     };
 
   public:

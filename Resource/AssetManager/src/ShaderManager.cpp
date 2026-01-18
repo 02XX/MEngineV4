@@ -8,26 +8,28 @@ namespace MEngine::Resource
 {
 void ShaderManager::CreateDefault()
 {
-    auto gBufferVertShader = CreateShader("gbuffer_vert", AssetURL("shader://gbuffer.vert"));
-    auto gBufferFragShader = CreateShader("gbuffer_frag", AssetURL("shader://gbuffer.frag"));
-    auto lightingVertShader = CreateShader("lighting_vert", AssetURL("shader://lighting.vert"));
-    auto lightingFragShader = CreateShader("lighting_frag", AssetURL("shader://lighting.frag"));
-    // auto skyboxVertShader = CreateShader("skybox_vert", AssetURL("shader://skybox.vert"));
-    // auto skyboxFragShader = CreateShader("skybox_frag", AssetURL("shader://skybox.frag"));
-    // auto postprocessVertShader = CreateShader("postprocess_vert", AssetURL("shader://postprocess.vert"));
-    // auto postprocessFragShader = CreateShader("postprocess_frag", AssetURL("shader://postprocess.frag"));
-    // auto uiVertShader = CreateShader("ui_vert", AssetURL("shader://ui.vert"));
-    // auto uiFragShader = CreateShader("ui_frag", AssetURL("shader://ui.frag"));
-    gBufferVertShader->SetID(mDefaultShaders["gbuffer_vert"]);
-    gBufferFragShader->SetID(mDefaultShaders["gbuffer_frag"]);
-    lightingVertShader->SetID(mDefaultShaders["lighting_vert"]);
-    lightingFragShader->SetID(mDefaultShaders["lighting_frag"]);
-    // skyboxVertShader->SetID(mDefaultShaders["skybox_vert"]);
-    // skyboxFragShader->SetID(mDefaultShaders["skybox_frag"]);
-    // postprocessVertShader->SetID(mDefaultShaders["postprocess_vert"]);
-    // postprocessFragShader->SetID(mDefaultShaders["postprocess_frag"]);
-    // uiVertShader->SetID(mDefaultShaders["ui_vert"]);
-    // uiFragShader->SetID(mDefaultShaders["ui_frag"]);
+    auto frowardOpaquePBRVertShader =
+        CreateShader(DefaultShaderType::ForwardOpaquePBRVert, AssetURL("shader://ForwardOpaquePBR.vert"));
+    auto frowardOpaquePBRFragShader =
+        CreateShader(DefaultShaderType::ForwardOpaquePBRFrag, AssetURL("shader://ForwardOpaquePBR.frag"));
+    auto gBufferVertShader =
+        CreateShader(DefaultShaderType::GBufferOpaquePBRVert, AssetURL("shader://GBufferOpaquePBR.vert"));
+    auto gBufferFragShader =
+        CreateShader(DefaultShaderType::GBufferOpaquePBRFrag, AssetURL("shader://GBufferOpaquePBR.frag"));
+    auto lightingVertShader =
+        CreateShader(DefaultShaderType::LightingOpaquePBRVert, AssetURL("shader://LightingOpaquePBR.vert"));
+    auto lightingFragShader =
+        CreateShader(DefaultShaderType::LightingOpaquePBRFrag, AssetURL("shader://LightingOpaquePBR.frag"));
+
+    frowardOpaquePBRVertShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePBRVert));
+    frowardOpaquePBRFragShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePBRFrag));
+    gBufferVertShader->SetID(sDefaultShaders.at(DefaultShaderType::GBufferOpaquePBRVert));
+    gBufferFragShader->SetID(sDefaultShaders.at(DefaultShaderType::GBufferOpaquePBRFrag));
+    lightingVertShader->SetID(sDefaultShaders.at(DefaultShaderType::LightingOpaquePBRVert));
+    lightingFragShader->SetID(sDefaultShaders.at(DefaultShaderType::LightingOpaquePBRFrag));
+
+    Add(frowardOpaquePBRVertShader);
+    Add(frowardOpaquePBRFragShader);
     Add(gBufferVertShader);
     Add(gBufferFragShader);
     Add(lightingVertShader);

@@ -30,13 +30,37 @@ void RenderSystem::Init()
     // Configure Render Passes
     PushRenderPass([this](OffscreenFrameResource *frameResource) { GBuffer(frameResource); });
     PushRenderPass([this](OffscreenFrameResource *frameResource) { Lighting(frameResource); });
+    PushRenderPass([this](OffscreenFrameResource *frameResource) { ForwardOpaque(frameResource); });
+    PushRenderPass([this](OffscreenFrameResource *frameResource) { ForwardTransparent(frameResource); });
 }
 void RenderSystem::Update(double deltaTime)
 {
     PrepareRenderQueues();
     Render();
 }
-
+void RenderSystem::PrepareRenderQueues()
+{
+    mRenderQueues.clear();
+    auto entities = mScene->mRegistry->view<TransformComponent, MeshComponent, MaterialComponent>();
+    for (const auto &entity : entities)
+    {
+        auto &materialComponent = entities.get<MaterialComponent>(entity);
+        if (materialComponent.dirty)
+        {
+            auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
+            pbrMaterialManager->PushPendingUpdateAsset(
+                std::static_pointer_cast<PBRMaterial>(materialComponent.Material));
+            materialComponent.dirty = false;
+        }
+        auto pipeline = materialComponent.Material->GetPipeline();
+        pipeline->GetResource()->InitResource(mContext);
+        materialComponent.Material->GetResource()->InitResource(mContext);
+        auto &meshComponent = entities.get<MeshComponent>(entity);
+        meshComponent.Mesh->GetResource()->InitResource(mContext);
+        auto &transformComponent = entities.get<TransformComponent>(entity);
+        mRenderQueues[pipeline->GetName()].push_back(entity);
+    }
+}
 void RenderSystem::Render()
 {
     auto device = mContext->Device.get();
@@ -196,29 +220,84 @@ void RenderSystem::Render()
 void RenderSystem::Shutdown()
 {
 }
-
-void RenderSystem::PrepareRenderQueues()
+void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
 {
-    mRenderQueues.clear();
-    auto entities = mScene->mRegistry->view<TransformComponent, MeshComponent, MaterialComponent>();
-    for (const auto &entity : entities)
+    auto currentGraphicCommandBuffer = frameResource->GraphicsCommandBuffer;
+    auto colorAttachment = frameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto depthStencilAttachment = frameResource->DepthStencilTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    std::vector<vk::RenderingAttachmentInfo> colorAttachmentInfos{
+        vk::RenderingAttachmentInfo()
+            .setClearValue(frameResource->ColorClearValue)
+            .setImageView(colorAttachment->GetImageView())
+            .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
+            .setLoadOp(vk::AttachmentLoadOp::eClear)
+            .setStoreOp(vk::AttachmentStoreOp::eStore)};
+    vk::RenderingAttachmentInfo depthStencilAttachmentInfo{};
+    depthStencilAttachmentInfo.setClearValue(frameResource->DepthClearValue)
+        .setImageLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal)
+        .setLoadOp(vk::AttachmentLoadOp::eClear)
+        .setStoreOp(vk::AttachmentStoreOp::eDontCare)
+        .setImageView(depthStencilAttachment->GetImageView());
+    vk::RenderingInfo renderingInfo{};
+    renderingInfo.setRenderArea(vk::Rect2D{{0, 0}, {frameResource->Extent.width, frameResource->Extent.height}})
+        .setLayerCount(1)
+        .setColorAttachments(colorAttachmentInfos)
+        .setPDepthAttachment(&depthStencilAttachmentInfo);
+    currentGraphicCommandBuffer.beginRendering(renderingInfo);
+    vk::Viewport viewport;
+    viewport.setX(0.0f)
+        .setY(frameResource->Extent.height)
+        .setWidth(static_cast<float>(frameResource->Extent.width))
+        .setHeight(-static_cast<float>(frameResource->Extent.height))
+        .setMinDepth(0.0f)
+        .setMaxDepth(1.0f);
+    currentGraphicCommandBuffer.setViewport(0, {viewport});
+    vk::Rect2D scissor;
+    scissor.setOffset({0, 0}).setExtent({frameResource->Extent.width, frameResource->Extent.height});
+    currentGraphicCommandBuffer.setScissor(0, {scissor});
+    if (mRenderQueues.contains(DefaultGraphicPipelineType::ForwardOpaquePBR))
     {
-        auto &materialComponent = entities.get<MaterialComponent>(entity);
-        if (materialComponent.dirty)
+        auto &entities = mRenderQueues.at(DefaultGraphicPipelineType::ForwardOpaquePBR);
+        auto pipelineAsset = mAssetManager->GetByName<GraphicPipeline>(DefaultGraphicPipelineType::ForwardOpaquePBR);
+        auto graphicPipelineGBufferPipeline = pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipeline();
+        auto graphicPipelineGBufferPipelineLayout =
+            pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipelineLayout();
+        currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelineGBufferPipeline);
+        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                                       graphicPipelineGBufferPipelineLayout, 0,
+                                                       mContext->DescriptorSet.get(), {});
+        for (const auto &entity : entities)
         {
-            auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
-            pbrMaterialManager->PushPendingUpdateAsset(
-                std::static_pointer_cast<PBRMaterial>(materialComponent.Material));
-            materialComponent.dirty = false;
+            auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);
+            auto &meshComponent = mScene->mRegistry->get<MeshComponent>(entity);
+            auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+
+            auto pbrMaterial = static_cast<PBRMaterial *>(materialComponent.Material.get());
+            auto pbrMaterialResource = materialComponent.Material->GetResourceAs<PBRMaterialResource>();
+
+            auto modelMatrix = transformComponent.modelMatrix;
+
+            PBRMaterialPushConstants pbrPushConstants{};
+            pbrPushConstants.ModelMatrix = modelMatrix;
+            pbrPushConstants.MaterialSSBOAddress = pbrMaterialResource->mSSBOAddress;
+            pbrPushConstants.SceneSSBOAddress = frameResource->SceneSSBOAddress;
+            currentGraphicCommandBuffer.pushConstants(graphicPipelineGBufferPipelineLayout,
+                                                      vk::ShaderStageFlagBits::eVertex |
+                                                          vk::ShaderStageFlagBits::eFragment,
+                                                      0, sizeof(PBRMaterialPushConstants), &pbrPushConstants);
+
+            auto staticMeshResource = meshComponent.Mesh->GetResourceAs<StaticMeshResource>();
+            auto vertexBuffer = staticMeshResource->GetVertexBuffer();
+            auto indexBuffer = staticMeshResource->GetIndexBuffer();
+            currentGraphicCommandBuffer.bindVertexBuffers(0, vertexBuffer, {0});
+            currentGraphicCommandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+            currentGraphicCommandBuffer.drawIndexed(staticMeshResource->GetIndexCount(), 1, 0, 0, 0);
         }
-        auto pipeline = materialComponent.Material->GetPipeline();
-        pipeline->GetResource()->InitResource(mContext);
-        materialComponent.Material->GetResource()->InitResource(mContext);
-        auto &meshComponent = entities.get<MeshComponent>(entity);
-        meshComponent.Mesh->GetResource()->InitResource(mContext);
-        auto &transformComponent = entities.get<TransformComponent>(entity);
-        mRenderQueues[pipeline->GetName()].push_back(entity);
     }
+    currentGraphicCommandBuffer.endRendering();
+}
+void RenderSystem::ForwardTransparent(OffscreenFrameResource *frameResource)
+{
 }
 void RenderSystem::GBuffer(OffscreenFrameResource *frameResource)
 {
@@ -297,10 +376,10 @@ void RenderSystem::GBuffer(OffscreenFrameResource *frameResource)
     vk::Rect2D scissor;
     scissor.setOffset({0, 0}).setExtent({frameResource->Extent.width, frameResource->Extent.height});
     currentGraphicCommandBuffer.setScissor(0, {scissor});
-    if (mRenderQueues.contains("GraphicPipeline_GBuffer"))
+    if (mRenderQueues.contains(DefaultGraphicPipelineType::GBufferOpaquePBR))
     {
-        auto &entities = mRenderQueues.at("GraphicPipeline_GBuffer");
-        auto pipelineAsset = mAssetManager->GetByName<GraphicPipeline>("GraphicPipeline_GBuffer");
+        auto &entities = mRenderQueues.at(DefaultGraphicPipelineType::GBufferOpaquePBR);
+        auto pipelineAsset = mAssetManager->GetByName<GraphicPipeline>(DefaultGraphicPipelineType::GBufferOpaquePBR);
         auto graphicPipelineGBufferPipeline = pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipeline();
         auto graphicPipelineGBufferPipelineLayout =
             pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipelineLayout();

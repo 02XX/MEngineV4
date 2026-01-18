@@ -6,13 +6,14 @@
 #include <memory>
 namespace MEngine::Resource
 {
-enum class GraphicPipelineType
+struct DefaultGraphicPipelineType
 {
-    GBuffer,
-    Lighting,
-    Skybox,
-    PostProcess,
-    UI
+    static constexpr const char *ForwardOpaquePBR = "Forward_Opaque_PBR";
+    static constexpr const char *GBufferOpaquePBR = "GBuffer_Opaque_PBR";
+    static constexpr const char *LightingOpaquePBR = "Lighting_Opaque_PBR";
+    static constexpr const char *Skybox = "Skybox";
+    static constexpr const char *PostProcess = "PostProcess";
+    static constexpr const char *UI = "UI";
 };
 class GraphicPipelineManager final : public PipelineManager<GraphicPipeline>
 {
@@ -20,12 +21,13 @@ class GraphicPipelineManager final : public PipelineManager<GraphicPipeline>
     std::shared_ptr<Context> mContext;
 
   protected:
-    std::unordered_map<GraphicPipelineType, Core::UUID> mDefaultPipelines{
-        {GraphicPipelineType::GBuffer, Core::UUID{"00000000-0000-0000-0000-000000000000"}},
-        {GraphicPipelineType::Lighting, Core::UUID{"00000000-0000-0000-0000-000000000001"}},
-        {GraphicPipelineType::Skybox, Core::UUID{"00000000-0000-0000-0000-000000000002"}},
-        {GraphicPipelineType::PostProcess, Core::UUID{"00000000-0000-0000-0000-000000000003"}},
-        {GraphicPipelineType::UI, Core::UUID{"00000000-0000-0000-0000-000000000004"}},
+    static inline const std::unordered_map<std::string, Core::UUID> mDefaultPipelines{
+        {DefaultGraphicPipelineType::ForwardOpaquePBR, Core::UUID{"20000000-0000-0000-0000-000000000000"}},
+        {DefaultGraphicPipelineType::GBufferOpaquePBR, Core::UUID{"20000000-0000-0000-0000-000000000001"}},
+        {DefaultGraphicPipelineType::LightingOpaquePBR, Core::UUID{"20000000-0000-0000-0000-000000000002"}},
+        {DefaultGraphicPipelineType::Skybox, Core::UUID{"20000000-0000-0000-0000-000000000003"}},
+        {DefaultGraphicPipelineType::PostProcess, Core::UUID{"20000000-0000-0000-0000-000000000004"}},
+        {DefaultGraphicPipelineType::UI, Core::UUID{"20000000-0000-0000-0000-000000000005"}},
     };
 
   public:
@@ -36,11 +38,11 @@ class GraphicPipelineManager final : public PipelineManager<GraphicPipeline>
     }
     ~GraphicPipelineManager() override = default;
     void CreateDefault() override;
-    std::shared_ptr<GraphicPipeline> CreateGBufferPipeline();
-    std::shared_ptr<GraphicPipeline> CreateLightingPipeline();
-    std::shared_ptr<GraphicPipeline> CreateSkyboxPipeline();
-    std::shared_ptr<GraphicPipeline> CreatePostProcessPipeline();
-    std::shared_ptr<GraphicPipeline> CreateUIPipeline();
-    std::shared_ptr<GraphicPipeline> GetPipeline(GraphicPipelineType type) const;
+    std::shared_ptr<GraphicPipeline> CreateForwardOpaquePBR();
+    std::shared_ptr<GraphicPipeline> CreateGBufferOpaquePBR();
+    std::shared_ptr<GraphicPipeline> CreateLightingOpaquePBR();
+    std::shared_ptr<GraphicPipeline> CreateSkyBox();
+    std::shared_ptr<GraphicPipeline> CreatePostProcess();
+    std::shared_ptr<GraphicPipeline> CreateUI();
 };
 } // namespace MEngine::Resource

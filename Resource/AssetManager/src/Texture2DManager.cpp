@@ -20,9 +20,6 @@ void Texture2DManager::CreateDefault()
     Add(whiteTexture);
     Add(blackTexture);
     Add(magentaTexture);
-    PushPendingUpdateAsset(whiteTexture);
-    PushPendingUpdateAsset(blackTexture);
-    PushPendingUpdateAsset(magentaTexture);
 }
 std::shared_ptr<Texture2D> Texture2DManager::CreateWhiteTexture()
 {

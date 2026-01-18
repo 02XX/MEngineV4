@@ -51,8 +51,8 @@ Editor::Editor()
     auto ecsRegister = mScene->mRegistry;
     auto cubeEntity = ecsRegister->create();
     auto cubeMesh = mAssetManager->GetManager<StaticMesh, MeshManager>()->GetMesh(DefaultMeshType::Cube);
-    auto defaultMat = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>()->GetMaterial(
-        DefaultMaterialType::GBufferPBROpaque);
+    auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
+    auto defaultMat = pbrMaterialManager->GetByName(DefaultPBRMaterialType::ForwardOpaque);
     auto &cubeEntityTransformComponent = ecsRegister->emplace<TransformComponent>(cubeEntity);
     cubeEntityTransformComponent.Rotate(45, Vector3{1.0f, 0.0f, 0.0f});
     auto &cubeEntityMeshComponent = ecsRegister->emplace<MeshComponent>(cubeEntity);

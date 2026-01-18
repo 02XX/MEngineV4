@@ -1,6 +1,7 @@
 #include "GraphicPipelineManager.hpp"
-#include "GraphicPipelineBuilderGBuffer.hpp"
-#include "GraphicPipelineBuilderLighting.hpp"
+#include "GraphicPipelineBuilderForwardOpaquePBR.hpp"
+#include "GraphicPipelineBuilderGBufferOpaquePBR.hpp"
+#include "GraphicPipelineBuilderLightingOpaquePBR.hpp"
 #include "GraphicPipelineDirector.hpp"
 #include "Logger.hpp"
 #include <memory>
@@ -10,16 +11,32 @@ namespace MEngine::Resource
 
 void GraphicPipelineManager::CreateDefault()
 {
-    auto gBufferPipeline = CreateGBufferPipeline();
-    auto lightingPipeline = CreateLightingPipeline();
-    gBufferPipeline->SetID(mDefaultPipelines[GraphicPipelineType::GBuffer]);
-    lightingPipeline->SetID(mDefaultPipelines[GraphicPipelineType::Lighting]);
-    Add(gBufferPipeline);
-    Add(lightingPipeline);
+    auto forwardOpaquePBR = CreateForwardOpaquePBR();
+    auto gBufferOpaquePBR = CreateGBufferOpaquePBR();
+    auto lightingOpaquePBR = CreateLightingOpaquePBR();
+    forwardOpaquePBR->SetID(mDefaultPipelines.at(DefaultGraphicPipelineType::ForwardOpaquePBR));
+    gBufferOpaquePBR->SetID(mDefaultPipelines.at(DefaultGraphicPipelineType::GBufferOpaquePBR));
+    lightingOpaquePBR->SetID(mDefaultPipelines.at(DefaultGraphicPipelineType::LightingOpaquePBR));
+    Add(forwardOpaquePBR);
+    Add(gBufferOpaquePBR);
+    Add(lightingOpaquePBR);
 }
-std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateGBufferPipeline()
+std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateForwardOpaquePBR()
 {
-    GraphicPipelineBuilderGBuffer builder(mContext, mShaderManager);
+    GraphicPipelineBuilderForwardOpaquePBR builder(mContext, mShaderManager);
+    GraphicPipelineDirector director;
+    auto pipeline = director.Make(builder);
+    if (!pipeline)
+    {
+        LogError("Failed to create Forward pipeline");
+        return nullptr;
+    }
+    LogInfo("Created「Forward」pipeline");
+    return pipeline;
+}
+std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateGBufferOpaquePBR()
+{
+    GraphicPipelineBuilderGBufferOpaquePBR builder(mContext, mShaderManager);
     GraphicPipelineDirector director;
     auto pipeline = director.Make(builder);
     if (!pipeline)
@@ -30,9 +47,9 @@ std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateGBufferPipeline()
     LogInfo("Created「GBuffer」pipeline");
     return pipeline;
 }
-std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateLightingPipeline()
+std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateLightingOpaquePBR()
 {
-    GraphicPipelineBuilderLighting builder(mContext, mShaderManager);
+    GraphicPipelineBuilderLightingOpaquePBR builder(mContext, mShaderManager);
     GraphicPipelineDirector director;
     auto pipeline = director.Make(builder);
     if (!pipeline)
@@ -43,28 +60,19 @@ std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateLightingPipeline(
     LogInfo("Created 「Lighting」 pipeline");
     return std::shared_ptr<GraphicPipeline>(std::move(pipeline));
 }
-std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateSkyboxPipeline()
+std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateSkyBox()
 {
-    LogError("Unimplemented CreateSkyboxPipeline");
+    LogError("Unimplemented CreateSkyBox");
     return nullptr;
 }
-std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreatePostProcessPipeline()
+std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreatePostProcess()
 {
-    LogError("Unimplemented CreatePostProcessPipeline");
+    LogError("Unimplemented CreatePostProcess");
     return nullptr;
 }
-std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateUIPipeline()
+std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateUI()
 {
-    LogError("Unimplemented CreateUIPipeline");
-    return nullptr;
-}
-std::shared_ptr<GraphicPipeline> GraphicPipelineManager::GetPipeline(GraphicPipelineType type) const
-{
-    if (mDefaultPipelines.contains(type))
-    {
-        return Get(mDefaultPipelines.at(type));
-    }
-    LogError("Default pipeline type {} not found", static_cast<int>(type));
+    LogError("Unimplemented CreateUI");
     return nullptr;
 }
 } // namespace MEngine::Resource

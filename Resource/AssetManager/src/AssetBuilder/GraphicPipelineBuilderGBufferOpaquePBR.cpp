@@ -1,30 +1,32 @@
-#include "GraphicPipelineBuilderGBuffer.hpp"
+#include "GraphicPipelineBuilderGBufferOpaquePBR.hpp"
+#include "GraphicPipelineManager.hpp"
 #include "PBRMaterialResource.hpp"
+#include "ShaderManager.hpp"
 
 namespace MEngine::Resource
 {
-void GraphicPipelineBuilderGBuffer::SetShader()
+void GraphicPipelineBuilderGBufferOpaquePBR::SetShader()
 {
     // vertex
-    auto gBufferVertShader = mShaderManager->GetByName("gbuffer_vert");
+    auto gBufferVertShader = mShaderManager->GetByName(DefaultShaderType::GBufferOpaquePBRVert);
     if (!gBufferVertShader)
     {
-        LogError("GraphicPipelineBuilderGBuffer: gbuffer_vert shader not found in ShaderManager");
+        LogError("GraphicPipelineBuilderGBufferOpaquePBR: gbuffer_vert shader not found in ShaderManager");
         return;
     }
     gBufferVertShader->GetResource()->InitResource(mContext);
     mShaders.push_back(gBufferVertShader);
     // fragment
-    auto gBufferFragShader = mShaderManager->GetByName("gbuffer_frag");
+    auto gBufferFragShader = mShaderManager->GetByName(DefaultShaderType::GBufferOpaquePBRFrag);
     if (!gBufferFragShader)
     {
-        LogError("GraphicPipelineBuilderGBuffer: gbuffer_frag shader not found in ShaderManager");
+        LogError("GraphicPipelineBuilderGBufferOpaquePBR: gbuffer_frag shader not found in ShaderManager");
         return;
     }
     gBufferFragShader->GetResource()->InitResource(mContext);
     mShaders.push_back(gBufferFragShader);
 }
-void GraphicPipelineBuilderGBuffer::SetColorBlendState()
+void GraphicPipelineBuilderGBufferOpaquePBR::SetColorBlendState()
 {
     mColorBlendAttachments.clear();
     // color
@@ -105,7 +107,7 @@ void GraphicPipelineBuilderGBuffer::SetColorBlendState()
         .setAttachments(mColorBlendAttachments)
         .setBlendConstants({0.0f, 0.0f, 0.0f, 0.0f});
 }
-void GraphicPipelineBuilderGBuffer::SetColorAttachmentFormats()
+void GraphicPipelineBuilderGBufferOpaquePBR::SetColorAttachmentFormats()
 {
     mColorAttachmentFormats.clear();
     mColorAttachmentFormats = {
@@ -117,17 +119,9 @@ void GraphicPipelineBuilderGBuffer::SetColorAttachmentFormats()
         vk::Format::eR32G32B32A32Sfloat  // emissive
     };
 }
-void GraphicPipelineBuilderGBuffer::SetLayout()
+
+void GraphicPipelineBuilderGBufferOpaquePBR::SetName()
 {
-    GraphicPipelineBuilder::SetLayout();
-    mPushConstantRanges.push_back(
-        vk::PushConstantRange()
-            .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
-            .setOffset(0)
-            .setSize(sizeof(PBRMaterialPushConstants)));
-}
-void GraphicPipelineBuilderGBuffer::SetName()
-{
-    mName = "GraphicPipeline_GBuffer";
+    mName = DefaultGraphicPipelineType::GBufferOpaquePBR;
 }
 } // namespace MEngine::Resource

@@ -74,26 +74,8 @@ void GraphicPipelineBuilder::SetDepthStencilState()
         .setMaxDepthBounds(1.0f)
         .setStencilTestEnable(vk::False);
 }
-void GraphicPipelineBuilder::SetColorBlendState()
-{
-    mColorBlendAttachments = {vk::PipelineColorBlendAttachmentState()
-                                  .setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-                                                     vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA)
-                                  .setBlendEnable(vk::False)};
-    mColorBlendState.setLogicOpEnable(vk::False)
-        .setLogicOp(vk::LogicOp::eCopy)
-        .setAttachments(mColorBlendAttachments)
-        .setBlendConstants({0.0f, 0.0f, 0.0f, 0.0f});
-}
-void GraphicPipelineBuilder::SetColorAttachmentFormats()
-{
-    mColorAttachmentFormats = {vk::Format::eR32G32B32A32Sfloat};
-}
 void GraphicPipelineBuilder::SetDepthStencilAttachmentFormat()
 {
     mDepthStencilAttachmentFormat = vk::Format::eD32SfloatS8Uint;
-}
-void GraphicPipelineBuilder::SetLayout()
-{
 }
 } // namespace MEngine::Resource

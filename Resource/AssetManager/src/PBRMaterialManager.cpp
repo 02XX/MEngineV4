@@ -9,17 +9,19 @@ namespace MEngine::Resource
 
 void PBRMaterialManager::CreateDefault()
 {
-    auto gBufferMaterial = CreateGBufferOpaqueMaterial();
-    auto lightingMaterial = CreateLightMaterial();
-    gBufferMaterial->mID = mDefaultMaterials.at(DefaultMaterialType::GBufferPBROpaque);
-    lightingMaterial->mID = mDefaultMaterials.at(DefaultMaterialType::GBufferPBRTransparent);
-    Add(gBufferMaterial);
-    Add(lightingMaterial);
-    PushPendingUpdateAsset(gBufferMaterial);
+    auto forwardOpaque = CreateForwardOpaque();
+    auto gBufferOpaque = CreateGBufferOpaque();
+    auto lightingOpaque = CreateLightOpaque();
+    forwardOpaque->mID = mDefaultMaterials.at(DefaultPBRMaterialType::ForwardOpaque);
+    gBufferOpaque->mID = mDefaultMaterials.at(DefaultPBRMaterialType::GBufferOpaque);
+    lightingOpaque->mID = mDefaultMaterials.at(DefaultPBRMaterialType::LightingOpaque);
+    Add(forwardOpaque);
+    Add(gBufferOpaque);
+    Add(lightingOpaque);
 }
-std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateGBufferOpaqueMaterial()
+std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateForwardOpaque()
 {
-    auto pipeline = mPipelineManager->GetPipeline(GraphicPipelineType::GBuffer);
+    auto pipeline = mPipelineManager->GetByName(DefaultGraphicPipelineType::ForwardOpaquePBR);
     auto texture = mTextureManager->GetTexture2D(DefaultTextureType::White);
     PBRProperties props{};
     PBRTextures textures{
@@ -28,13 +30,28 @@ std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateGBufferOpaqueMaterial()
         .ARM = texture,
         .Emissive = texture,
     };
-    auto pbrMaterial = std::make_shared<PBRMaterial>("GBufferPBR_Opaque", pipeline, props, textures);
+    auto pbrMaterial = std::make_shared<PBRMaterial>(DefaultPBRMaterialType::ForwardOpaque, pipeline, props, textures);
+    LogInfo("Created「Default ForwardPBR_Opaque」pbrMaterial");
+    return pbrMaterial;
+}
+std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateGBufferOpaque()
+{
+    auto pipeline = mPipelineManager->GetByName(DefaultGraphicPipelineType::GBufferOpaquePBR);
+    auto texture = mTextureManager->GetTexture2D(DefaultTextureType::White);
+    PBRProperties props{};
+    PBRTextures textures{
+        .Albedo = texture,
+        .Normal = texture,
+        .ARM = texture,
+        .Emissive = texture,
+    };
+    auto pbrMaterial = std::make_shared<PBRMaterial>(DefaultPBRMaterialType::GBufferOpaque, pipeline, props, textures);
     LogInfo("Created「Default GBufferPBR_Opaque」pbrMaterial");
     return pbrMaterial;
 }
-std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateLightMaterial()
+std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateLightOpaque()
 {
-    auto pipeline = mPipelineManager->GetPipeline(GraphicPipelineType::Lighting);
+    auto pipeline = mPipelineManager->GetByName(DefaultGraphicPipelineType::LightingOpaquePBR);
     auto texture = mTextureManager->GetTexture2D(DefaultTextureType::White);
     PBRProperties props{};
     PBRTextures textures{
@@ -43,7 +60,7 @@ std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateLightMaterial()
         .ARM = texture,
         .Emissive = texture,
     };
-    auto pbrMaterial = std::make_shared<PBRMaterial>("Lighting_PBR", pipeline, props, textures);
+    auto pbrMaterial = std::make_shared<PBRMaterial>(DefaultPBRMaterialType::LightingOpaque, pipeline, props, textures);
     LogInfo("Created「Default Lighting_PBR」pbrMaterial");
     return pbrMaterial;
 }
