@@ -47,6 +47,8 @@ void RenderSystem::Render()
         return;
     }
     device.resetFences(mOffscreenFrameResource->InFlightFence.get());
+    device.resetCommandPool(mOffscreenFrameResource->GraphicsCommandPool);
+    device.resetCommandPool(mOffscreenFrameResource->TransferCommandPool);
     //=========================准备渲染资源=========================
     auto transferCommandBuffer = mOffscreenFrameResource->TransferCommandBuffer;
     for (auto subCommandBuffer : mOffscreenFrameResource->SecondaryTransferCommandBuffers)

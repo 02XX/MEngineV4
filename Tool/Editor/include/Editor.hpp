@@ -1,5 +1,7 @@
 #pragma once
 #include "CameraSystem.hpp"
+#include "ConcurrentQueue.hpp"
+#include "ConcurrentRingBuffer.hpp"
 #include "Context.hpp"
 #include "ECS.hpp"
 #include "OffscreenFrameResource.hpp"
@@ -32,6 +34,20 @@ struct WindowConfig
     bool resizable = true;
     bool vsync = true;
 };
+struct Resolution
+{
+    uint32_t width = 1280;
+    uint32_t height = 720;
+    const std::string ToString() const
+    {
+        std::string resolution = std::format("{}x{}", width, height);
+        return resolution;
+    }
+    bool operator==(const Resolution &other) const
+    {
+        return width == other.width && height == other.height;
+    }
+};
 class Editor
 {
   private:
@@ -46,31 +62,27 @@ class Editor
     // Window
     GLFWwindow *mWindow{};
     WindowConfig mWindowConfig{};
+    inline static const std::vector<Resolution> sResolutions = {{100, 100},   {800, 600},   {1280, 720}, {1920, 1080},
+                                                                {2560, 1440}, {3840, 2160}, {5120, 2880}};
+    Resolution mCurrentResolution = sResolutions[2];
+    bool mNeedReCreateFrameResources = true;
+    bool mNeedReCreateSwapChain = true;
     // ImGui
     ImGuiID mDockSpaceID{};
 
     //====render thread====
-    uint32_t mCurrentFrame = 0;
     vk::SurfaceKHR mSurface{};
     std::unique_ptr<SwapChainResource> mSwapChainResource{};
     std::vector<std::shared_ptr<OffscreenFrameResource>> mOffscreenFrameResources{};
-    std::vector<vk::CommandBuffer> mUICommandBuffers{};
+    ImDrawDataSnapshot *mCurrentFrameDrawDataSnapshot{};
     //================
     std::vector<VkDescriptorSet> mFrameDescriptorSets{};
-
     bool mIsRunning = false;
 
-    ImDrawData *mFrameDrawData;
-    std::mutex mFrameDrawDataMutex;
-
   private:
-    uint64_t mUIFrameIndex = 0;
     uint32_t mImageIndex = 0;
-    uint32_t mFramesInFlight = 3;
-    std::vector<std::mutex> mFrameMutexes{};
-    std::vector<std::condition_variable> mFrameProduceCVs{}, mFrameConsumeCVs{};
-    std::vector<ImDrawDataSnapshot> mFrameSnapshots{};
-    std::vector<bool> mHasFrameData{};
+    uint32_t mCurrentFrameIndex = 0;
+    ConcurrentRingBuffer<ImDrawDataSnapshot *> mFrameDrawDataSnapshots{3};
 
     tf::Taskflow mTaskflow{};
     tf::Executor mExecutor{};
@@ -104,17 +116,12 @@ class Editor
 
     void AssetBrowser();
     void Console();
-
+    void Toolbar();
     void Inspector();
-    void ReflectObject(std::any object, std::string typeName);
 
-    void Render();
-
+    void CreateFrameResources();
     void UIAcquireSwapChainImage(OffscreenFrameResource *frameResource);
     void UIRenderPass(OffscreenFrameResource *frameResource);
     void UIPresent(OffscreenFrameResource *frameResource);
-
-  private:
-    void HandleSwapchainOutOfDate();
 };
 } // namespace MEngine::Tool

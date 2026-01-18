@@ -14,7 +14,7 @@
 #include <vector>
 #include <vulkan/vulkan_handles.hpp>
 
-inline constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
+inline uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 using namespace MEngine::Resource;
 namespace MEngine::Function
 {
@@ -36,8 +36,6 @@ class RenderSystem : public System
     std::vector<std::function<void(OffscreenFrameResource *frameResource)>> mRenderPasses{};
     std::vector<std::function<void(OffscreenFrameResource *frameResource)>> mPostProcessPasses{};
     std::vector<std::function<void(OffscreenFrameResource *frameResource)>> mPostSubmit{};
-
-
 
   public:
     RenderSystem(std::shared_ptr<Context> context, std::shared_ptr<Scene> scene,

@@ -53,5 +53,6 @@ class OffscreenFrameResource
 
     OffscreenFrameResource(std::shared_ptr<Context> context, vk::Extent3D extent = {800, 600, 1});
     virtual ~OffscreenFrameResource();
+    void RecreateMRT(vk::Extent3D extent);
 };
 } // namespace MEngine::Function

@@ -100,10 +100,6 @@ Editor::~Editor()
         mSwapChainResource->ReleaseResource(mContext);
         mSwapChainResource.reset();
     }
-    for (size_t i = 0; i < mUICommandBuffers.size(); ++i)
-    {
-        mContext->Device->freeCommandBuffers(mOffscreenFrameResources[i]->PresentCommandPool, {mUICommandBuffers[i]});
-    }
     mOffscreenFrameResources.clear();
     mScene.reset();
     std::function<void(std::shared_ptr<Context> context)> item{};
@@ -173,51 +169,9 @@ void Editor::InitVulkan()
     glfwCreateWindowSurface(mContext->Instance.get(), mWindow, nullptr, reinterpret_cast<VkSurfaceKHR *>(&mSurface));
     mSwapChainResource = std::make_unique<SwapChainResource>(mSurface);
     mSwapChainResource->InitResource(mContext);
-    mFramesInFlight = mSwapChainResource->SwapChainImages.size();
-    mOffscreenFrameResources.resize(mFramesInFlight);
-    mFrameDescriptorSets.resize(mFramesInFlight);
-    mUICommandBuffers.resize(mFramesInFlight);
-    for (size_t i = 0; i < mFramesInFlight; i++)
-    {
-        mOffscreenFrameResources[i] = std::make_shared<OffscreenFrameResource>(mContext, vk::Extent3D{800, 600, 1});
-        auto colorAttachment =
-            mOffscreenFrameResources[i]->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
-
-        mUICommandBuffers[i] = mContext->Device->allocateCommandBuffers(
-            vk::CommandBufferAllocateInfo()
-                .setCommandPool(mOffscreenFrameResources[i]->PresentCommandPool)
-                .setLevel(vk::CommandBufferLevel::ePrimary)
-                .setCommandBufferCount(1))[0];
-        auto commandBuffer = mOffscreenFrameResources[i]->GraphicsCommandBuffer;
-        vk::ImageMemoryBarrier2 swapChainBarrier{}, colorAttachmentBarrier{};
-        swapChainBarrier.setImage(mSwapChainResource->SwapChainImages[i])
-            .setOldLayout(vk::ImageLayout::eUndefined)
-            .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
-            .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
-            .setDstStageMask(vk::PipelineStageFlagBits2::eBottomOfPipe)
-            .setSrcAccessMask(vk::AccessFlagBits2::eNone)
-            .setDstAccessMask(vk::AccessFlagBits2::eNone)
-            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-        colorAttachmentBarrier.setImage(colorAttachment->GetImage())
-            .setOldLayout(vk::ImageLayout::eUndefined)
-            .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
-            .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
-            .setDstStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
-            .setSrcAccessMask(vk::AccessFlagBits2::eNone)
-            .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
-            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-        std::vector<vk::ImageMemoryBarrier2> barriers = {swapChainBarrier, colorAttachmentBarrier};
-        commandBuffer.begin(vk::CommandBufferBeginInfo{});
-        commandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(barriers));
-        commandBuffer.end();
-        vk::SubmitInfo2 submitInfo{};
-        std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
-            vk::CommandBufferSubmitInfo().setCommandBuffer(commandBuffer),
-        };
-        submitInfo.setCommandBufferInfos(commandBufferInfos);
-        mContext->GraphicsQueue.submit2(submitInfo, {});
-        mContext->Device->waitIdle();
-    }
+    MAX_FRAMES_IN_FLIGHT = mSwapChainResource->SwapChainImages.size();
+    mOffscreenFrameResources.resize(MAX_FRAMES_IN_FLIGHT);
+    mFrameDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
 }
 void Editor::InitImGui()
 {
@@ -260,35 +214,26 @@ void Editor::InitImGui()
         throw std::runtime_error("NotoSans font load failed");
     }
     io.FontDefault = notoSansFont;
-
-    mFrameConsumeCVs = std::vector<std::condition_variable>(mFramesInFlight);
-    mFrameProduceCVs = std::vector<std::condition_variable>(mFramesInFlight);
-    mFrameMutexes = std::vector<std::mutex>(mFramesInFlight);
-    mFrameSnapshots = std::vector<ImDrawDataSnapshot>(mFramesInFlight);
-    mHasFrameData = std::vector<bool>(mFramesInFlight, false);
-    for (size_t i = 0; i < mFramesInFlight; i++)
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        auto currentColorAttachment =
-            mOffscreenFrameResources[i]->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
-        mFrameDescriptorSets[i] =
-            ImGui_ImplVulkan_AddTexture(static_cast<VkSampler>(currentColorAttachment->GetSampler()),
-                                        static_cast<VkImageView>(currentColorAttachment->GetImageView()),
-                                        static_cast<VkImageLayout>(vk::ImageLayout::eShaderReadOnlyOptimal));
+        mOffscreenFrameResources[i] = std::make_shared<OffscreenFrameResource>(
+            mContext, vk::Extent3D{mCurrentResolution.width, mCurrentResolution.height, 1});
     }
 }
+
 void Editor::UIAcquireSwapChainImage(OffscreenFrameResource *frameResource)
 {
     auto device = mContext->Device.get();
     vk::AcquireNextImageInfoKHR acquireInfo{};
     acquireInfo.setTimeout(1000000000)
         .setSwapchain(mSwapChainResource->SwapChain)
-        .setSemaphore(mOffscreenFrameResources[mCurrentFrame]->ImageAvailableSemaphore.get())
+        .setSemaphore(frameResource->ImageAvailableSemaphore.get())
         .setDeviceMask(1);
 
     auto nextImageResult = device.acquireNextImage2KHR(&acquireInfo, &mImageIndex);
     if (nextImageResult == vk::Result::eErrorOutOfDateKHR)
     {
-        HandleSwapchainOutOfDate();
+        mNeedReCreateSwapChain = true;
         return;
     }
 }
@@ -333,15 +278,7 @@ void Editor::UIRenderPass(OffscreenFrameResource *frameResource)
     commandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(preBarriers));
 
     commandBuffer.beginRendering(renderingInfo);
-    {
-        std::unique_lock<std::mutex> lck(mFrameMutexes[mCurrentFrame]);
-        mFrameConsumeCVs[mCurrentFrame].wait(lck, [this]() { return mHasFrameData[mCurrentFrame] || !mIsRunning; });
-        if (!mIsRunning)
-            return;
-        ImGui_ImplVulkan_RenderDrawData(&mFrameSnapshots[mCurrentFrame].DrawData, commandBuffer);
-        mHasFrameData[mCurrentFrame] = false;
-        mFrameProduceCVs[mCurrentFrame].notify_one();
-    }
+    ImGui_ImplVulkan_RenderDrawData(&mCurrentFrameDrawDataSnapshot->DrawData, commandBuffer);
     commandBuffer.endRendering();
 
     vk::ImageMemoryBarrier2 postBarrier{}, postRenderBarrier{};
@@ -369,7 +306,7 @@ void Editor::UIPresent(OffscreenFrameResource *frameResource)
     vk::PresentInfoKHR presentInfo{};
     presentInfo.setSwapchains({mSwapChainResource->SwapChain})
         .setImageIndices({mImageIndex})
-        .setWaitSemaphores({mOffscreenFrameResources[mCurrentFrame]->RenderFinishedSemaphore.get()});
+        .setWaitSemaphores({frameResource->RenderFinishedSemaphore.get()});
     try
     {
         auto presentResult = mContext->GraphicsQueue.presentKHR(presentInfo);
@@ -381,7 +318,7 @@ void Editor::UIPresent(OffscreenFrameResource *frameResource)
     }
     catch (vk::OutOfDateKHRError &)
     {
-        HandleSwapchainOutOfDate();
+        mNeedReCreateSwapChain = true;
     }
 }
 void Editor::Run()
@@ -389,13 +326,78 @@ void Editor::Run()
     mIsRunning = true;
     auto device = mContext->Device.get();
     mTaskflow.emplace([this, device]() {
+        uint64_t frameIndex = 0;
         while (mIsRunning)
         {
-            mRenderSystem->SetOffscreenFrameResource(mOffscreenFrameResources[mCurrentFrame].get());
+            auto currentFrameResource = mOffscreenFrameResources[frameIndex].get();
+            mRenderSystem->SetOffscreenFrameResource(currentFrameResource);
+            // 是否需要重新创建帧资源
+            if (mNeedReCreateFrameResources)
+            {
+                for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+                {
+                    mContext->Device->waitIdle();
+
+                    if (mFrameDescriptorSets[i])
+                    {
+                        ImGui_ImplVulkan_RemoveTexture(mFrameDescriptorSets[i]);
+                        mFrameDescriptorSets[i] = VK_NULL_HANDLE;
+                    }
+                    mOffscreenFrameResources[i]->RecreateMRT(
+                        vk::Extent3D{mCurrentResolution.width, mCurrentResolution.height, 1});
+                    auto currentColorAttachment =
+                        mOffscreenFrameResources[i]->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
+                    mFrameDescriptorSets[i] = ImGui_ImplVulkan_AddTexture(
+                        static_cast<VkSampler>(currentColorAttachment->GetSampler()),
+                        static_cast<VkImageView>(currentColorAttachment->GetImageView()),
+                        static_cast<VkImageLayout>(vk::ImageLayout::eShaderReadOnlyOptimal));
+                }
+                for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT * 2; i++)
+                {
+                    auto drawDataSnapshot =
+                        mFrameDrawDataSnapshots.Pop(); // 消耗含有旧VKDescriptorSet的DrawDataSnapshot
+                    delete drawDataSnapshot;
+                }
+                mNeedReCreateFrameResources = false;
+            }
+            // 是否需要重新创建SwapChain
+            if (mNeedReCreateSwapChain)
+            {
+                mContext->Device->waitIdle();
+                mSwapChainResource->ReleaseResource(mContext);
+                mSwapChainResource->InitResource(mContext);
+                for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+                {
+                    auto commandBuffer = currentFrameResource->GraphicsCommandBuffer;
+                    vk::ImageMemoryBarrier2 barrier{};
+                    barrier.setImage(mSwapChainResource->SwapChainImages[i])
+                        .setOldLayout(vk::ImageLayout::eUndefined)
+                        .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
+                        .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
+                        .setDstStageMask(vk::PipelineStageFlagBits2::eBottomOfPipe)
+                        .setSrcAccessMask(vk::AccessFlagBits2::eNone)
+                        .setDstAccessMask(vk::AccessFlagBits2::eNone)
+                        .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
+                    commandBuffer.begin(vk::CommandBufferBeginInfo{});
+                    commandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(barrier));
+                    commandBuffer.end();
+                    vk::SubmitInfo2 submitInfo{};
+                    std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
+                        vk::CommandBufferSubmitInfo().setCommandBuffer(commandBuffer),
+                    };
+                    submitInfo.setCommandBufferInfos(commandBufferInfos);
+                    mContext->GraphicsQueue.submit2(submitInfo, {});
+                    mContext->Device->waitIdle();
+                }
+                mNeedReCreateSwapChain = false;
+            }
+            if (mCurrentFrameDrawDataSnapshot)
+                delete mCurrentFrameDrawDataSnapshot;
+            mCurrentFrameDrawDataSnapshot = mFrameDrawDataSnapshots.Pop();
             mRenderSystem->Update(1.0);
-            mCurrentFrame = (mCurrentFrame + 1) % mFramesInFlight;
+            frameIndex = (frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
         }
-      });
+    });
     mExecutor.run(mTaskflow);
     while (!glfwWindowShouldClose(mWindow))
     {
@@ -405,32 +407,18 @@ void Editor::Run()
         ImGui::NewFrame();
         UILayout();
         ImGui::Render();
-        {
-            std::unique_lock<std::mutex> lck(mFrameMutexes[mUIFrameIndex]);
-            mFrameProduceCVs[mUIFrameIndex].wait(lck,
-                                                 [this]() { return !mHasFrameData[mUIFrameIndex] || !mIsRunning; });
-            if (!mIsRunning)
-                break;
-            mFrameSnapshots[mUIFrameIndex].SnapUsingSwap(ImGui::GetDrawData(), ImGui::GetTime());
-            mHasFrameData[mUIFrameIndex] = true;
-            mFrameConsumeCVs[mUIFrameIndex].notify_one();
-        }
         mTransformSystem->Update(1.0);
         mCameraSystem->Update(1.0);
-        mUIFrameIndex = (mUIFrameIndex + 1) % mFramesInFlight;
+
+        ImDrawDataSnapshot *snapshot = new ImDrawDataSnapshot();
+        snapshot->SnapUsingSwap(ImGui::GetDrawData(), ImGui::GetTime());
+        mFrameDrawDataSnapshots.Push(snapshot);
+        mCurrentFrameIndex = (mCurrentFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
     }
     mIsRunning = false;
-    for (size_t i = 0; i < mFramesInFlight; i++)
-    {
-        std::unique_lock<std::mutex> lck(mFrameMutexes[i]);
-        mFrameConsumeCVs[i].notify_one();
-        mFrameProduceCVs[i].notify_one();
-    }
     mExecutor.wait_for_all();
 }
-void Editor::Render()
-{
-}
+
 void Editor::UILayout()
 {
     ImGuiViewport *viewport = ImGui::GetMainViewport();
@@ -468,36 +456,78 @@ void Editor::UILayout()
     //     Console();
     // }
     // ImGui::End();
-    ImGui::Begin("Inspector");
+    Inspector();
+    AssetBrowser();
+    Toolbar();
+    ViewPort();
+    Hierarchy();
+}
+void Editor::Toolbar()
+{
+    ImGui::Begin("Toolbar", nullptr, ImGuiWindowFlags_None);
+    // ImGui::BeginGroup();
+    // {
+    //     ImGui::TextColored(ImVec4(1, 1, 0, 1), "FPS: %1.f", ImGui::GetIO().Framerate);
+    //     if (ImGui::RadioButton("Translate", mGuizmoOperation == ImGuizmo::TRANSLATE) || ImGui::IsKeyDown(ImGuiKey_W))
+    //         mGuizmoOperation = ImGuizmo::TRANSLATE;
+    //     ImGui::SameLine();
+    //     if (ImGui::RadioButton("Rotate", mGuizmoOperation == ImGuizmo::ROTATE) || ImGui::IsKeyDown(ImGuiKey_E))
+    //         mGuizmoOperation = ImGuizmo::ROTATE;
+    //     ImGui::SameLine();
+    //     if (ImGui::RadioButton("Scale", mGuizmoOperation == ImGuizmo::SCALE) || ImGui::IsKeyDown(ImGuiKey_R))
+    //         mGuizmoOperation = ImGuizmo::SCALE;
+    //     if (ImGui::RadioButton("Local", mGuizmoMode == ImGuizmo::LOCAL))
+    //         mGuizmoMode = ImGuizmo::LOCAL;
+    //     ImGui::SameLine();
+    //     if (ImGui::RadioButton("World", mGuizmoMode == ImGuizmo::WORLD))
+    //         mGuizmoMode = ImGuizmo::WORLD;
+    //     ImGui::EndGroup();
+    // }
+    ImGui::BeginGroup();
     {
-        Inspector();
-    }
-    ImGui::End();
-    ImGui::Begin("Assets");
-    {
-        AssetBrowser();
-    }
-    ImGui::End();
-    // RenderToolbarPanel();
-    ImGui::Begin("Viewport");
-    {
-        ViewPort();
-    }
-    ImGui::End();
-    ImGui::Begin("Hierarchy");
-    {
-        Hierarchy();
+        if (ImGui::BeginCombo("Resolution", mCurrentResolution.ToString().c_str()))
+        {
+            for (const auto &resolution : sResolutions)
+            {
+                if (ImGui::Selectable(resolution.ToString().data(), mCurrentResolution == resolution))
+                {
+                    mCurrentResolution = resolution;
+                    mNeedReCreateFrameResources = true;
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::EndGroup();
     }
     ImGui::End();
 }
 void Editor::ViewPort()
 {
-    auto currentOffscreenFrameResource = mOffscreenFrameResources[mUIFrameIndex].get();
-    ImGui::Image(reinterpret_cast<ImTextureID>(mFrameDescriptorSets[mUIFrameIndex]),
-                 ImVec2(currentOffscreenFrameResource->Extent.width, currentOffscreenFrameResource->Extent.height));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin("Viewport", nullptr, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+    ImVec2 availSize = ImGui::GetContentRegionAvail();
+    float aspect = mCurrentResolution.width * 1.0f / mCurrentResolution.height;
+    // 计算适配比例后的尺寸
+    float renderW = availSize.x;
+    float renderH = availSize.x / aspect;
+    if (renderH > availSize.y)
+    {
+        renderH = availSize.y;
+        renderW = renderH * aspect;
+    }
+    // 计算居中偏移
+    ImVec2 cursorPos = ImGui::GetCursorPos();
+    cursorPos.x += (availSize.x - renderW) * 0.5f;
+    cursorPos.y += (availSize.y - renderH) * 0.5f;
+    ImGui::SetCursorPos(cursorPos);
+    ImGui::Image(reinterpret_cast<ImTextureID>(mFrameDescriptorSets[mCurrentFrameIndex]), {renderW, renderH});
+    ImGui::End();
+    ImGui::PopStyleVar();
 }
 void Editor::Hierarchy()
 {
+    ImGui::Begin("Hierarchy");
+
     auto &registry = mScene->mRegistry;
     ImGui::BeginChild("HierarchyList");
     if (ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup) &&
@@ -547,6 +577,7 @@ void Editor::Hierarchy()
     }
 
     ImGui::EndChild();
+    ImGui::End();
 }
 void Editor::ReParentEntity(Entity entity, Entity newParent)
 {
@@ -658,12 +689,18 @@ void Editor::DeleteEntityAndChildren(Entity entity)
 }
 void Editor::AssetBrowser()
 {
+    ImGui::Begin("Assets");
+
+    ImGui::End();
 }
 void Editor::Console()
 {
 }
+
 void Editor::Inspector()
 {
+    ImGui::Begin("Inspector");
+
     auto registry = mScene->mRegistry;
     if (mSelectedEntity != NullEntity && registry->valid(mSelectedEntity))
     {
@@ -723,48 +760,6 @@ void Editor::Inspector()
             }
         }
     }
-}
-void Editor::ReflectObject(std::any object, std::string typeName)
-{
-    if (ImGui::CollapsingHeader(typeName.data(), ImGuiTreeNodeFlags_DefaultOpen))
-    {
-        auto &typeRegistry = MReflection::Registry::GetInstance();
-        auto typeInfo = typeRegistry.GetType(typeName);
-        auto fields = typeInfo->GetFields();
-        for (auto field : fields)
-        {
-        }
-    }
-}
-
-void Editor::HandleSwapchainOutOfDate()
-{
-    mContext->Device->waitIdle();
-    mSwapChainResource->ReleaseResource(mContext);
-    mSwapChainResource->InitResource(mContext);
-    for (size_t i = 0; i < mFramesInFlight; i++)
-    {
-        auto currentOffscreenFrameResource = mOffscreenFrameResources[i].get();
-        auto mUICommandBuffer = currentOffscreenFrameResource->GraphicsCommandBuffer;
-        vk::ImageMemoryBarrier2 barrier{};
-        barrier.setImage(mSwapChainResource->SwapChainImages[i])
-            .setOldLayout(vk::ImageLayout::eUndefined)
-            .setNewLayout(vk::ImageLayout::ePresentSrcKHR)
-            .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
-            .setDstStageMask(vk::PipelineStageFlagBits2::eBottomOfPipe)
-            .setSrcAccessMask(vk::AccessFlagBits2::eNone)
-            .setDstAccessMask(vk::AccessFlagBits2::eNone)
-            .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-        mUICommandBuffer.begin(vk::CommandBufferBeginInfo{});
-        mUICommandBuffer.pipelineBarrier2(vk::DependencyInfo().setImageMemoryBarriers(barrier));
-        mUICommandBuffer.end();
-        vk::SubmitInfo2 submitInfo{};
-        std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
-            vk::CommandBufferSubmitInfo().setCommandBuffer(mUICommandBuffer),
-        };
-        submitInfo.setCommandBufferInfos(commandBufferInfos);
-        mContext->GraphicsQueue.submit2(submitInfo, {});
-        mContext->Device->waitIdle();
-    }
+    ImGui::End();
 }
 } // namespace MEngine::Tool
