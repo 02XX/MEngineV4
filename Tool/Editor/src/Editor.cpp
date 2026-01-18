@@ -395,7 +395,7 @@ void Editor::Run()
             mRenderSystem->Update(1.0);
             mCurrentFrame = (mCurrentFrame + 1) % mFramesInFlight;
         }
-    });
+      });
     mExecutor.run(mTaskflow);
     while (!glfwWindowShouldClose(mWindow))
     {
@@ -420,6 +420,12 @@ void Editor::Run()
         mUIFrameIndex = (mUIFrameIndex + 1) % mFramesInFlight;
     }
     mIsRunning = false;
+    for (size_t i = 0; i < mFramesInFlight; i++)
+    {
+        std::unique_lock<std::mutex> lck(mFrameMutexes[i]);
+        mFrameConsumeCVs[i].notify_one();
+        mFrameProduceCVs[i].notify_one();
+    }
     mExecutor.wait_for_all();
 }
 void Editor::Render()

@@ -16,7 +16,7 @@ OffscreenFrameResource::OffscreenFrameResource(std::shared_ptr<Context> context,
     TransferFinishedSemaphore = device.createSemaphoreUnique(vk::SemaphoreCreateInfo{});
     // Fence
     InFlightFence = device.createFenceUnique(vk::FenceCreateInfo().setFlags(vk::FenceCreateFlagBits::eSignaled));
-    CopyFence = device.createFenceUnique(vk::FenceCreateInfo().setFlags(vk::FenceCreateFlagBits::eSignaled));
+    TransferFence = device.createFenceUnique(vk::FenceCreateInfo().setFlags(vk::FenceCreateFlagBits::eSignaled));
     // CommandBuffer
     GraphicsCommandPool =
         device.createCommandPool(vk::CommandPoolCreateInfo{}

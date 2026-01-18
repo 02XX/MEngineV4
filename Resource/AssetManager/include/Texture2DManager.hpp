@@ -2,7 +2,9 @@
 #include "Manager.hpp"
 #include "Texture2D.hpp"
 #include <memory>
+#include <set>
 #include <unordered_map>
+#include <vector>
 namespace MEngine::Resource
 {
 enum class DefaultTextureType
@@ -20,6 +22,9 @@ class Texture2DManager final : public Manager<Texture2D>, public virtual IManage
         {DefaultTextureType::Black, Core::UUID{"00000000-0000-0000-0000-000000000002"}},
     };
 
+  public:
+    std::set<std::shared_ptr<Texture2D>> mTexturesToUpdate{};
+
   private:
     std::shared_ptr<Texture2D> CreateWhiteTexture();
     std::shared_ptr<Texture2D> CreateBlackTexture();
@@ -30,8 +35,11 @@ class Texture2DManager final : public Manager<Texture2D>, public virtual IManage
     {
         CreateDefault();
     }
-    void CreateDefault();
+    void CreateDefault() override;
     std::shared_ptr<Texture2D> GetTexture2D(DefaultTextureType type) const;
+    void UpdateAssetRenderResource(std::shared_ptr<Context> context, vk::CommandBuffer commandBuffer,
+                                   vk::CommandBufferInheritanceInfo *inheritanceInfo = nullptr);
+    void CollectUpdateAssets() override;
 };
 
 } // namespace MEngine::Resource

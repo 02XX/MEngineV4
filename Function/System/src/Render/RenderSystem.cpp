@@ -7,11 +7,13 @@
 #include "MeshComponent.hpp"
 #include "OffscreenFrameResource.hpp"
 #include "PBRMaterial.hpp"
+#include "PBRMaterialManager.hpp"
 #include "PBRMaterialResource.hpp"
 #include "RenderResource.hpp"
-#include "Texture2DResource.hpp"
+#include "Texture2DManager.hpp"
 #include "TransformComponent.hpp"
 #include <vector>
+#include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
 namespace MEngine::Function
@@ -37,39 +39,66 @@ void RenderSystem::Update(double deltaTime)
 }
 void RenderSystem::PrePareRenderResource()
 {
-    mOffscreenFrameResource->SubTransferCommandBuffers.clear();
+
+    auto device = mContext->Device.get();
+    auto waitResult = device.waitForFences(mOffscreenFrameResource->TransferFence.get(), vk::True,
+                                           1000000000); // 1 second timeout
+    if (waitResult != vk::Result::eSuccess)
+    {
+        LogError("Failed to wait for transfer fence: {}", vk::to_string(waitResult));
+        return;
+    }
+    device.resetFences(mOffscreenFrameResource->TransferFence.get());
+    device.resetCommandPool(mOffscreenFrameResource->TransferCommandPool);
     auto transferCommandBuffer = mOffscreenFrameResource->TransferCommandBuffer;
-    //  准备数据
-    auto entities = mScene->mRegistry->view<MaterialComponent>();
-    std::vector<Entity> dirtyEntities{};
-    for (const auto &entity : entities)
+    for (auto subCommandBuffer : mOffscreenFrameResource->mSecondaryTransferCommandBuffers)
     {
-        auto &materialComponent = entities.get<MaterialComponent>(entity);
-        if (materialComponent.dirty)
-            dirtyEntities.push_back(entity);
+        device.freeCommandBuffers(mOffscreenFrameResource->TransferCommandPool, subCommandBuffer);
     }
-    if (!dirtyEntities.empty())
+    mOffscreenFrameResource->mSecondaryTransferCommandBuffers.clear();
+    vk::CommandBufferInheritanceInfo inheritanceInfo{};
+    // PBRMaterialResource
+    auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
+    pbrMaterialManager->CollectUpdateAssets();
+    if (!pbrMaterialManager->mMaterialToUpdate.empty())
     {
-        vk::CommandBufferAllocateInfo subCmdAllocInfo{};
-        subCmdAllocInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
+        vk::CommandBufferAllocateInfo materialCommandAllocateInfo{};
+        materialCommandAllocateInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
             .setLevel(vk::CommandBufferLevel::eSecondary)
-            .setCommandBufferCount(dirtyEntities.size());
-        mOffscreenFrameResource->SubTransferCommandBuffers =
-            mContext->Device->allocateCommandBuffersUnique(subCmdAllocInfo);
-        vk::CommandBufferInheritanceInfo inheritanceInfo{};
-        mTransferTaskflow.clear();
-        for (size_t i = 0; i < dirtyEntities.size(); ++i)
-        {
-            auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(dirtyEntities[i]);
-            auto subCommandBuffer = mOffscreenFrameResource->SubTransferCommandBuffers[i].get();
-            auto material = materialComponent.Material;
-            auto materialResource = material->GetResourceAs<MaterialResource>();
-
-            materialResource->UpdateMaterial(mContext, subCommandBuffer, &inheritanceInfo);
-
-            materialComponent.dirty = false;
-        }
+            .setCommandBufferCount(1);
+        auto secondaryMaterialCommandBuffers = device.allocateCommandBuffers(materialCommandAllocateInfo).front();
+        pbrMaterialManager->UpdateAssetRenderResource(mContext, secondaryMaterialCommandBuffers, &inheritanceInfo);
+        mOffscreenFrameResource->mSecondaryTransferCommandBuffers.push_back(secondaryMaterialCommandBuffers);
     }
+    //   Texture2DResource
+    auto texture2DManager = mAssetManager->GetManager<Texture2D, Texture2DManager>();
+    texture2DManager->CollectUpdateAssets();
+    if (!texture2DManager->mTexturesToUpdate.empty())
+    {
+        vk::CommandBufferAllocateInfo textureCommandAllocateInfo{};
+        textureCommandAllocateInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
+            .setLevel(vk::CommandBufferLevel::eSecondary)
+            .setCommandBufferCount(1);
+        auto secondaryTextureCommandBuffers = device.allocateCommandBuffers(textureCommandAllocateInfo).front();
+        texture2DManager->UpdateAssetRenderResource(mContext, secondaryTextureCommandBuffers, &inheritanceInfo);
+        mOffscreenFrameResource->mSecondaryTransferCommandBuffers.push_back(std::move(secondaryTextureCommandBuffers));
+    }
+
+    vk::CommandBufferBeginInfo transferBeginInfo{};
+    transferCommandBuffer.begin(transferBeginInfo);
+    std::vector<vk::CommandBuffer> secondaryBuffers{};
+    if (!mOffscreenFrameResource->mSecondaryTransferCommandBuffers.empty())
+        transferCommandBuffer.executeCommands(mOffscreenFrameResource->mSecondaryTransferCommandBuffers);
+    transferCommandBuffer.end();
+
+    vk::SubmitInfo2 transferSubmitInfo{};
+    transferSubmitInfo.setCommandBufferInfos(
+        {vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->TransferCommandBuffer)});
+    // transferSubmitInfo.setSignalSemaphoreInfos(
+    //     {vk::SemaphoreSubmitInfo()
+    //          .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
+    //          .setStageMask(vk::PipelineStageFlagBits2::eAllCommands)});
+    mContext->TransferQueue.submit2({transferSubmitInfo}, mOffscreenFrameResource->TransferFence.get());
 
     mScene->GetResource()->InitResource(mContext);
     SceneParameter sceneParams{};
@@ -88,19 +117,6 @@ void RenderSystem::PrePareRenderResource()
     }
     auto sceneResource = mScene->GetResourceAs<SceneResource>();
     sceneResource->UpdateSceneUBO(sceneParams);
-
-    std::vector<vk::CommandBuffer> rawCommandBuffers{};
-    rawCommandBuffers.reserve(mOffscreenFrameResource->SubTransferCommandBuffers.size());
-    for (const auto &cmdBuf : mOffscreenFrameResource->SubTransferCommandBuffers)
-    {
-        rawCommandBuffers.push_back(cmdBuf.get());
-    }
-
-    vk::CommandBufferBeginInfo transferBeginInfo{};
-    transferCommandBuffer.begin(transferBeginInfo);
-    if (!rawCommandBuffers.empty())
-        transferCommandBuffer.executeCommands(rawCommandBuffers);
-    transferCommandBuffer.end();
 }
 void RenderSystem::Render()
 {
@@ -135,15 +151,6 @@ void RenderSystem::Render()
     }
     graphicCommandBuffer.end();
 
-    vk::SubmitInfo2 transferSubmitInfo{};
-    transferSubmitInfo.setCommandBufferInfos(
-        {vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->TransferCommandBuffer)});
-    transferSubmitInfo.setSignalSemaphoreInfos(
-        {vk::SemaphoreSubmitInfo()
-             .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
-             .setStageMask(vk::PipelineStageFlagBits2::eTransfer)});
-    mContext->TransferQueue.submit2({transferSubmitInfo}, {});
-
     vk::SubmitInfo2 graphicSumbitInfo{};
     std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
         vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->GraphicsCommandBuffer),
@@ -156,9 +163,9 @@ void RenderSystem::Render()
         vk::SemaphoreSubmitInfo()
             .setSemaphore(mOffscreenFrameResource->ImageAvailableSemaphore.get())
             .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
-        vk::SemaphoreSubmitInfo()
-            .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
-            .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
+        // vk::SemaphoreSubmitInfo()
+        //     .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
+        //     .setStageMask(vk::PipelineStageFlagBits2::eFragmentShader),
     };
 
     graphicSumbitInfo.setCommandBufferInfos(commandBufferInfos)
@@ -182,6 +189,11 @@ void RenderSystem::PrepareRenderQueues()
     for (const auto &entity : entities)
     {
         auto &materialComponent = entities.get<MaterialComponent>(entity);
+        if (materialComponent.dirty)
+        {
+            auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
+            pbrMaterialManager->mPendingAssets.Push(std::static_pointer_cast<PBRMaterial>(materialComponent.Material));
+        }
         auto pipeline = materialComponent.Material->GetPipeline();
         pipeline->GetResource()->InitResource(mContext);
         materialComponent.Material->GetResource()->InitResource(mContext);

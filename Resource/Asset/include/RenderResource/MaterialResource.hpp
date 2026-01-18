@@ -14,7 +14,5 @@ class MaterialResource : public RenderResource
   public:
     MaterialResource(Material *material);
     ~MaterialResource() override = default;
-    virtual void UpdateMaterial(std::shared_ptr<Context> context, vk::CommandBuffer commandBuffer,
-                                vk::CommandBufferInheritanceInfo *inheritanceInfo) = 0;
 };
 } // namespace MEngine::Resource

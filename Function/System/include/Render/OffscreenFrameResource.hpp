@@ -36,10 +36,9 @@ class OffscreenFrameResource
     vk::UniqueSemaphore ImageAvailableSemaphore;
     vk::UniqueSemaphore RenderFinishedSemaphore;
     vk::UniqueSemaphore TransferFinishedSemaphore;
-    std::vector<vk::UniqueCommandBuffer> SubTransferCommandBuffers{};
     // Fence
     vk::UniqueFence InFlightFence;
-    vk::UniqueFence CopyFence;
+    vk::UniqueFence TransferFence;
     // CommandBuffer
     vk::CommandPool GraphicsCommandPool;
     vk::CommandPool TransferCommandPool;
@@ -48,6 +47,7 @@ class OffscreenFrameResource
     vk::CommandBuffer GraphicsCommandBuffer; // 可以派出次级命令缓冲区，然后汇总到这个缓冲区中执行
     vk::CommandBuffer TransferCommandBuffer;
     vk::CommandBuffer PresentCommandBuffer;
+    std::vector<vk::CommandBuffer> mSecondaryTransferCommandBuffers{};
     OffscreenFrameResource(std::shared_ptr<Context> context, vk::Extent3D extent = {800, 600, 1});
     virtual ~OffscreenFrameResource();
 };

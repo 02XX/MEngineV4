@@ -25,6 +25,14 @@ class Texture : public Asset
     {
     }
     ~Texture() override = 0;
+    inline const TextureSetting &GetTextureSettings() const
+    {
+        return mTextureSettings;
+    }
+    inline const SamplerSetting &GetSamplerSettings() const
+    {
+        return mSamplerSettings;
+    }
 };
 inline Texture::~Texture()
 {

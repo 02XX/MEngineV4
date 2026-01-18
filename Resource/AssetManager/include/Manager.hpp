@@ -1,4 +1,5 @@
 #pragma once
+#include "ConcurrentQueue.hpp"
 #include "IManager.hpp"
 #include "Logger.hpp"
 #include "UUID.hpp"
@@ -14,6 +15,9 @@ template <std::derived_from<Asset> TAsset> class Manager : public virtual IManag
   protected:
     std::unordered_map<Core::UUID, std::shared_ptr<TAsset>> mAssets;
     std::unordered_map<std::string, Core::UUID> mNameToIDMap;
+
+  public:
+    ConcurrentQueue<std::shared_ptr<TAsset>> mPendingAssets{};
 
   public:
     ~Manager() override = default;
@@ -59,6 +63,9 @@ template <std::derived_from<Asset> TAsset> class Manager : public virtual IManag
         {
             mAssets.erase(id);
         }
+    }
+    virtual void CollectUpdateAssets() override
+    {
     }
 };
 } // namespace MEngine::Resource
