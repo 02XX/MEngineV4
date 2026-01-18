@@ -173,11 +173,11 @@ void Editor::InitVulkan()
     glfwCreateWindowSurface(mContext->Instance.get(), mWindow, nullptr, reinterpret_cast<VkSurfaceKHR *>(&mSurface));
     mSwapChainResource = std::make_unique<SwapChainResource>(mSurface);
     mSwapChainResource->InitResource(mContext);
-    auto imageCount = mSwapChainResource->SwapChainImages.size();
-    mOffscreenFrameResources.resize(imageCount);
-    mFrameDescriptorSets.resize(imageCount);
-    mUICommandBuffers.resize(imageCount);
-    for (size_t i = 0; i < imageCount; i++)
+    mFramesInFlight = mSwapChainResource->SwapChainImages.size();
+    mOffscreenFrameResources.resize(mFramesInFlight);
+    mFrameDescriptorSets.resize(mFramesInFlight);
+    mUICommandBuffers.resize(mFramesInFlight);
+    for (size_t i = 0; i < mFramesInFlight; i++)
     {
         mOffscreenFrameResources[i] = std::make_shared<OffscreenFrameResource>(mContext, vk::Extent3D{800, 600, 1});
         auto colorAttachment =
@@ -261,13 +261,12 @@ void Editor::InitImGui()
     }
     io.FontDefault = notoSansFont;
 
-    auto imageCount = mSwapChainResource->SwapChainImages.size();
-    mFrameConsumeCVs = std::vector<std::condition_variable>(imageCount);
-    mFrameProduceCVs = std::vector<std::condition_variable>(imageCount);
-    mFrameMutexes = std::vector<std::mutex>(imageCount);
-    mFrameSnapshots = std::vector<ImDrawDataSnapshot>(imageCount);
-    mHasFrameData = std::vector<bool>(imageCount, false);
-    for (size_t i = 0; i < imageCount; i++)
+    mFrameConsumeCVs = std::vector<std::condition_variable>(mFramesInFlight);
+    mFrameProduceCVs = std::vector<std::condition_variable>(mFramesInFlight);
+    mFrameMutexes = std::vector<std::mutex>(mFramesInFlight);
+    mFrameSnapshots = std::vector<ImDrawDataSnapshot>(mFramesInFlight);
+    mHasFrameData = std::vector<bool>(mFramesInFlight, false);
+    for (size_t i = 0; i < mFramesInFlight; i++)
     {
         auto currentColorAttachment =
             mOffscreenFrameResources[i]->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
@@ -394,7 +393,7 @@ void Editor::Run()
         {
             mRenderSystem->SetOffscreenFrameResource(mOffscreenFrameResources[mCurrentFrame].get());
             mRenderSystem->Update(1.0);
-            mCurrentFrame = (mCurrentFrame + 1) % mSwapChainResource->SwapChainImages.size();
+            mCurrentFrame = (mCurrentFrame + 1) % mFramesInFlight;
         }
     });
     mExecutor.run(mTaskflow);
@@ -418,7 +417,7 @@ void Editor::Run()
         }
         mTransformSystem->Update(1.0);
         mCameraSystem->Update(1.0);
-        mUIFrameIndex = (mUIFrameIndex + 1) % mSwapChainResource->SwapChainImages.size();
+        mUIFrameIndex = (mUIFrameIndex + 1) % mFramesInFlight;
     }
     mIsRunning = false;
     mExecutor.wait_for_all();
@@ -737,8 +736,7 @@ void Editor::HandleSwapchainOutOfDate()
     mContext->Device->waitIdle();
     mSwapChainResource->ReleaseResource(mContext);
     mSwapChainResource->InitResource(mContext);
-    auto imageCount = mSwapChainResource->SwapChainImages.size();
-    for (size_t i = 0; i < imageCount; i++)
+    for (size_t i = 0; i < mFramesInFlight; i++)
     {
         auto currentOffscreenFrameResource = mOffscreenFrameResources[i].get();
         auto mUICommandBuffer = currentOffscreenFrameResource->GraphicsCommandBuffer;

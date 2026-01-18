@@ -66,6 +66,7 @@ class Editor
   private:
     uint64_t mUIFrameIndex = 0;
     uint32_t mImageIndex = 0;
+    uint32_t mFramesInFlight = 3;
     std::vector<std::mutex> mFrameMutexes{};
     std::vector<std::condition_variable> mFrameProduceCVs{}, mFrameConsumeCVs{};
     std::vector<ImDrawDataSnapshot> mFrameSnapshots{};
