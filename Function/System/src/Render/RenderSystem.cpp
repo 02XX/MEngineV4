@@ -47,9 +47,18 @@ void RenderSystem::PrepareRenderQueues()
         auto &materialComponent = entities.get<MaterialComponent>(entity);
         if (materialComponent.dirty)
         {
-            auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
-            pbrMaterialManager->PushPendingUpdateAsset(
-                std::static_pointer_cast<PBRMaterial>(materialComponent.Material));
+            auto materialAsset = materialComponent.Material;
+            if (auto pbrMaterial = std::dynamic_pointer_cast<PBRMaterial>(materialAsset))
+            {
+                auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
+                pbrMaterialManager->PushPendingUpdateAsset(
+                    std::static_pointer_cast<PBRMaterial>(materialComponent.Material));
+            }
+            else
+            {
+                LogError("Unsupported material type for rendering");
+                continue;
+            }
             materialComponent.dirty = false;
         }
         auto pipeline = materialComponent.Material->GetPipeline();
