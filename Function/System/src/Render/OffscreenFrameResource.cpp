@@ -78,9 +78,31 @@ OffscreenFrameResource::OffscreenFrameResource(std::shared_ptr<Context> context,
         LogError("Failed to create Scene staging buffer");
         return;
     }
+    vk::DescriptorSetAllocateInfo sceneDescriptorSetAllocInfo{};
+    sceneDescriptorSetAllocInfo.setDescriptorPool(mContext->DescriptorPool.get())
+        .setSetLayouts(
+            mContext->DefaultDescriptorSetLayouts[Context::DefaultDescriptorSetLayoutType::GlobalStorage].get())
+        .setDescriptorSetCount(1);
+    auto descriptorSets = device.allocateDescriptorSets(sceneDescriptorSetAllocInfo);
+    if (descriptorSets.empty())
+    {
+        LogError("Failed to allocate Scene descriptor set");
+        return;
+    }
+    SceneDescriptorSet = descriptorSets[0];
+    vk::WriteDescriptorSet sceneDescriptorWrite{};
+    vk::DescriptorBufferInfo sceneBufferInfo{};
+    sceneBufferInfo.setBuffer(SceneSSBO).setOffset(0).setRange(sizeof(SceneParam));
+    sceneDescriptorWrite.setDstSet(SceneDescriptorSet)
+        .setDstBinding(0)
+        .setDstArrayElement(0)
+        .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+        .setBufferInfo({sceneBufferInfo});
+    device.updateDescriptorSets({sceneDescriptorWrite}, {});
 };
 OffscreenFrameResource::~OffscreenFrameResource()
 {
+
     ColorTexture->GetResource()->ReleaseResource(mContext);
     AlbedoTexture->GetResource()->ReleaseResource(mContext);
     NormalTexture->GetResource()->ReleaseResource(mContext);
@@ -102,6 +124,10 @@ OffscreenFrameResource::~OffscreenFrameResource()
     if (SceneStagingBuffer && SceneStagingBufferAllocation)
     {
         vmaDestroyBuffer(mContext->VmaAllocator, SceneStagingBuffer, SceneStagingBufferAllocation);
+    }
+    if (SceneDescriptorSet)
+    {
+        mContext->Device->freeDescriptorSets(mContext->DescriptorPool.get(), {SceneDescriptorSet});
     }
 };
 void OffscreenFrameResource::RecreateMRT(vk::Extent3D extent)

@@ -224,13 +224,12 @@ void Context::CreateDescriptorPool()
 {
     std::vector<vk::DescriptorPoolSize> descriptorPoolSize{
         vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, MAX_DESCRIPTOR_COUNT},
-    };
+        vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, MAX_DESCRIPTOR_COUNT}};
     vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo;
-    descriptorPoolCreateInfo
-        .setPoolSizes(descriptorPoolSize) // bindless descriptor set, 只需要一个texture采样器描述符类型
-        .setMaxSets(1)                    // bindless descriptor set, 只需要一个描述符集
+    descriptorPoolCreateInfo.setPoolSizes(descriptorPoolSize)
+        .setMaxSets(MAX_DESCRIPTOR_COUNT * descriptorPoolSize.size())
         .setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet |
-                  vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind); // 设置池的标志位
+                  vk::DescriptorPoolCreateFlagBits::eUpdateAfterBind);
     DescriptorPool = Device->createDescriptorPoolUnique(descriptorPoolCreateInfo);
     if (!DescriptorPool)
     {
@@ -246,9 +245,8 @@ void Context::CreateDescriptorSetLayouts()
     for (auto &[layoutName, binding] : DefaultDescriptorSetLayoutBindings)
     {
         vk::DescriptorSetLayoutCreateInfo layoutCreateInfo{};
-        layoutCreateInfo.setBindings(binding)
-            .setFlags(vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool)
-            .setPNext(&bindingFlagsCreateInfo);
+        vk::DescriptorSetLayoutCreateFlags flags{vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool};
+        layoutCreateInfo.setBindings(binding).setFlags(flags).setPNext(&bindingFlagsCreateInfo);
         auto descriptorSetLayout = Device->createDescriptorSetLayoutUnique(layoutCreateInfo);
         if (!descriptorSetLayout)
         {

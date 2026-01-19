@@ -23,30 +23,26 @@ struct LightParam
     float InnerCone;
     float OuterCone;
 };
-
-layout(buffer_reference, std430) buffer sceneBuffer
+layout(push_constant) uniform PC
+{
+    mat4 modelMatrix;
+}
+pc;
+layout(set = 0, binding = 0) uniform sampler2D textures[];
+layout(set = 1, binding = 0, std430) buffer SceneBuffer
 {
     mat4 viewMatrix;
     mat4 projectionMatrix;
     vec4 cameraPosition;
     uint NumLights;
     LightParam Lights[];
-};
-layout(push_constant) uniform PC
-{
-    mat4 modelMatrix;
-    uint64_t sceneAddr;
-    uint64_t materialAddr;
 }
-pc;
+sceneBuffer;
 void main()
 {
-    uint64_t sceneAddress = pc.sceneAddr;
-    sceneBuffer sb = sceneBuffer(sceneAddress);
-
     mat4 modelMatrix = pc.modelMatrix;
-    mat4 viewMatrix = sb.viewMatrix;
-    mat4 projectionMatrix = sb.projectionMatrix;
+    mat4 viewMatrix = sceneBuffer.viewMatrix;
+    mat4 projectionMatrix = sceneBuffer.projectionMatrix;
 
     fragTexCoords = inTexCoords;
 

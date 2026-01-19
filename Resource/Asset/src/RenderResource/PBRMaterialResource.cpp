@@ -23,15 +23,15 @@ void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
     VmaAllocationCreateInfo allocCreateInfo{};
     allocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
     if (vmaCreateBuffer(context->VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&bufferCreateInfo),
-                        &allocCreateInfo, reinterpret_cast<VkBuffer *>(&mSSBO), &mSSBOAllocation,
-                        &mSSBOAllocationInfo) != VK_SUCCESS)
+                        &allocCreateInfo, reinterpret_cast<VkBuffer *>(&mBuffer), &mBufferAllocation,
+                        &mBufferAllocationInfo) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create SSBO buffer");
     }
     // Get Device Address
     vk::BufferDeviceAddressInfo bufferDeviceAddressInfo{};
-    bufferDeviceAddressInfo.setBuffer(mSSBO);
-    mSSBOAddress = context->Device->getBufferAddress(bufferDeviceAddressInfo);
+    bufferDeviceAddressInfo.setBuffer(mBuffer);
+    mBufferAddress = context->Device->getBufferAddress(bufferDeviceAddressInfo);
 
     // Staging Buffer
     vk::BufferCreateInfo stagingBufferCreateInfo{};
@@ -49,12 +49,32 @@ void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
         LogError("Failed to create PBRMaterial staging buffer");
         return;
     }
+    vk::DescriptorSetAllocateInfo descriptorSetAllocInfo{};
+    descriptorSetAllocInfo.setDescriptorPool(context->DescriptorPool.get())
+        .setSetLayouts(context->DefaultDescriptorSetLayouts[Context::DefaultDescriptorSetLayoutType::PBR].get())
+        .setDescriptorSetCount(1);
+    auto descriptorSets = context->Device->allocateDescriptorSets(descriptorSetAllocInfo);
+    if (descriptorSets.empty())
+    {
+        LogError("Failed to allocate PBRMaterial descriptor set");
+        return;
+    }
+    mDescriptorSet = descriptorSets[0];
+    vk::WriteDescriptorSet descriptorWrite{};
+    vk::DescriptorBufferInfo bufferInfo{};
+    bufferInfo.setBuffer(mBuffer).setOffset(0).setRange(sizeof(PBRProperties));
+    descriptorWrite.setDstSet(mDescriptorSet)
+        .setDstBinding(0)
+        .setDstArrayElement(0)
+        .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+        .setBufferInfo({bufferInfo});
+    context->Device->updateDescriptorSets({descriptorWrite}, {});
 }
 void PBRMaterialResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
-    if (mSSBO && mSSBOAllocation)
+    if (mBuffer && mBufferAllocation)
     {
-        vmaDestroyBuffer(context->VmaAllocator, mSSBO, mSSBOAllocation);
+        vmaDestroyBuffer(context->VmaAllocator, mBuffer, mBufferAllocation);
     }
     if (mStagingBuffer && mStagingBufferAllocation)
     {

@@ -43,11 +43,13 @@ class Context
     vk::UniqueCommandPool GraphicsCommandPool{};
     vk::UniqueCommandPool TransferCommandPool{};
 
+    // TODO: 专门的DescriptorSetManager来管理描述符集的分配和释放
     constexpr static uint32_t MAX_DESCRIPTOR_COUNT = 1024;
     struct DefaultDescriptorSetLayoutType
     {
         static constexpr const char *TextureBindless = "TextureBindless";
         static constexpr const char *GlobalStorage = "GlobalStorage";
+        static constexpr const char *PBR = "PBR";
     };
     static inline const std::unordered_map<std::string, std::vector<vk::DescriptorSetLayoutBinding>>
         DefaultDescriptorSetLayoutBindings{
@@ -69,12 +71,19 @@ class Context
                      .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
                      .setPImmutableSamplers(nullptr),
              }},
-        };
+            {DefaultDescriptorSetLayoutType::PBR,
+             {
+                 // PBR Material SSBO
+                 vk::DescriptorSetLayoutBinding()
+                     .setBinding(0)
+                     .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+                     .setDescriptorCount(1)
+                     .setStageFlags(vk::ShaderStageFlagBits::eFragment)
+                     .setPImmutableSamplers(nullptr),
+             }}};
     std::unordered_map<std::string, vk::UniqueDescriptorSetLayout> DefaultDescriptorSetLayouts{};
-
     std::queue<uint32_t> FreeDescriptorIndices{};
-    uint32_t NextDescriptorIndex =
-        0; // TODO: 当资源是动态加载和释放的，需要一个更复杂的管理方式用以回收不用的描述符槽位
+    uint32_t NextDescriptorIndex = 0;
     vk::UniqueDescriptorPool DescriptorPool{};
     vk::UniqueDescriptorSet TextureBindlessDescriptorSet{};
 

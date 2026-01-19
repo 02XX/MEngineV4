@@ -90,7 +90,7 @@ void PBRMaterialManager::UpdateAssetRenderResource(std::shared_ptr<Context> cont
         std::memcpy(mappedData, &pbrMaterial->mProperties, sizeof(PBRProperties));
         vk::BufferCopy copyRegion{};
         copyRegion.setSize(sizeof(PBRProperties)).setSrcOffset(0).setDstOffset(0);
-        commandBuffer.copyBuffer(pbrMaterialResource->GetStagingBuffer(), pbrMaterialResource->GetSSBO(), copyRegion);
+        commandBuffer.copyBuffer(pbrMaterialResource->GetStagingBuffer(), pbrMaterialResource->GetBuffer(), copyRegion);
     }
     std::vector<vk::BufferMemoryBarrier2> bufferBarriers{};
     for (auto &pbrMaterial : pbrMaterialToUpdate)
@@ -103,7 +103,7 @@ void PBRMaterialManager::UpdateAssetRenderResource(std::shared_ptr<Context> cont
             .setDstStageMask(vk::PipelineStageFlagBits2::eVertexShader | vk::PipelineStageFlagBits2::eFragmentShader)
             .setSrcAccessMask(vk::AccessFlagBits2::eTransferWrite)
             .setDstAccessMask(vk::AccessFlagBits2::eShaderRead)
-            .setBuffer(pbrMaterialResource->GetSSBO())
+            .setBuffer(pbrMaterialResource->GetBuffer())
             .setOffset(0)
             .setSize(sizeof(PBRProperties));
         bufferBarriers.push_back(bufferBarrier);

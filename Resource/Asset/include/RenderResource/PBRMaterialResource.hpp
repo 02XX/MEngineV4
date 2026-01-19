@@ -3,30 +3,25 @@
 #include "Math.hpp"
 #include "RenderResource.hpp"
 #include <cstdint>
-#include <vulkan/vulkan_handles.hpp>
 using namespace MEngine::Platform;
 namespace MEngine::Resource
 {
-struct PBRMaterialPushConstants
-{
-    Matrix4 ModelMatrix;
-    vk::DeviceAddress SceneSSBOAddress;
-    vk::DeviceAddress MaterialSSBOAddress;
-};
 class PBRMaterial;
 class PBRMaterialResource final : public MaterialResource
 {
   public:
-    vk::DeviceAddress mSSBOAddress{};
+    vk::DeviceAddress mBufferAddress{};
 
   protected:
-    vk::Buffer mSSBO{};
-    VmaAllocation mSSBOAllocation{};
-    VmaAllocationInfo mSSBOAllocationInfo{};
+    vk::Buffer mBuffer{};
+    VmaAllocation mBufferAllocation{};
+    VmaAllocationInfo mBufferAllocationInfo{};
 
     vk::Buffer mStagingBuffer{};
     VmaAllocation mStagingBufferAllocation{};
     VmaAllocationInfo mStagingBufferAllocationInfo{};
+
+    vk::DescriptorSet mDescriptorSet{};
 
   public:
     PBRMaterialResource(PBRMaterial *material) : MaterialResource((Material *)material)
@@ -43,13 +38,17 @@ class PBRMaterialResource final : public MaterialResource
     {
         return mStagingBufferAllocationInfo;
     }
-    inline vk::Buffer GetSSBO()
+    inline vk::Buffer GetBuffer()
     {
-        return mSSBO;
+        return mBuffer;
     }
-    inline VmaAllocationInfo GetSSBOAllocationInfo()
+    inline VmaAllocationInfo GetBufferAllocationInfo()
     {
-        return mSSBOAllocationInfo;
+        return mBufferAllocationInfo;
+    }
+    inline vk::DescriptorSet GetDescriptorSet()
+    {
+        return mDescriptorSet;
     }
 };
 } // namespace MEngine::Resource

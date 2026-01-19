@@ -19,6 +19,11 @@ struct PBRProperties
     uint32_t NormalIndex = 0;
     uint32_t ARMIndex = 0;
     uint32_t EmissiveIndex = 0;
+    // Bindless Descriptor Indices
+    uint32_t AlbedoBindlessIndex = 0;
+    uint32_t NormalBindlessIndex = 0;
+    uint32_t ARMBindlessIndex = 0;
+    uint32_t EmissiveBindlessIndex = 0;
 };
 struct PBRTextures
 {

@@ -28,10 +28,10 @@ RenderSystem::~RenderSystem()
 void RenderSystem::Init()
 {
     // Configure Render Passes
-    PushRenderPass([this](OffscreenFrameResource *frameResource) { GBuffer(frameResource); });
-    PushRenderPass([this](OffscreenFrameResource *frameResource) { Lighting(frameResource); });
+    // PushRenderPass([this](OffscreenFrameResource *frameResource) { GBuffer(frameResource); });
+    // PushRenderPass([this](OffscreenFrameResource *frameResource) { Lighting(frameResource); });
     PushRenderPass([this](OffscreenFrameResource *frameResource) { ForwardOpaque(frameResource); });
-    PushRenderPass([this](OffscreenFrameResource *frameResource) { ForwardTransparent(frameResource); });
+    // PushRenderPass([this](OffscreenFrameResource *frameResource) { ForwardTransparent(frameResource); });
 }
 void RenderSystem::Update(double deltaTime)
 {
@@ -120,6 +120,7 @@ void RenderSystem::Render()
     device.resetFences(mOffscreenFrameResource->InFlightFence.get());
     device.resetCommandPool(mOffscreenFrameResource->GraphicsCommandPool);
     device.resetCommandPool(mOffscreenFrameResource->TransferCommandPool);
+
     //=========================准备渲染资源=========================
     auto transferCommandBuffer = mOffscreenFrameResource->TransferCommandBuffer;
     for (auto subCommandBuffer : mOffscreenFrameResource->SecondaryTransferCommandBuffers)
@@ -192,7 +193,6 @@ void RenderSystem::Render()
     if (!mOffscreenFrameResource->SecondaryTransferCommandBuffers.empty())
         transferCommandBuffer.executeCommands(mOffscreenFrameResource->SecondaryTransferCommandBuffers);
     transferCommandBuffer.end();
-
     vk::SubmitInfo2 transferSubmitInfo{};
     transferSubmitInfo.setCommandBufferInfos(
         {vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->TransferCommandBuffer)});
@@ -298,6 +298,9 @@ void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
         currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                                        graphicPipelineGBufferPipelineLayout, 0,
                                                        mContext->TextureBindlessDescriptorSet.get(), {});
+        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                                       graphicPipelineGBufferPipelineLayout, 1,
+                                                       frameResource->SceneDescriptorSet, {});
         for (const auto &entity : entities)
         {
             auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);
@@ -308,16 +311,13 @@ void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
             auto pbrMaterialResource = materialComponent.Material->GetResourceAs<PBRMaterialResource>();
 
             auto modelMatrix = transformComponent.modelMatrix;
-
-            PBRMaterialPushConstants pbrPushConstants{};
-            pbrPushConstants.ModelMatrix = modelMatrix;
-            pbrPushConstants.MaterialSSBOAddress = pbrMaterialResource->mSSBOAddress;
-            pbrPushConstants.SceneSSBOAddress = frameResource->SceneSSBOAddress;
             currentGraphicCommandBuffer.pushConstants(graphicPipelineGBufferPipelineLayout,
                                                       vk::ShaderStageFlagBits::eVertex |
                                                           vk::ShaderStageFlagBits::eFragment,
-                                                      0, sizeof(PBRMaterialPushConstants), &pbrPushConstants);
-
+                                                      0, sizeof(Matrix4), &modelMatrix);
+            currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                                           graphicPipelineGBufferPipelineLayout, 2,
+                                                           pbrMaterialResource->GetDescriptorSet(), {});
             auto staticMeshResource = meshComponent.Mesh->GetResourceAs<StaticMeshResource>();
             auto vertexBuffer = staticMeshResource->GetVertexBuffer();
             auto indexBuffer = staticMeshResource->GetIndexBuffer();
@@ -408,45 +408,45 @@ void RenderSystem::GBuffer(OffscreenFrameResource *frameResource)
     vk::Rect2D scissor;
     scissor.setOffset({0, 0}).setExtent({frameResource->Extent.width, frameResource->Extent.height});
     currentGraphicCommandBuffer.setScissor(0, {scissor});
-    if (mRenderQueues.contains(DefaultGraphicPipelineType::GBufferOpaquePBR))
-    {
-        auto &entities = mRenderQueues.at(DefaultGraphicPipelineType::GBufferOpaquePBR);
-        auto pipelineAsset = mAssetManager->GetByName<GraphicPipeline>(DefaultGraphicPipelineType::GBufferOpaquePBR);
-        auto graphicPipelineGBufferPipeline = pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipeline();
-        auto graphicPipelineGBufferPipelineLayout =
-            pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipelineLayout();
-        currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelineGBufferPipeline);
-        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                                       graphicPipelineGBufferPipelineLayout, 0,
-                                                       mContext->TextureBindlessDescriptorSet.get(), {});
-        for (const auto &entity : entities)
-        {
-            auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);
-            auto &meshComponent = mScene->mRegistry->get<MeshComponent>(entity);
-            auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+    // if (mRenderQueues.contains(DefaultGraphicPipelineType::GBufferOpaquePBR))
+    // {
+    //     auto &entities = mRenderQueues.at(DefaultGraphicPipelineType::GBufferOpaquePBR);
+    //     auto pipelineAsset = mAssetManager->GetByName<GraphicPipeline>(DefaultGraphicPipelineType::GBufferOpaquePBR);
+    //     auto graphicPipelineGBufferPipeline = pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipeline();
+    //     auto graphicPipelineGBufferPipelineLayout =
+    //         pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipelineLayout();
+    //     currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelineGBufferPipeline);
+    //     currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+    //                                                    graphicPipelineGBufferPipelineLayout, 0,
+    //                                                    mContext->TextureBindlessDescriptorSet.get(), {});
+    //     for (const auto &entity : entities)
+    //     {
+    //         auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);
+    //         auto &meshComponent = mScene->mRegistry->get<MeshComponent>(entity);
+    //         auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
 
-            auto pbrMaterial = static_cast<PBRMaterial *>(materialComponent.Material.get());
-            auto pbrMaterialResource = materialComponent.Material->GetResourceAs<PBRMaterialResource>();
+    //         auto pbrMaterial = static_cast<PBRMaterial *>(materialComponent.Material.get());
+    //         auto pbrMaterialResource = materialComponent.Material->GetResourceAs<PBRMaterialResource>();
 
-            auto modelMatrix = transformComponent.modelMatrix;
+    //         auto modelMatrix = transformComponent.modelMatrix;
 
-            PBRMaterialPushConstants pbrPushConstants{};
-            pbrPushConstants.ModelMatrix = modelMatrix;
-            pbrPushConstants.MaterialSSBOAddress = pbrMaterialResource->mSSBOAddress;
-            pbrPushConstants.SceneSSBOAddress = frameResource->SceneSSBOAddress;
-            currentGraphicCommandBuffer.pushConstants(graphicPipelineGBufferPipelineLayout,
-                                                      vk::ShaderStageFlagBits::eVertex |
-                                                          vk::ShaderStageFlagBits::eFragment,
-                                                      0, sizeof(PBRMaterialPushConstants), &pbrPushConstants);
+    //         PBRMaterialPushConstants pbrPushConstants{};
+    //         pbrPushConstants.ModelMatrix = modelMatrix;
+    //         pbrPushConstants.MaterialSSBOAddress = pbrMaterialResource->mSSBOAddress;
+    //         pbrPushConstants.SceneSSBOAddress = frameResource->SceneSSBOAddress;
+    //         currentGraphicCommandBuffer.pushConstants(graphicPipelineGBufferPipelineLayout,
+    //                                                   vk::ShaderStageFlagBits::eVertex |
+    //                                                       vk::ShaderStageFlagBits::eFragment,
+    //                                                   0, sizeof(PBRMaterialPushConstants), &pbrPushConstants);
 
-            auto staticMeshResource = meshComponent.Mesh->GetResourceAs<StaticMeshResource>();
-            auto vertexBuffer = staticMeshResource->GetVertexBuffer();
-            auto indexBuffer = staticMeshResource->GetIndexBuffer();
-            currentGraphicCommandBuffer.bindVertexBuffers(0, vertexBuffer, {0});
-            currentGraphicCommandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
-            currentGraphicCommandBuffer.drawIndexed(staticMeshResource->GetIndexCount(), 1, 0, 0, 0);
-        }
-    }
+    //         auto staticMeshResource = meshComponent.Mesh->GetResourceAs<StaticMeshResource>();
+    //         auto vertexBuffer = staticMeshResource->GetVertexBuffer();
+    //         auto indexBuffer = staticMeshResource->GetIndexBuffer();
+    //         currentGraphicCommandBuffer.bindVertexBuffers(0, vertexBuffer, {0});
+    //         currentGraphicCommandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+    //         currentGraphicCommandBuffer.drawIndexed(staticMeshResource->GetIndexCount(), 1, 0, 0, 0);
+    //     }
+    // }
     currentGraphicCommandBuffer.endRendering();
 }
 void RenderSystem::Lighting(OffscreenFrameResource *frameResource)

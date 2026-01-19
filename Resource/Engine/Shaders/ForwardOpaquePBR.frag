@@ -9,26 +9,9 @@ layout(location = 2) in vec3 fragViewNormal;   // Location 2
 layout(location = 3) in vec2 fragTexCoord;     // Location 3
 layout(location = 4) in vec3 fragViewPosition; // Location 4
 
-layout(set = 0, binding = 0) uniform sampler2D textures[];
-layout(buffer_reference, std430) buffer pbrPropertiesBuffer
-{
-    vec4 albedo;
-    vec4 normal;
-    float metallic;
-    float roughness;
-    float ao;
-    float emissive;
-    uint albedoIndex;
-    uint normalIndex;
-    uint ARMIndex;
-    uint emissiveIndex;
-};
-
 layout(push_constant) uniform PC
 {
     mat4 modelMatrix;
-    uint64_t sceneAddr;
-    uint64_t materialAddr;
 }
 pc;
 
@@ -45,26 +28,41 @@ struct LightParam
     float OuterCone;
 };
 
-layout(buffer_reference, std430) buffer sceneBuffer
+layout(set = 0, binding = 0) uniform sampler2D textures[];
+layout(set = 1, binding = 0, std430) buffer SceneBuffer
 {
     mat4 viewMatrix;
     mat4 projectionMatrix;
     vec4 cameraPosition;
     uint NumLights;
     LightParam Lights[];
-};
+}
+sceneBuffer;
+layout(set = 2, binding = 0, std430) buffer PBRPropertiesBuffer
+{
+    vec4 albedo;
+    vec4 normal;
+    float metallic;
+    float roughness;
+    float ao;
+    float emissive;
+    uint albedoIndex;
+    uint normalIndex;
+    uint ARMIndex;
+    uint emissiveIndex;
+
+    uint albedoBindlessIndex;
+    uint normalBindlessIndex;
+    uint ARMBindlessIndex;
+    uint emissiveBindlessIndex;
+}
+pbrPropertiesBuffer;
 
 void main()
 {
-    uint64_t targetAddr = pc.materialAddr;
-    pbrPropertiesBuffer mat = pbrPropertiesBuffer(targetAddr);
-
-    uint64_t sceneAddress = pc.sceneAddr;
-    sceneBuffer sb = sceneBuffer(sceneAddress);
-
-    uint albedoIndex = mat.albedoIndex;
-    vec4 color = texture(textures[nonuniformEXT(albedoIndex)], fragTexCoord) * mat.albedo;
+    uint albedoIndex = pbrPropertiesBuffer.albedoIndex;
+    vec4 color = texture(textures[nonuniformEXT(albedoIndex)], fragTexCoord) * pbrPropertiesBuffer.albedo;
     vec4 texCoordColor = vec4(fragTexCoord.x, fragTexCoord.y, 0.0, 1.0);
-    LightParam light = sb.Lights[0];
-    OutColor = light.Color;
+    LightParam light = sceneBuffer.Lights[0];
+    OutColor = color;
 }
