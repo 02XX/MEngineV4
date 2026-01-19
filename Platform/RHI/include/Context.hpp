@@ -55,6 +55,7 @@ class Context
         DefaultDescriptorSetLayoutBindings{
             {DefaultDescriptorSetLayoutType::TextureBindless,
              {
+                 // binding 0: Texture2D array
                  vk::DescriptorSetLayoutBinding()
                      .setBinding(0)
                      .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
@@ -64,19 +65,27 @@ class Context
              }},
             {DefaultDescriptorSetLayoutType::GlobalStorage,
              {
+                 // binding 0: VP
                  vk::DescriptorSetLayoutBinding()
                      .setBinding(0)
-                     .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+                     .setDescriptorType(vk::DescriptorType::eUniformBuffer)
                      .setDescriptorCount(1)
                      .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
+                     .setPImmutableSamplers(nullptr),
+                 // binding 1: Lights Storage Buffer
+                 vk::DescriptorSetLayoutBinding()
+                     .setBinding(1)
+                     .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+                     .setDescriptorCount(1)
+                     .setStageFlags(vk::ShaderStageFlagBits::eFragment)
                      .setPImmutableSamplers(nullptr),
              }},
             {DefaultDescriptorSetLayoutType::PBR,
              {
-                 // PBR Material SSBO
+                 // binding 0
                  vk::DescriptorSetLayoutBinding()
                      .setBinding(0)
-                     .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+                     .setDescriptorType(vk::DescriptorType::eUniformBuffer)
                      .setDescriptorCount(1)
                      .setStageFlags(vk::ShaderStageFlagBits::eFragment)
                      .setPImmutableSamplers(nullptr),

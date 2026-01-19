@@ -10,14 +10,14 @@ namespace MEngine::Resource
 void PBRMaterialManager::CreateDefault()
 {
     auto forwardOpaque = CreateForwardOpaque();
-    auto gBufferOpaque = CreateGBufferOpaque();
-    auto lightingOpaque = CreateLightOpaque();
+    // auto gBufferOpaque = CreateGBufferOpaque();
+    // auto lightingOpaque = CreateLightOpaque();
     forwardOpaque->mID = mDefaultMaterials.at(DefaultPBRMaterialType::ForwardOpaque);
-    gBufferOpaque->mID = mDefaultMaterials.at(DefaultPBRMaterialType::GBufferOpaque);
-    lightingOpaque->mID = mDefaultMaterials.at(DefaultPBRMaterialType::LightingOpaque);
+    // gBufferOpaque->mID = mDefaultMaterials.at(DefaultPBRMaterialType::GBufferOpaque);
+    // lightingOpaque->mID = mDefaultMaterials.at(DefaultPBRMaterialType::LightingOpaque);
     Add(forwardOpaque);
-    Add(gBufferOpaque);
-    Add(lightingOpaque);
+    // Add(gBufferOpaque);
+    // Add(lightingOpaque);
 }
 std::shared_ptr<PBRMaterial> PBRMaterialManager::CreateForwardOpaque()
 {

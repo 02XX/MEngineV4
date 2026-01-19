@@ -12,14 +12,14 @@ namespace MEngine::Resource
 void GraphicPipelineManager::CreateDefault()
 {
     auto forwardOpaquePBR = CreateForwardOpaquePBR();
-    auto gBufferOpaquePBR = CreateGBufferOpaquePBR();
-    auto lightingOpaquePBR = CreateLightingOpaquePBR();
+    // auto gBufferOpaquePBR = CreateGBufferOpaquePBR();
+    // auto lightingOpaquePBR = CreateLightingOpaquePBR();
     forwardOpaquePBR->SetID(mDefaultPipelines.at(DefaultGraphicPipelineType::ForwardOpaquePBR));
-    gBufferOpaquePBR->SetID(mDefaultPipelines.at(DefaultGraphicPipelineType::GBufferOpaquePBR));
-    lightingOpaquePBR->SetID(mDefaultPipelines.at(DefaultGraphicPipelineType::LightingOpaquePBR));
+    // gBufferOpaquePBR->SetID(mDefaultPipelines.at(DefaultGraphicPipelineType::GBufferOpaquePBR));
+    // lightingOpaquePBR->SetID(mDefaultPipelines.at(DefaultGraphicPipelineType::LightingOpaquePBR));
     Add(forwardOpaquePBR);
-    Add(gBufferOpaquePBR);
-    Add(lightingOpaquePBR);
+    // Add(gBufferOpaquePBR);
+    // Add(lightingOpaquePBR);
 }
 std::shared_ptr<GraphicPipeline> GraphicPipelineManager::CreateForwardOpaquePBR()
 {

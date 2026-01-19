@@ -17,7 +17,7 @@ void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
 
     vk::BufferCreateInfo bufferCreateInfo{};
     bufferCreateInfo.setSize(sizeof(PBRProperties))
-        .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
+        .setUsage(vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
                   vk::BufferUsageFlagBits::eTransferDst)
         .setSharingMode(vk::SharingMode::eExclusive);
     VmaAllocationCreateInfo allocCreateInfo{};
@@ -66,7 +66,7 @@ void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
     descriptorWrite.setDstSet(mDescriptorSet)
         .setDstBinding(0)
         .setDstArrayElement(0)
-        .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+        .setDescriptorType(vk::DescriptorType::eUniformBuffer)
         .setBufferInfo({bufferInfo});
     context->Device->updateDescriptorSets({descriptorWrite}, {});
 }

@@ -74,6 +74,7 @@ void RenderSystem::PrepareRenderQueues()
         mRenderQueues[pipeline->GetName()].push_back(entity);
     }
     // Scene
+    mScene->GetResource()->InitResource(mContext);
     auto cameraEntities = mScene->mRegistry->view<TransformComponent, CameraComponent>();
     auto lightEntities = mScene->mRegistry->view<LightComponent, TransformComponent>();
     for (const auto &entity : cameraEntities)
@@ -90,16 +91,14 @@ void RenderSystem::PrepareRenderQueues()
             break;
         }
     }
-    mScene->mSceneParams.NumLights = 0;
+    int lightIndex = 0;
     for (const auto &entity : lightEntities)
     {
-        if (mScene->mSceneParams.NumLights >= 16)
-            break;
         auto &lightComponent = mScene->mRegistry->get<LightComponent>(entity);
         auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
         if (lightComponent.Dirty && lightComponent.Enabled)
         {
-            auto &lightParam = mScene->mSceneParams.Lights[mScene->mSceneParams.NumLights++];
+            auto &lightParam = mScene->mLightParams[lightIndex++];
             lightParam.LightType = static_cast<uint32_t>(lightComponent.LightType);
             lightParam.Intensity = lightComponent.Intensity;
             lightParam.Color = Vector4(lightComponent.Color, 1.0f);
@@ -109,16 +108,16 @@ void RenderSystem::PrepareRenderQueues()
             lightParam.Position = Vector4(transformComponent.worldPosition, 1.0f);
             lightParam.Direction = Vector4(transformComponent.worldRotation * glm::vec3(0.0f, 0.0f, 1.0f), 1.0f);
             lightComponent.Dirty = false;
-            mScene->mSceneParamsDirty = true;
+            mScene->mLightParamsDirty = true;
         }
     }
-    if (mScene->mSceneParamsDirty)
+    if (mScene->mSceneParamsDirty || mScene->mLightParamsDirty)
     {
         auto sceneManager = mAssetManager->GetManager<Scene, SceneManager>();
         sceneManager->PushPendingUpdateAsset(std::static_pointer_cast<Scene>(mScene));
         mScene->mSceneParamsDirty = false;
+        mScene->mLightParamsDirty = false;
     }
-    mScene->GetResource()->InitResource(mContext);
 }
 void RenderSystem::Render()
 {
@@ -292,7 +291,7 @@ void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
                                                        mContext->TextureBindlessDescriptorSet.get(), {});
         currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                                        graphicPipelineGBufferPipelineLayout, 1,
-                                                       mScene->GetResourceAs<SceneResource>()->GetDescriptorSet(), {});
+                                                       mScene->GetResourceAs<SceneResource>()->mDescriptorSet, {});
         for (const auto &entity : entities)
         {
             auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);

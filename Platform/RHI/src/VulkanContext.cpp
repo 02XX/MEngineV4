@@ -224,7 +224,10 @@ void Context::CreateDescriptorPool()
 {
     std::vector<vk::DescriptorPoolSize> descriptorPoolSize{
         vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, MAX_DESCRIPTOR_COUNT},
-        vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, MAX_DESCRIPTOR_COUNT}};
+        vk::DescriptorPoolSize{vk::DescriptorType::eStorageBuffer, MAX_DESCRIPTOR_COUNT},
+        vk::DescriptorPoolSize{vk::DescriptorType::eUniformBuffer, MAX_DESCRIPTOR_COUNT}
+
+    };
     vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo;
     descriptorPoolCreateInfo.setPoolSizes(descriptorPoolSize)
         .setMaxSets(MAX_DESCRIPTOR_COUNT * descriptorPoolSize.size())
@@ -238,20 +241,26 @@ void Context::CreateDescriptorPool()
 }
 void Context::CreateDescriptorSetLayouts()
 {
-    vk::DescriptorBindingFlags bindingFlags =
-        vk::DescriptorBindingFlagBits::eUpdateAfterBind | vk::DescriptorBindingFlagBits::ePartiallyBound;
-    vk::DescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsCreateInfo{};
-    bindingFlagsCreateInfo.setBindingFlags({bindingFlags});
-    for (auto &[layoutName, binding] : DefaultDescriptorSetLayoutBindings)
+    for (auto &[layoutName, bindings] : DefaultDescriptorSetLayoutBindings)
     {
+        std::vector<vk::DescriptorBindingFlags> bindingFlags(bindings.size(),
+                                                             vk::DescriptorBindingFlagBits::eUpdateAfterBind |
+                                                                 vk::DescriptorBindingFlagBits::ePartiallyBound);
+
+        vk::DescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsCreateInfo{};
+        bindingFlagsCreateInfo.setBindingFlags(bindingFlags);
+
         vk::DescriptorSetLayoutCreateInfo layoutCreateInfo{};
-        vk::DescriptorSetLayoutCreateFlags flags{vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool};
-        layoutCreateInfo.setBindings(binding).setFlags(flags).setPNext(&bindingFlagsCreateInfo);
+        vk::DescriptorSetLayoutCreateFlags flags = vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool;
+
+        layoutCreateInfo.setBindings(bindings).setFlags(flags).setPNext(&bindingFlagsCreateInfo);
+
         auto descriptorSetLayout = Device->createDescriptorSetLayoutUnique(layoutCreateInfo);
         if (!descriptorSetLayout)
         {
             throw std::runtime_error("Failed to create descriptor set layout");
         }
+
         DefaultDescriptorSetLayouts.insert({layoutName, std::move(descriptorSetLayout)});
     }
 }

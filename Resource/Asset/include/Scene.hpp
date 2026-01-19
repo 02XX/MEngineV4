@@ -25,9 +25,6 @@ struct SceneParam
     Matrix4 ViewMatrix;
     Matrix4 ProjectionMatrix;
     Vector4 CameraPosition;
-
-    uint32_t NumLights;
-    LightParam Lights[MAX_LIGHTS];
 };
 class Scene : public Asset
 {
@@ -35,13 +32,11 @@ class Scene : public Asset
     std::shared_ptr<Register> mRegistry;
     SceneParam mSceneParams{};
     bool mSceneParamsDirty = true;
+    LightParam mLightParams[MAX_LIGHTS]{};
+    bool mLightParamsDirty = true;
 
   public:
     Scene(const std::string &name);
     ~Scene() override = default;
-    inline SceneParam &GetSceneParams()
-    {
-        return mSceneParams;
-    }
 };
 } // namespace MEngine::Resource
