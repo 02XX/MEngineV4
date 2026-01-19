@@ -20,7 +20,7 @@ class TransformComponent : public Component
     Vector3 worldScale{1.0f, 1.0f, 1.0f};
 
     Matrix4 modelMatrix = Matrix4(1.0f);
-    bool dirty = true;
+    bool Dirty = true;
 
     Entity parent = NullEntity;
     std::vector<Entity> children;

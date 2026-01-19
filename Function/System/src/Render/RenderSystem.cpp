@@ -4,6 +4,7 @@
 #include "Material.hpp"
 #include "MaterialComponent.hpp"
 #include "MaterialResource.hpp"
+#include "Math.hpp"
 #include "MeshComponent.hpp"
 #include "OffscreenFrameResource.hpp"
 #include "PBRMaterial.hpp"
@@ -13,7 +14,6 @@
 #include "Texture2DManager.hpp"
 #include "TransformComponent.hpp"
 #include <vector>
-#include <vulkan/vulkan_structs.hpp>
 
 namespace MEngine::Function
 {
@@ -45,7 +45,7 @@ void RenderSystem::PrepareRenderQueues()
     for (const auto &entity : entities)
     {
         auto &materialComponent = entities.get<MaterialComponent>(entity);
-        if (materialComponent.dirty)
+        if (materialComponent.Dirty)
         {
             auto materialAsset = materialComponent.Material;
             if (auto pbrMaterial = std::dynamic_pointer_cast<PBRMaterial>(materialAsset))
@@ -59,7 +59,7 @@ void RenderSystem::PrepareRenderQueues()
                 LogError("Unsupported material type for rendering");
                 continue;
             }
-            materialComponent.dirty = false;
+            materialComponent.Dirty = false;
         }
         auto pipeline = materialComponent.Material->GetPipeline();
         pipeline->GetResource()->InitResource(mContext);
@@ -68,6 +68,43 @@ void RenderSystem::PrepareRenderQueues()
         meshComponent.Mesh->GetResource()->InitResource(mContext);
         auto &transformComponent = entities.get<TransformComponent>(entity);
         mRenderQueues[pipeline->GetName()].push_back(entity);
+    }
+
+    auto cameraEntities = mScene->mRegistry->view<TransformComponent, CameraComponent>();
+    auto lightEntities = mScene->mRegistry->view<LightComponent, TransformComponent>();
+    for (const auto &entity : cameraEntities)
+    {
+        auto &cameraComponent = mScene->mRegistry->get<CameraComponent>(entity);
+        auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+        if (cameraComponent.isMainCamera)
+        {
+            mOffscreenFrameResource->SceneParams.ViewMatrix = cameraComponent.viewMatrix;
+            mOffscreenFrameResource->SceneParams.ProjectionMatrix = cameraComponent.projectionMatrix;
+            mOffscreenFrameResource->SceneParams.CameraPosition = Vector4(transformComponent.worldPosition, 1.0f);
+            break;
+        }
+    }
+    mOffscreenFrameResource->SceneParams.NumLights = 0;
+    for (const auto &entity : lightEntities)
+    {
+        if (mOffscreenFrameResource->SceneParams.NumLights >= 16)
+            break;
+        auto &lightComponent = mScene->mRegistry->get<LightComponent>(entity);
+        auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+
+        if (lightComponent.Enabled)
+        {
+            auto &lightParam =
+                mOffscreenFrameResource->SceneParams.Lights[mOffscreenFrameResource->SceneParams.NumLights++];
+            lightParam.LightType = static_cast<uint32_t>(lightComponent.LightType);
+            lightParam.Intensity = lightComponent.Intensity;
+            lightParam.Color = Vector4(lightComponent.Color, 1.0f);
+            lightParam.Radius = lightComponent.Radius;
+            lightParam.InnerConeAngle = lightComponent.InnerConeAngle;
+            lightParam.OuterConeAngle = lightComponent.OuterConeAngle;
+            lightParam.Position = Vector4(transformComponent.worldPosition, 1.0f);
+            lightParam.Direction = Vector4(transformComponent.worldRotation * glm::vec3(0.0f, 0.0f, 1.0f), 1.0f);
+        }
     }
 }
 void RenderSystem::Render()
@@ -121,27 +158,13 @@ void RenderSystem::Render()
         .setLevel(vk::CommandBufferLevel::eSecondary)
         .setCommandBufferCount(1);
     auto sceneSecondaryCommandBuffer = device.allocateCommandBuffers(sceneCommandAllocateInfo).front();
-    auto cameraEntities = mScene->mRegistry->view<TransformComponent, CameraComponent>();
-    for (const auto &entity : cameraEntities)
-    {
-        auto &cameraComponent = mScene->mRegistry->get<CameraComponent>(entity);
-        auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
-        if (cameraComponent.isMainCamera)
-        {
-            mOffscreenFrameResource->SceneParams.ViewMatrix = cameraComponent.viewMatrix;
-            mOffscreenFrameResource->SceneParams.ProjectionMatrix = cameraComponent.projectionMatrix;
-            mOffscreenFrameResource->SceneParams.CameraPosition = transformComponent.worldPosition;
-            break;
-        }
-    }
     auto mappedData = static_cast<uint8_t *>(mOffscreenFrameResource->SceneStagingBufferAllocationInfo.pMappedData);
-    std::memcpy(mappedData, &mOffscreenFrameResource->SceneParams, sizeof(SceneParameter));
-
+    std::memcpy(mappedData, &mOffscreenFrameResource->SceneParams, sizeof(SceneParam));
     vk::CommandBufferBeginInfo sceneBeginInfo{};
     sceneBeginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit).setPInheritanceInfo(&inheritanceInfo);
     sceneSecondaryCommandBuffer.begin(sceneBeginInfo);
     vk::BufferCopy2 copyRegion{};
-    copyRegion.setSize(sizeof(SceneParameter)).setSrcOffset(0).setDstOffset(0);
+    copyRegion.setSize(sizeof(SceneParam)).setSrcOffset(0).setDstOffset(0);
     vk::CopyBufferInfo2 copyBufferInfo{};
     copyBufferInfo.setSrcBuffer(mOffscreenFrameResource->SceneStagingBuffer)
         .setDstBuffer(mOffscreenFrameResource->SceneSSBO)
@@ -156,7 +179,7 @@ void RenderSystem::Render()
         .setDstAccessMask(vk::AccessFlagBits2::eShaderRead)
         .setBuffer(mOffscreenFrameResource->SceneSSBO)
         .setOffset(0)
-        .setSize(sizeof(SceneParameter));
+        .setSize(sizeof(SceneParam));
     vk::DependencyInfo sceneDepInfo{};
     sceneDepInfo.setBufferMemoryBarriers({sceneBufferBarrier});
     sceneSecondaryCommandBuffer.pipelineBarrier2(sceneDepInfo);

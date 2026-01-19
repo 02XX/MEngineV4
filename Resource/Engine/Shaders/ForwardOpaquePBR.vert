@@ -11,12 +11,26 @@ layout(location = 2) in vec2 inTexCoords; // Location 2
 layout(location = 2) out vec3 fragViewNormal;   // Location 2
 layout(location = 3) out vec2 fragTexCoords;    // Location 3
 layout(location = 4) out vec3 fragViewPosition; // Location 4
+struct LightParam
+{
+    vec4 Color;
+    vec4 Position;
+    vec4 Direction;
+    uint LightType;
+    uint Enable;
+    float Intensity;
+    float Radius;
+    float InnerCone;
+    float OuterCone;
+};
 
 layout(buffer_reference, std430) buffer sceneBuffer
 {
     mat4 viewMatrix;
     mat4 projectionMatrix;
-    vec3 cameraPosition;
+    vec4 cameraPosition;
+    uint NumLights;
+    LightParam Lights[];
 };
 layout(push_constant) uniform PC
 {

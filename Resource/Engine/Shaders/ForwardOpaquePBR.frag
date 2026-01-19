@@ -32,12 +32,39 @@ layout(push_constant) uniform PC
 }
 pc;
 
+struct LightParam
+{
+    vec4 Color;
+    vec4 Position;
+    vec4 Direction;
+    uint LightType;
+    uint Enable;
+    float Intensity;
+    float Radius;
+    float InnerCone;
+    float OuterCone;
+};
+
+layout(buffer_reference, std430) buffer sceneBuffer
+{
+    mat4 viewMatrix;
+    mat4 projectionMatrix;
+    vec4 cameraPosition;
+    uint NumLights;
+    LightParam Lights[];
+};
+
 void main()
 {
     uint64_t targetAddr = pc.materialAddr;
     pbrPropertiesBuffer mat = pbrPropertiesBuffer(targetAddr);
+
+    uint64_t sceneAddress = pc.sceneAddr;
+    sceneBuffer sb = sceneBuffer(sceneAddress);
+
     uint albedoIndex = mat.albedoIndex;
     vec4 color = texture(textures[nonuniformEXT(albedoIndex)], fragTexCoord) * mat.albedo;
     vec4 texCoordColor = vec4(fragTexCoord.x, fragTexCoord.y, 0.0, 1.0);
-    OutColor = color;
+    LightParam light = sb.Lights[0];
+    OutColor = light.Color;
 }

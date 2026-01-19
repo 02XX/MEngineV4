@@ -46,7 +46,7 @@ OffscreenFrameResource::OffscreenFrameResource(std::shared_ptr<Context> context,
     // Scene SSBO
     vk::BufferCreateInfo sceneSSBOCreateInfo{}, sceneStagingBufferCreateInfo{};
     VmaAllocationCreateInfo sceneSSBOAllocCreateInfo{}, sceneStagingBufferAllocCreateInfo{};
-    size_t sceneSSBOSize = sizeof(SceneParameter);
+    size_t sceneSSBOSize = sizeof(SceneParam);
     sceneSSBOCreateInfo.setSize(sceneSSBOSize)
         .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst |
                   vk::BufferUsageFlagBits::eShaderDeviceAddress)

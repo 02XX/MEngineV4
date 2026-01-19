@@ -1,6 +1,6 @@
 #version 460 core
 #define MAX_LIGHT_COUNT 6
-struct LightParameters
+struct LightParam
 {
     int LightType; // 0-平行光，1-点光，2-聚光灯
 
@@ -27,7 +27,7 @@ layout(input_attachment_index = 3, set = 1, binding = 3) uniform subpassInput po
 
 layout(std140, set = 0, binding = 1) uniform LightUBO
 {
-    LightParameters parameters[MAX_LIGHT_COUNT];
+    LightParam parameters[MAX_LIGHT_COUNT];
 }
 lights;
 void main()

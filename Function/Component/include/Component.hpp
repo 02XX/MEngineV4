@@ -5,6 +5,7 @@ class Component
 {
   public:
     virtual ~Component() = default;
-    bool dirty = true;
+    bool Enabled = true;
+    bool Dirty = true;
 };
 } // namespace MEngine::Function

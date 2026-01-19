@@ -3,7 +3,7 @@
 #include "Math.hpp"
 namespace MEngine::Function
 {
-
+inline constexpr uint32_t MAX_LIGHTS = 16;
 enum class LightType : uint32_t
 {
     Directional = 0,
@@ -24,24 +24,18 @@ class LightComponent final : public Component
     float InnerConeAngle = 0.0f; // in radians
     float OuterConeAngle = 0.0f; // in radians
 };
-struct LightParameters
+struct LightParam // aligned 16
 {
-    // base
-    LightType LightType = LightType::Directional;
+    glm::vec4 Color;     // 0 aligned 16
+    glm::vec4 Position;  // 16
+    glm::vec4 Direction; // 32
 
-    float Intensity = 1.0f;
+    uint32_t LightType; // 48
+    uint32_t Enable;    // 52
+    float Intensity;    // 56
+    float Radius;       // 60
 
-    // point
-    float Radius = 10.0f;
-
-    // spot
-    float InnerConeAngle = 0.0f; // in radians
-    float OuterConeAngle = 0.0f; // in radians
-    int enable = 0;              // 是否启用光源，1表示启用，0表示禁用
-    alignas(16) Vector3 Color = Vector3(1.0f);
-
-    alignas(16) Vector3 Position = Vector3(0.0f);
-
-    alignas(16) Vector3 Direction = Vector3(0.0f, 0.0f, 1.0f);
+    float InnerConeAngle;
+    float OuterConeAngle;
 };
-} // namespace MEngine::Resource
+} // namespace MEngine::Function

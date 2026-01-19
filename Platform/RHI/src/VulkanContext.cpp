@@ -20,7 +20,6 @@ Context::Context(const ContextConfig &config) : Config(config)
     CreateCommandPools();
     CreateDescriptorPool();
     CreateDescriptorSet();
-
 }
 Context::~Context()
 {
@@ -223,7 +222,8 @@ void Context::CreateCommandPools()
 void Context::CreateDescriptorPool()
 {
     std::vector<vk::DescriptorPoolSize> descriptorPoolSize{
-        vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, MAX_DESCRIPTOR_COUNT}};
+        vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, MAX_DESCRIPTOR_COUNT},
+    };
     vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo;
     descriptorPoolCreateInfo
         .setPoolSizes(descriptorPoolSize) // bindless descriptor set, 只需要一个texture采样器描述符类型

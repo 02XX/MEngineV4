@@ -104,6 +104,8 @@ class Editor
     void InitWindow();
     void InitVulkan();
     void InitImGui();
+    void DefaultScene();
+
     void UILayout();
 
     void ViewPort();

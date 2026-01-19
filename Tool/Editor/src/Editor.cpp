@@ -1,5 +1,6 @@
 #include "Editor.hpp"
 #include "CameraComponent.hpp"
+#include "LightComponent.hpp"
 #include "Logger.hpp"
 #include "MReflection.hpp"
 #include "Material.hpp"
@@ -47,26 +48,7 @@ Editor::Editor()
         [this](OffscreenFrameResource *frameResource) { UIAcquireSwapChainImage(frameResource); });
     mRenderSystem->PushRenderPass([this](OffscreenFrameResource *frameResource) { UIRenderPass(frameResource); });
     mRenderSystem->PushPostSubmitPass([this](OffscreenFrameResource *frameResource) { UIPresent(frameResource); });
-
-    auto ecsRegister = mScene->mRegistry;
-    auto cubeEntity = ecsRegister->create();
-    auto cubeMesh = mAssetManager->GetManager<StaticMesh, MeshManager>()->GetMesh(DefaultMeshType::Cube);
-    auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
-    auto defaultMat = pbrMaterialManager->GetByName(DefaultPBRMaterialType::ForwardOpaque);
-    auto &cubeEntityTransformComponent = ecsRegister->emplace<TransformComponent>(cubeEntity);
-    cubeEntityTransformComponent.Rotate(45, Vector3{1.0f, 0.0f, 0.0f});
-    auto &cubeEntityMeshComponent = ecsRegister->emplace<MeshComponent>(cubeEntity);
-    cubeEntityMeshComponent.Mesh = cubeMesh;
-    auto &cubeEntityMaterialComponent = ecsRegister->emplace<MaterialComponent>(cubeEntity);
-    cubeEntityMaterialComponent.Material = defaultMat;
-
-    auto cameraEntity = ecsRegister->create();
-    auto &cameraTransformComponent = ecsRegister->emplace<TransformComponent>(cameraEntity);
-    cameraTransformComponent.name = "EditorCamera";
-    cameraTransformComponent.localPosition = Vector3(0.0f, 0.0f, -5.0f);
-    auto &cameraEntityCameraComponent = ecsRegister->emplace<CameraComponent>(cameraEntity);
-    cameraEntityCameraComponent.isEditorCamera = true;
-    cameraEntityCameraComponent.isMainCamera = true;
+    DefaultScene();
 };
 Editor::~Editor()
 {
@@ -110,6 +92,7 @@ Editor::~Editor()
     mContext->Instance.get().destroySurfaceKHR(mSurface);
     LogInfo("Goodbye!");
 }
+
 void Editor::InitWindow()
 {
     // 读取配置文件
@@ -220,7 +203,36 @@ void Editor::InitImGui()
             mContext, vk::Extent3D{mCurrentResolution.width, mCurrentResolution.height, 1});
     }
 }
+void Editor::DefaultScene()
+{
+    auto ecsRegister = mScene->mRegistry;
+    auto cubeEntity = ecsRegister->create();
+    auto cubeMesh = mAssetManager->GetManager<StaticMesh, MeshManager>()->GetMesh(DefaultMeshType::Cube);
+    auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
+    auto defaultMat = pbrMaterialManager->GetByName(DefaultPBRMaterialType::ForwardOpaque);
+    auto &cubeEntityTransformComponent = ecsRegister->emplace<TransformComponent>(cubeEntity);
+    cubeEntityTransformComponent.Rotate(45, Vector3{1.0f, 0.0f, 0.0f});
+    auto &cubeEntityMeshComponent = ecsRegister->emplace<MeshComponent>(cubeEntity);
+    cubeEntityMeshComponent.Mesh = cubeMesh;
+    auto &cubeEntityMaterialComponent = ecsRegister->emplace<MaterialComponent>(cubeEntity);
+    cubeEntityMaterialComponent.Material = defaultMat;
 
+    auto cameraEntity = ecsRegister->create();
+    auto &cameraTransformComponent = ecsRegister->emplace<TransformComponent>(cameraEntity);
+    cameraTransformComponent.name = "EditorCamera";
+    cameraTransformComponent.localPosition = Vector3(0.0f, 0.0f, -5.0f);
+    auto &cameraEntityCameraComponent = ecsRegister->emplace<CameraComponent>(cameraEntity);
+    cameraEntityCameraComponent.isEditorCamera = true;
+    cameraEntityCameraComponent.isMainCamera = true;
+
+    auto lightEntity = ecsRegister->create();
+    auto &lightTransformComponent = ecsRegister->emplace<TransformComponent>(lightEntity);
+    lightTransformComponent.name = "DirectionalLight";
+    auto &lightComponent = ecsRegister->emplace<LightComponent>(lightEntity);
+    lightComponent.LightType = LightType::Directional;
+    lightComponent.Intensity = 1.0f;
+    lightComponent.Color = Vector3(0.0f, 0.0f, 1.0f);
+}
 void Editor::UIAcquireSwapChainImage(OffscreenFrameResource *frameResource)
 {
     auto device = mContext->Device.get();
@@ -733,6 +745,21 @@ void Editor::Inspector()
         if (registry->any_of<CameraComponent>(mSelectedEntity))
         {
         }
+        if (registry->any_of<LightComponent>(mSelectedEntity))
+        {
+            if (ImGui::CollapsingHeader("LightComponent", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                auto &lightComp = registry->get<LightComponent>(mSelectedEntity);
+                const char *lightTypes[] = {"Directional", "Point", "Spot"};
+                int currentType = static_cast<int>(lightComp.LightType);
+                if (ImGui::Combo("Light Type", &currentType, lightTypes, IM_ARRAYSIZE(lightTypes)))
+                {
+                    lightComp.LightType = static_cast<LightType>(currentType);
+                }
+                ImGui::ColorEdit3("Color", glm::value_ptr(lightComp.Color));
+                ImGui::DragFloat("Intensity", &lightComp.Intensity, 0.1f, 0.0f, 100.0f);
+            }
+        }
         if (registry->any_of<MeshComponent>(mSelectedEntity))
         {
             if (ImGui::CollapsingHeader("MeshComponent", ImGuiTreeNodeFlags_DefaultOpen))
@@ -761,7 +788,7 @@ void Editor::Inspector()
                     if (ImGui::ColorEdit4("Albedo", glm::value_ptr(pbrProps.Albedo)))
                     {
                         pbrProps.Albedo = glm::clamp(pbrProps.Albedo, glm::vec4(0.0f), glm::vec4(1.0f));
-                        materialComp.dirty = true;
+                        materialComp.Dirty = true;
                     }
                 }
                 else
