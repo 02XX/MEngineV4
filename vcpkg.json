@@ -1,24 +1,25 @@
 {
-  "dependencies": [
-    "concurrentqueue",
-    "entt",
-    "glfw3",
-    "glm",
-    "gtest",
-    {
-      "name": "imgui",
-      "features": [
-        "docking-experimental",
-        "glfw-binding",
-        "vulkan-binding"
-      ]
-    },
-    "nlohmann-json",
-    "shaderc",
-    "spdlog",
-    "stb",
-    "taskflow",
-    "vulkan-memory-allocator",
-    "readerwriterqueue"
-  ]
+    "dependencies": [
+        "concurrentqueue",
+        "entt",
+        "glfw3",
+        "glm",
+        "gtest",
+        {
+            "name": "imgui",
+            "features": [
+                "docking-experimental",
+                "glfw-binding",
+                "vulkan-binding"
+            ]
+        },
+        "nlohmann-json",
+        "readerwriterqueue",
+        "shaderc",
+        "spdlog",
+        "stb",
+        "taskflow",
+        "vulkan-memory-allocator",
+        "shader-slang"
+    ]
 }

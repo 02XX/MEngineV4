@@ -3,10 +3,13 @@
 #include "Manager.hpp"
 #include "Shader.hpp"
 #include <memory>
-
+#include <slang-com-ptr.h>
+#include <slang.h>
+using namespace Slang;
 namespace MEngine::Resource
 {
 struct DefaultShaderType
+
 {
     static constexpr const char *ForwardOpaquePBRVert = "forward_opaque_pbr_vert";
     static constexpr const char *ForwardOpaquePBRFrag = "forward_opaque_pbr_frag";
@@ -21,6 +24,14 @@ struct DefaultShaderType
     static constexpr const char *UIVert = "ui_vert";
     static constexpr const char *UIFrag = "ui_frag";
 };
+
+struct ShaderEntryPoint
+{
+    static constexpr const char *Main = "main";
+    static constexpr const char *VertMain = "vertexMain";
+    static constexpr const char *FragMain = "fragmentMain";
+};
+
 class ShaderManager final : public Manager<Shader>, public virtual IManager<Shader>
 {
   private:
@@ -39,16 +50,29 @@ class ShaderManager final : public Manager<Shader>, public virtual IManager<Shad
         {DefaultShaderType::UIFrag, Core::UUID{"00000000-0000-0000-0000-000000000011"}},
     };
 
+    ComPtr<slang::IGlobalSession> mSlangGlobalSession;
+    ComPtr<slang::ISession> mSlangSession;
+
   public:
-    ShaderManager()
+    bool mAlwaysCompile{true};
+
+    ShaderManager() : Manager<Shader>()
     {
+        InitializeSlang();
         CreateDefault();
     }
+
     ~ShaderManager() override = default;
     void CreateDefault() override;
 
   private:
-    std::shared_ptr<Shader> CreateShader(const std::string &name, const AssetURL &path);
+    void InitializeSlang();
+    std::vector<uint32_t> CompileSlangToSPIRV(const AssetURL &url, const std::string &entryPointName);
+    std::vector<uint32_t> ReadSpirvFile(const std::filesystem::path &path);
+    std::shared_ptr<Shader> CreateShader(const std::string &name, const AssetURL &path,
+                                         const std::string &entryPointName, bool writeSpirvFile = true);
     vk::ShaderStageFlagBits GetShaderStageFromExtension(const std::string &extension);
+    vk::ShaderStageFlagBits GetShaderStageFromEntryPoint(const std::string &entryPointName);
 };
+
 } // namespace MEngine::Resource
