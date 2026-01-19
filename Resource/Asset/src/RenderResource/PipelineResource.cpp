@@ -11,8 +11,8 @@ void PipelineResource::InitRHI(std::shared_ptr<Context> context)
     auto device = context->Device.get();
     vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
     pipelineLayoutCreateInfo.setFlags(vk::PipelineLayoutCreateFlags())
-        .setSetLayouts(context->DescriptorSetLayout.get());
-    pipelineLayoutCreateInfo.setPushConstantRanges(pipeline->mPushConstantRanges);
+        .setSetLayouts(pipeline->mDescriptorSetLayouts)
+        .setPushConstantRanges(pipeline->mPushConstantRanges);
     mPipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
     if (!mPipelineLayout)
     {

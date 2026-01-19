@@ -19,7 +19,8 @@ Context::Context(const ContextConfig &config) : Config(config)
     CreateVMA();
     CreateCommandPools();
     CreateDescriptorPool();
-    CreateDescriptorSet();
+    CreateDescriptorSetLayouts();
+    CreateTextureBindlessDescriptorSet();
 }
 Context::~Context()
 {
@@ -236,39 +237,38 @@ void Context::CreateDescriptorPool()
         throw std::runtime_error("Failed to create descriptor pool");
     }
 }
-void Context::CreateDescriptorSet()
+void Context::CreateDescriptorSetLayouts()
 {
-    vk::DescriptorSetLayoutBinding binding{};
-    binding.setBinding(0)
-        .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
-        .setDescriptorCount(
-            MAX_DESCRIPTOR_COUNT) // bindless descriptor set,
-                                  // 采样器描述符数量，最大支持MAX_DESCRIPTOR_COUNT个纹理采样器，即最多绑定MAX_DESCRIPTOR_COUNT个纹理图片
-        .setStageFlags(vk::ShaderStageFlagBits::eFragment)
-        .setPImmutableSamplers(nullptr);
     vk::DescriptorBindingFlags bindingFlags =
         vk::DescriptorBindingFlagBits::eUpdateAfterBind | vk::DescriptorBindingFlagBits::ePartiallyBound;
     vk::DescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsCreateInfo{};
     bindingFlagsCreateInfo.setBindingFlags({bindingFlags});
-    vk::DescriptorSetLayoutCreateInfo layoutCreateInfo{};
-    layoutCreateInfo.setBindings(binding)
-        .setFlags(vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool)
-        .setPNext(&bindingFlagsCreateInfo);
-    DescriptorSetLayout = Device->createDescriptorSetLayoutUnique(layoutCreateInfo);
-    if (!DescriptorSetLayout)
+    for (auto &[layoutName, binding] : DefaultDescriptorSetLayoutBindings)
     {
-        throw std::runtime_error("Failed to create descriptor set layout");
+        vk::DescriptorSetLayoutCreateInfo layoutCreateInfo{};
+        layoutCreateInfo.setBindings(binding)
+            .setFlags(vk::DescriptorSetLayoutCreateFlagBits::eUpdateAfterBindPool)
+            .setPNext(&bindingFlagsCreateInfo);
+        auto descriptorSetLayout = Device->createDescriptorSetLayoutUnique(layoutCreateInfo);
+        if (!descriptorSetLayout)
+        {
+            throw std::runtime_error("Failed to create descriptor set layout");
+        }
+        DefaultDescriptorSetLayouts.insert({layoutName, std::move(descriptorSetLayout)});
     }
+}
+void Context::CreateTextureBindlessDescriptorSet()
+{
     vk::DescriptorSetAllocateInfo allocateInfo{};
     allocateInfo.setDescriptorPool(DescriptorPool.get())
-        .setSetLayouts(DescriptorSetLayout.get())
+        .setSetLayouts({DefaultDescriptorSetLayouts[DefaultDescriptorSetLayoutType::TextureBindless].get()})
         .setDescriptorSetCount(1);
     auto descriptorSets = Device->allocateDescriptorSetsUnique(allocateInfo);
     if (descriptorSets.empty())
     {
         throw std::runtime_error("Failed to allocate descriptor set");
     }
-    DescriptorSet = std::move(descriptorSets.front());
+    TextureBindlessDescriptorSet = std::move(descriptorSets.front());
 }
 uint32_t Context::AllocateDescriptorIndex()
 {

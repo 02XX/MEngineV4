@@ -82,7 +82,7 @@ void Texture2DResource::InitRHI(std::shared_ptr<Context> context)
         .setSampler(mSampler);
     mBindlessDescriptorIndex = context->AllocateDescriptorIndex();
     vk::WriteDescriptorSet writeDescriptorSet{};
-    writeDescriptorSet.setDstSet(context->DescriptorSet.get())
+    writeDescriptorSet.setDstSet(context->TextureBindlessDescriptorSet.get())
         .setDstBinding(0)
         .setDstArrayElement(mBindlessDescriptorIndex)
         .setDescriptorCount(1)

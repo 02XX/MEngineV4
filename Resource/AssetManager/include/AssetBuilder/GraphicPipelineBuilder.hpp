@@ -16,7 +16,7 @@ class GraphicPipelineBuilder : public Builder<GraphicPipeline>, public virtual I
     std::shared_ptr<Context> mContext;
     std::shared_ptr<IManager<Shader>> mShaderManager;
 
-    std::vector<std::vector<vk::DescriptorSetLayoutBinding>> mDescriptorSetLayoutBindings{};
+    std::vector<vk::DescriptorSetLayout> mDescriptorSetLayouts{};
     std::vector<vk::PushConstantRange> mPushConstantRanges{};
 
     std::vector<std::shared_ptr<Shader>> mShaders{};
@@ -45,5 +45,6 @@ class GraphicPipelineBuilder : public Builder<GraphicPipeline>, public virtual I
     virtual void SetMultiSampleState() override;
     virtual void SetDepthStencilState() override;
     virtual void SetDepthStencilAttachmentFormat() override;
+    virtual void SetLayout() override;
 };
 } // namespace MEngine::Resource

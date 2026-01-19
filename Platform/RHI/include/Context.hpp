@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <optional>
 #include <queue>
+#include <unordered_map>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_handles.hpp>
 
@@ -43,12 +44,39 @@ class Context
     vk::UniqueCommandPool TransferCommandPool{};
 
     constexpr static uint32_t MAX_DESCRIPTOR_COUNT = 1024;
+    struct DefaultDescriptorSetLayoutType
+    {
+        static constexpr const char *TextureBindless = "TextureBindless";
+        static constexpr const char *GlobalStorage = "GlobalStorage";
+    };
+    static inline const std::unordered_map<std::string, std::vector<vk::DescriptorSetLayoutBinding>>
+        DefaultDescriptorSetLayoutBindings{
+            {DefaultDescriptorSetLayoutType::TextureBindless,
+             {
+                 vk::DescriptorSetLayoutBinding()
+                     .setBinding(0)
+                     .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
+                     .setDescriptorCount(MAX_DESCRIPTOR_COUNT) // Texture数组
+                     .setStageFlags(vk::ShaderStageFlagBits::eFragment)
+                     .setPImmutableSamplers(nullptr),
+             }},
+            {DefaultDescriptorSetLayoutType::GlobalStorage,
+             {
+                 vk::DescriptorSetLayoutBinding()
+                     .setBinding(0)
+                     .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+                     .setDescriptorCount(1)
+                     .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
+                     .setPImmutableSamplers(nullptr),
+             }},
+        };
+    std::unordered_map<std::string, vk::UniqueDescriptorSetLayout> DefaultDescriptorSetLayouts{};
+
     std::queue<uint32_t> FreeDescriptorIndices{};
     uint32_t NextDescriptorIndex =
         0; // TODO: 当资源是动态加载和释放的，需要一个更复杂的管理方式用以回收不用的描述符槽位
     vk::UniqueDescriptorPool DescriptorPool{};
-    vk::UniqueDescriptorSetLayout DescriptorSetLayout{};
-    vk::UniqueDescriptorSet DescriptorSet{};
+    vk::UniqueDescriptorSet TextureBindlessDescriptorSet{};
 
   private:
     void CreateInstance();
@@ -59,7 +87,8 @@ class Context
     void CreateVMA();
     void CreateCommandPools();
     void CreateDescriptorPool();
-    void CreateDescriptorSet();
+    void CreateDescriptorSetLayouts();
+    void CreateTextureBindlessDescriptorSet();
 
   public:
     Context(const ContextConfig &config);

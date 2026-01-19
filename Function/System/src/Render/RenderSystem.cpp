@@ -297,7 +297,7 @@ void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
         currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelineGBufferPipeline);
         currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                                        graphicPipelineGBufferPipelineLayout, 0,
-                                                       mContext->DescriptorSet.get(), {});
+                                                       mContext->TextureBindlessDescriptorSet.get(), {});
         for (const auto &entity : entities)
         {
             auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);
@@ -418,7 +418,7 @@ void RenderSystem::GBuffer(OffscreenFrameResource *frameResource)
         currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelineGBufferPipeline);
         currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                                        graphicPipelineGBufferPipelineLayout, 0,
-                                                       mContext->DescriptorSet.get(), {});
+                                                       mContext->TextureBindlessDescriptorSet.get(), {});
         for (const auto &entity : entities)
         {
             auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);

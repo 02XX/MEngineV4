@@ -28,8 +28,7 @@ class GraphicPipeline final : public Pipeline
     vk::Format mDepthStencilAttachmentFormat{};
 
   public:
-    GraphicPipeline(const std::string &name,
-                    std::vector<std::vector<vk::DescriptorSetLayoutBinding>> descriptorSetLayoutBindings,
+    GraphicPipeline(const std::string &name, std::vector<vk::DescriptorSetLayout> descriptorSetLayouts,
                     std::vector<vk::PushConstantRange> pushConstantRanges, std::vector<std::shared_ptr<Shader>> shaders,
                     vk::VertexInputBindingDescription vertexBindings,
                     std::vector<vk::VertexInputAttributeDescription> vertexAttributes,
@@ -40,7 +39,7 @@ class GraphicPipeline final : public Pipeline
                     vk::PipelineColorBlendStateCreateInfo colorBlendState,
                     std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments,
                     std::vector<vk::Format> colorAttachmentFormats, vk::Format depthStencilAttachmentFormat)
-        : Pipeline(name, descriptorSetLayoutBindings, pushConstantRanges), mVertexBindings(vertexBindings),
+        : Pipeline(name, descriptorSetLayouts, pushConstantRanges), mVertexBindings(vertexBindings),
           mVertexAttributes(vertexAttributes), mInputAssemblyState(inputAssemblyState),
           mRasterizationState(rasterizationState), mMultisampleState(multisampleState),
           mDepthStencilState(depthStencilState), mColorBlendState(colorBlendState), mShaders(shaders),

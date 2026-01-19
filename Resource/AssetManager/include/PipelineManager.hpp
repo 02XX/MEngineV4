@@ -3,9 +3,12 @@
 #include "Pipeline.hpp"
 #include "Shader.hpp"
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
 namespace MEngine::Resource
 {
+
 template <std::derived_from<Pipeline> TPipeline>
 class PipelineManager : public Manager<TPipeline>, public virtual IManager<TPipeline>
 {
@@ -13,9 +16,7 @@ class PipelineManager : public Manager<TPipeline>, public virtual IManager<TPipe
     std::shared_ptr<IManager<Shader>> mShaderManager;
 
   public:
-    PipelineManager(std::shared_ptr<IManager<Shader>> shaderManager) : mShaderManager(shaderManager)
-    {
-    }
+    PipelineManager(std::shared_ptr<IManager<Shader>> shaderManager) : mShaderManager(shaderManager) {};
     ~PipelineManager() override = default;
 };
 } // namespace MEngine::Resource

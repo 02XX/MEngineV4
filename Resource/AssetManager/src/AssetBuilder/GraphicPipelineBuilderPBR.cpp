@@ -5,6 +5,8 @@ namespace MEngine::Resource
 {
 void GraphicPipelineBuilderPBR::SetLayout()
 {
+    GraphicPipelineBuilder::SetLayout();
+
     mPushConstantRanges.push_back(
         vk::PushConstantRange()
             .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)

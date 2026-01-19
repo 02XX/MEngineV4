@@ -1,10 +1,11 @@
 #include "GraphicPipelineBuilder.hpp"
+#include "GraphicPipeline.hpp"
 #include "Vertex.hpp"
 namespace MEngine::Resource
 {
 void GraphicPipelineBuilder::Reset()
 {
-    mDescriptorSetLayoutBindings.clear();
+    mDescriptorSetLayouts.clear();
     mPushConstantRanges.clear();
 
     mShaders.clear();
@@ -26,7 +27,7 @@ std::unique_ptr<GraphicPipeline> GraphicPipelineBuilder::Build()
         .setLogicOpEnable(vk::False)
         .setLogicOp(vk::LogicOp::eCopy);
     auto graphicPipeline = std::make_unique<GraphicPipeline>(
-        mName, mDescriptorSetLayoutBindings, mPushConstantRanges, mShaders, mVertexBindings, mVertexAttributes,
+        mName, mDescriptorSetLayouts, mPushConstantRanges, mShaders, mVertexBindings, mVertexAttributes,
         mInputAssemblyState, mRasterizationState, mMultisampleState, mDepthStencilState, mColorBlendState,
         mColorBlendAttachments, mColorAttachmentFormats, mDepthStencilAttachmentFormat);
     if (!graphicPipeline)
@@ -73,6 +74,14 @@ void GraphicPipelineBuilder::SetDepthStencilState()
         .setMinDepthBounds(0.0f)
         .setMaxDepthBounds(1.0f)
         .setStencilTestEnable(vk::False);
+}
+void GraphicPipelineBuilder::SetLayout()
+{
+    mDescriptorSetLayouts = {
+        mContext->DefaultDescriptorSetLayouts[Context::DefaultDescriptorSetLayoutType::TextureBindless].get(),
+        mContext->DefaultDescriptorSetLayouts[Context::DefaultDescriptorSetLayoutType::GlobalStorage].get(),
+    };
+    
 }
 void GraphicPipelineBuilder::SetDepthStencilAttachmentFormat()
 {
