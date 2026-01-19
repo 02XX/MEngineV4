@@ -6,6 +6,7 @@
 #include "ECS.hpp"
 #include "OffscreenFrameResource.hpp"
 #include "RenderSystem.hpp"
+#include "Scene.hpp"
 #include "SwapChainResource.hpp"
 #include "TransformSystem.hpp"
 #include <GLFW/glfw3.h>
@@ -104,7 +105,7 @@ class Editor
     void InitWindow();
     void InitVulkan();
     void InitImGui();
-    void DefaultScene();
+    std::shared_ptr<Scene> DefaultScene();
 
     void UILayout();
 

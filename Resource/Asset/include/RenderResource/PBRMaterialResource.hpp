@@ -13,13 +13,9 @@ class PBRMaterialResource final : public MaterialResource
     vk::DeviceAddress mBufferAddress{};
 
   protected:
-    vk::Buffer mBuffer{};
-    VmaAllocation mBufferAllocation{};
-    VmaAllocationInfo mBufferAllocationInfo{};
-
-    vk::Buffer mStagingBuffer{};
-    VmaAllocation mStagingBufferAllocation{};
-    VmaAllocationInfo mStagingBufferAllocationInfo{};
+    vk::Buffer mBuffer, mStagingBuffer;
+    VmaAllocation mBufferAllocation, mStagingBufferAllocation;
+    VmaAllocationInfo mBufferAllocationInfo, mStagingBufferAllocationInfo;
 
     vk::DescriptorSet mDescriptorSet{};
 

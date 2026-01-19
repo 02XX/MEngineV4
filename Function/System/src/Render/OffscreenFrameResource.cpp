@@ -43,62 +43,6 @@ OffscreenFrameResource::OffscreenFrameResource(std::shared_ptr<Context> context,
                                                              .setLevel(vk::CommandBufferLevel::ePrimary)
                                                              .setCommandBufferCount(1))[0];
     RecreateMRT(extent);
-    // Scene SSBO
-    vk::BufferCreateInfo sceneSSBOCreateInfo{}, sceneStagingBufferCreateInfo{};
-    VmaAllocationCreateInfo sceneSSBOAllocCreateInfo{}, sceneStagingBufferAllocCreateInfo{};
-    size_t sceneSSBOSize = sizeof(SceneParam);
-    sceneSSBOCreateInfo.setSize(sceneSSBOSize)
-        .setUsage(vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst |
-                  vk::BufferUsageFlagBits::eShaderDeviceAddress)
-        .setSharingMode(vk::SharingMode::eExclusive);
-    sceneSSBOAllocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    if (vmaCreateBuffer(mContext->VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&sceneSSBOCreateInfo),
-                        &sceneSSBOAllocCreateInfo, reinterpret_cast<VkBuffer *>(&SceneSSBO), &SceneSSBOAllocation,
-                        reinterpret_cast<VmaAllocationInfo *>(&SceneSSBOAllocationInfo)) != VK_SUCCESS)
-    {
-        LogError("Failed to create Scene SSBO buffer");
-        return;
-    }
-    // Get Device Address
-    vk::BufferDeviceAddressInfo sceneSSBOAddressInfo{};
-    sceneSSBOAddressInfo.setBuffer(SceneSSBO);
-    SceneSSBOAddress = mContext->Device->getBufferAddress(sceneSSBOAddressInfo);
-
-    sceneStagingBufferCreateInfo.setSize(sceneSSBOSize)
-        .setUsage(vk::BufferUsageFlagBits::eTransferSrc)
-        .setSharingMode(vk::SharingMode::eExclusive);
-    sceneStagingBufferAllocCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    sceneStagingBufferAllocCreateInfo.flags =
-        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-    if (vmaCreateBuffer(mContext->VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&sceneStagingBufferCreateInfo),
-                        &sceneStagingBufferAllocCreateInfo, reinterpret_cast<VkBuffer *>(&SceneStagingBuffer),
-                        &SceneStagingBufferAllocation,
-                        reinterpret_cast<VmaAllocationInfo *>(&SceneStagingBufferAllocationInfo)) != VK_SUCCESS)
-    {
-        LogError("Failed to create Scene staging buffer");
-        return;
-    }
-    vk::DescriptorSetAllocateInfo sceneDescriptorSetAllocInfo{};
-    sceneDescriptorSetAllocInfo.setDescriptorPool(mContext->DescriptorPool.get())
-        .setSetLayouts(
-            mContext->DefaultDescriptorSetLayouts[Context::DefaultDescriptorSetLayoutType::GlobalStorage].get())
-        .setDescriptorSetCount(1);
-    auto descriptorSets = device.allocateDescriptorSets(sceneDescriptorSetAllocInfo);
-    if (descriptorSets.empty())
-    {
-        LogError("Failed to allocate Scene descriptor set");
-        return;
-    }
-    SceneDescriptorSet = descriptorSets[0];
-    vk::WriteDescriptorSet sceneDescriptorWrite{};
-    vk::DescriptorBufferInfo sceneBufferInfo{};
-    sceneBufferInfo.setBuffer(SceneSSBO).setOffset(0).setRange(sizeof(SceneParam));
-    sceneDescriptorWrite.setDstSet(SceneDescriptorSet)
-        .setDstBinding(0)
-        .setDstArrayElement(0)
-        .setDescriptorType(vk::DescriptorType::eStorageBuffer)
-        .setBufferInfo({sceneBufferInfo});
-    device.updateDescriptorSets({sceneDescriptorWrite}, {});
 };
 OffscreenFrameResource::~OffscreenFrameResource()
 {
@@ -117,18 +61,6 @@ OffscreenFrameResource::~OffscreenFrameResource()
     device.destroyCommandPool(GraphicsCommandPool);
     device.destroyCommandPool(TransferCommandPool);
     device.destroyCommandPool(PresentCommandPool);
-    if (SceneSSBO && SceneSSBOAllocation)
-    {
-        vmaDestroyBuffer(mContext->VmaAllocator, SceneSSBO, SceneSSBOAllocation);
-    }
-    if (SceneStagingBuffer && SceneStagingBufferAllocation)
-    {
-        vmaDestroyBuffer(mContext->VmaAllocator, SceneStagingBuffer, SceneStagingBufferAllocation);
-    }
-    if (SceneDescriptorSet)
-    {
-        mContext->Device->freeDescriptorSets(mContext->DescriptorPool.get(), {SceneDescriptorSet});
-    }
 };
 void OffscreenFrameResource::RecreateMRT(vk::Extent3D extent)
 {

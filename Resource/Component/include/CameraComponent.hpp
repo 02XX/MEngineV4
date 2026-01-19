@@ -3,7 +3,7 @@
 #include "Math.hpp"
 #include <memory>
 
-namespace MEngine::Function
+namespace MEngine::Resource
 {
 class CameraComponent : public Component
 {

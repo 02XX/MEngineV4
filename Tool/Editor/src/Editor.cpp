@@ -13,6 +13,7 @@
 #include "PBRMaterialResource.hpp"
 #include "RenderSystem.hpp"
 #include "Scene.hpp"
+#include "SceneManager.hpp"
 #include "StaticMesh.hpp"
 #include "TextureRenderTarget2D.hpp"
 #include "TextureRenderTarget2DResource.hpp"
@@ -22,6 +23,7 @@
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 #include <imgui_stdlib.h>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -36,8 +38,8 @@ Editor::Editor()
     InitVulkan();
     InitImGui();
 
-    mScene = std::make_shared<Scene>("DefaultScene");
     mAssetManager = std::make_shared<AssetManager>(mContext);
+    mScene = DefaultScene();
     mTransformSystem = std::make_shared<TransformSystem>(mScene, mAssetManager);
     mTransformSystem->Init();
     mCameraSystem = std::make_shared<CameraSystem>(mScene, mAssetManager);
@@ -48,7 +50,6 @@ Editor::Editor()
         [this](OffscreenFrameResource *frameResource) { UIAcquireSwapChainImage(frameResource); });
     mRenderSystem->PushRenderPass([this](OffscreenFrameResource *frameResource) { UIRenderPass(frameResource); });
     mRenderSystem->PushPostSubmitPass([this](OffscreenFrameResource *frameResource) { UIPresent(frameResource); });
-    DefaultScene();
 };
 Editor::~Editor()
 {
@@ -203,14 +204,19 @@ void Editor::InitImGui()
             mContext, vk::Extent3D{mCurrentResolution.width, mCurrentResolution.height, 1});
     }
 }
-void Editor::DefaultScene()
+std::shared_ptr<Scene> Editor::DefaultScene()
 {
-    auto ecsRegister = mScene->mRegistry;
+    auto sceneManager = mAssetManager->GetManager<Scene, SceneManager>();
+    auto defaultScene = std::make_shared<Scene>("DefaultScene");
+    sceneManager->Add(defaultScene);
+
+    auto ecsRegister = defaultScene->mRegistry;
     auto cubeEntity = ecsRegister->create();
     auto cubeMesh = mAssetManager->GetManager<StaticMesh, MeshManager>()->GetMesh(DefaultMeshType::Cube);
     auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
     auto defaultMat = pbrMaterialManager->GetByName(DefaultPBRMaterialType::ForwardOpaque);
     auto &cubeEntityTransformComponent = ecsRegister->emplace<TransformComponent>(cubeEntity);
+    cubeEntityTransformComponent.name = "Cube";
     cubeEntityTransformComponent.Rotate(45, Vector3{1.0f, 0.0f, 0.0f});
     auto &cubeEntityMeshComponent = ecsRegister->emplace<MeshComponent>(cubeEntity);
     cubeEntityMeshComponent.Mesh = cubeMesh;
@@ -232,6 +238,7 @@ void Editor::DefaultScene()
     lightComponent.LightType = LightType::Directional;
     lightComponent.Intensity = 1.0f;
     lightComponent.Color = Vector3(0.0f, 0.0f, 1.0f);
+    return defaultScene;
 }
 void Editor::UIAcquireSwapChainImage(OffscreenFrameResource *frameResource)
 {
@@ -755,9 +762,16 @@ void Editor::Inspector()
                 if (ImGui::Combo("Light Type", &currentType, lightTypes, IM_ARRAYSIZE(lightTypes)))
                 {
                     lightComp.LightType = static_cast<LightType>(currentType);
+                    lightComp.Dirty = true;
                 }
-                ImGui::ColorEdit3("Color", glm::value_ptr(lightComp.Color));
-                ImGui::DragFloat("Intensity", &lightComp.Intensity, 0.1f, 0.0f, 100.0f);
+                if (ImGui::ColorEdit3("Color", glm::value_ptr(lightComp.Color)))
+                {
+                    lightComp.Dirty = true;
+                }
+                if (ImGui::DragFloat("Intensity", &lightComp.Intensity, 0.1f, 0.0f, 100.0f))
+                {
+                    lightComp.Dirty = true;
+                }
             }
         }
         if (registry->any_of<MeshComponent>(mSelectedEntity))

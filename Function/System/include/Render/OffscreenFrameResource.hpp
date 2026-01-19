@@ -1,5 +1,4 @@
 #pragma once
-#include "LightComponent.hpp"
 #include "Math.hpp"
 #include "TextureRenderTarget2D.hpp"
 #include <cstddef>
@@ -10,17 +9,6 @@ using namespace MEngine::Platform;
 using namespace MEngine::Resource;
 namespace MEngine::Function
 {
-
-struct SceneParam // aligned 16
-{
-    Matrix4 ViewMatrix;
-    Matrix4 ProjectionMatrix;
-    Vector4 CameraPosition;
-
-    uint32_t NumLights;
-    LightParam Lights[MAX_LIGHTS];
-};
-
 class OffscreenFrameResource
 {
   protected:
@@ -63,15 +51,6 @@ class OffscreenFrameResource
     std::vector<vk::CommandBuffer> SecondaryTransferCommandBuffers;
     std::vector<vk::CommandBuffer> SecondaryGraphicCommandBuffers;
     std::vector<vk::CommandBuffer> SecondaryPresentCommandBuffers;
-    // SSBO
-    bool SceneParamsDirty = false;
-    SceneParam SceneParams{};
-    vk::Buffer SceneSSBO{}, SceneStagingBuffer{};
-    VmaAllocation SceneSSBOAllocation{}, SceneStagingBufferAllocation{};
-    VmaAllocationInfo SceneSSBOAllocationInfo{}, SceneStagingBufferAllocationInfo{};
-    vk::DeviceAddress SceneSSBOAddress{};
-    vk::DescriptorSet SceneDescriptorSet{};
-
     OffscreenFrameResource(std::shared_ptr<Context> context, vk::Extent3D extent = {800, 600, 1});
     virtual ~OffscreenFrameResource();
     void RecreateMRT(vk::Extent3D extent);

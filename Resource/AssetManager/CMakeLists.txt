@@ -8,5 +8,5 @@ ${CMAKE_CURRENT_SOURCE_DIR}/include
 ${CMAKE_CURRENT_SOURCE_DIR}/include/AssetBuilder
 )
 target_link_libraries(AssetManager PUBLIC Core Asset)
-target_link_libraries(AssetManager PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(AssetManager PUBLIC nlohmann_json::nlohmann_json Component)
 

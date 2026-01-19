@@ -3,7 +3,7 @@
 #include "ECS.hpp"
 #include "Math.hpp"
 #include <string>
-namespace MEngine::Function
+namespace MEngine::Resource
 {
 
 class TransformComponent : public Component
@@ -30,4 +30,4 @@ class TransformComponent : public Component
     void Scale(const Vector3 &scale);
 };
 
-} // namespace MEngine::Function
+} // namespace MEngine::Resource

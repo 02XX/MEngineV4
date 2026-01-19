@@ -1,5 +1,6 @@
 #include "RenderSystem.hpp"
 #include "CameraComponent.hpp"
+#include "LightComponent.hpp"
 #include "Logger.hpp"
 #include "Material.hpp"
 #include "MaterialComponent.hpp"
@@ -11,6 +12,9 @@
 #include "PBRMaterialManager.hpp"
 #include "PBRMaterialResource.hpp"
 #include "RenderResource.hpp"
+#include "Scene.hpp"
+#include "SceneManager.hpp"
+#include "SceneResource.hpp"
 #include "Texture2DManager.hpp"
 #include "TransformComponent.hpp"
 #include <vector>
@@ -69,33 +73,33 @@ void RenderSystem::PrepareRenderQueues()
         auto &transformComponent = entities.get<TransformComponent>(entity);
         mRenderQueues[pipeline->GetName()].push_back(entity);
     }
-
+    // Scene
     auto cameraEntities = mScene->mRegistry->view<TransformComponent, CameraComponent>();
     auto lightEntities = mScene->mRegistry->view<LightComponent, TransformComponent>();
     for (const auto &entity : cameraEntities)
     {
         auto &cameraComponent = mScene->mRegistry->get<CameraComponent>(entity);
         auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
-        if (cameraComponent.isMainCamera)
+        if (cameraComponent.Dirty && cameraComponent.isMainCamera)
         {
-            mOffscreenFrameResource->SceneParams.ViewMatrix = cameraComponent.viewMatrix;
-            mOffscreenFrameResource->SceneParams.ProjectionMatrix = cameraComponent.projectionMatrix;
-            mOffscreenFrameResource->SceneParams.CameraPosition = Vector4(transformComponent.worldPosition, 1.0f);
+            mScene->mSceneParams.ViewMatrix = cameraComponent.viewMatrix;
+            mScene->mSceneParams.ProjectionMatrix = cameraComponent.projectionMatrix;
+            mScene->mSceneParams.CameraPosition = Vector4(transformComponent.worldPosition, 1.0f);
+            cameraComponent.Dirty = false;
+            mScene->mSceneParamsDirty = true;
             break;
         }
     }
-    mOffscreenFrameResource->SceneParams.NumLights = 0;
+    mScene->mSceneParams.NumLights = 0;
     for (const auto &entity : lightEntities)
     {
-        if (mOffscreenFrameResource->SceneParams.NumLights >= 16)
+        if (mScene->mSceneParams.NumLights >= 16)
             break;
         auto &lightComponent = mScene->mRegistry->get<LightComponent>(entity);
         auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
-
-        if (lightComponent.Enabled)
+        if (lightComponent.Dirty && lightComponent.Enabled)
         {
-            auto &lightParam =
-                mOffscreenFrameResource->SceneParams.Lights[mOffscreenFrameResource->SceneParams.NumLights++];
+            auto &lightParam = mScene->mSceneParams.Lights[mScene->mSceneParams.NumLights++];
             lightParam.LightType = static_cast<uint32_t>(lightComponent.LightType);
             lightParam.Intensity = lightComponent.Intensity;
             lightParam.Color = Vector4(lightComponent.Color, 1.0f);
@@ -104,8 +108,17 @@ void RenderSystem::PrepareRenderQueues()
             lightParam.OuterConeAngle = lightComponent.OuterConeAngle;
             lightParam.Position = Vector4(transformComponent.worldPosition, 1.0f);
             lightParam.Direction = Vector4(transformComponent.worldRotation * glm::vec3(0.0f, 0.0f, 1.0f), 1.0f);
+            lightComponent.Dirty = false;
+            mScene->mSceneParamsDirty = true;
         }
     }
+    if (mScene->mSceneParamsDirty)
+    {
+        auto sceneManager = mAssetManager->GetManager<Scene, SceneManager>();
+        sceneManager->PushPendingUpdateAsset(std::static_pointer_cast<Scene>(mScene));
+        mScene->mSceneParamsDirty = false;
+    }
+    mScene->GetResource()->InitResource(mContext);
 }
 void RenderSystem::Render()
 {
@@ -154,39 +167,18 @@ void RenderSystem::Render()
         mOffscreenFrameResource->SecondaryTransferCommandBuffers.push_back(std::move(secondaryTextureCommandBuffers));
     }
     // Scene
-    vk::CommandBufferAllocateInfo sceneCommandAllocateInfo{};
-    sceneCommandAllocateInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
-        .setLevel(vk::CommandBufferLevel::eSecondary)
-        .setCommandBufferCount(1);
-    auto sceneSecondaryCommandBuffer = device.allocateCommandBuffers(sceneCommandAllocateInfo).front();
-    auto mappedData = static_cast<uint8_t *>(mOffscreenFrameResource->SceneStagingBufferAllocationInfo.pMappedData);
-    std::memcpy(mappedData, &mOffscreenFrameResource->SceneParams, sizeof(SceneParam));
-    vk::CommandBufferBeginInfo sceneBeginInfo{};
-    sceneBeginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit).setPInheritanceInfo(&inheritanceInfo);
-    sceneSecondaryCommandBuffer.begin(sceneBeginInfo);
-    vk::BufferCopy2 copyRegion{};
-    copyRegion.setSize(sizeof(SceneParam)).setSrcOffset(0).setDstOffset(0);
-    vk::CopyBufferInfo2 copyBufferInfo{};
-    copyBufferInfo.setSrcBuffer(mOffscreenFrameResource->SceneStagingBuffer)
-        .setDstBuffer(mOffscreenFrameResource->SceneSSBO)
-        .setRegions(copyRegion);
-    sceneSecondaryCommandBuffer.copyBuffer2(copyBufferInfo);
-    vk::BufferMemoryBarrier2 sceneBufferBarrier{};
-    sceneBufferBarrier.setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
-        .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
-        .setSrcStageMask(vk::PipelineStageFlagBits2::eTransfer)
-        .setDstStageMask(vk::PipelineStageFlagBits2::eVertexShader | vk::PipelineStageFlagBits2::eFragmentShader)
-        .setSrcAccessMask(vk::AccessFlagBits2::eTransferWrite)
-        .setDstAccessMask(vk::AccessFlagBits2::eShaderRead)
-        .setBuffer(mOffscreenFrameResource->SceneSSBO)
-        .setOffset(0)
-        .setSize(sizeof(SceneParam));
-    vk::DependencyInfo sceneDepInfo{};
-    sceneDepInfo.setBufferMemoryBarriers({sceneBufferBarrier});
-    sceneSecondaryCommandBuffer.pipelineBarrier2(sceneDepInfo);
-    sceneSecondaryCommandBuffer.end();
-    mOffscreenFrameResource->SecondaryTransferCommandBuffers.push_back(sceneSecondaryCommandBuffer);
+    auto sceneManager = mAssetManager->GetManager<Scene, SceneManager>();
+    if (sceneManager->GetPendingUpdateAssetCount() != 0)
+    {
+        vk::CommandBufferAllocateInfo sceneCommandAllocateInfo{};
+        sceneCommandAllocateInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
+            .setLevel(vk::CommandBufferLevel::eSecondary)
+            .setCommandBufferCount(1);
+        auto sceneSecondaryCommandBuffer = device.allocateCommandBuffers(sceneCommandAllocateInfo).front();
 
+        sceneManager->UpdateAssetRenderResource(mContext, sceneSecondaryCommandBuffer, &inheritanceInfo);
+        mOffscreenFrameResource->SecondaryTransferCommandBuffers.push_back(sceneSecondaryCommandBuffer);
+    }
     vk::CommandBufferBeginInfo transferBeginInfo{};
     transferCommandBuffer.begin(transferBeginInfo);
     std::vector<vk::CommandBuffer> secondaryBuffers{};
@@ -300,7 +292,7 @@ void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
                                                        mContext->TextureBindlessDescriptorSet.get(), {});
         currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
                                                        graphicPipelineGBufferPipelineLayout, 1,
-                                                       frameResource->SceneDescriptorSet, {});
+                                                       mScene->GetResourceAs<SceneResource>()->GetDescriptorSet(), {});
         for (const auto &entity : entities)
         {
             auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);

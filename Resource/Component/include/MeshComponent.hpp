@@ -2,7 +2,7 @@
 #include "Component.hpp"
 #include "StaticMesh.hpp"
 #include <memory>
-namespace MEngine::Function
+namespace MEngine::Resource
 {
 class MeshComponent : public Component
 {

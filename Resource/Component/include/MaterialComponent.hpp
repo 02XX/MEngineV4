@@ -2,7 +2,7 @@
 #include "Component.hpp"
 #include "Material.hpp"
 
-namespace MEngine::Function
+namespace MEngine::Resource
 {
 class MaterialComponent : public Component
 {

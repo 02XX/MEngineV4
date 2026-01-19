@@ -1,5 +1,5 @@
 #pragma once
-namespace MEngine::Function
+namespace MEngine::Resource
 {
 class Component
 {
@@ -8,4 +8,4 @@ class Component
     bool Enabled = true;
     bool Dirty = true;
 };
-} // namespace MEngine::Function
+} // namespace MEngine::Resource

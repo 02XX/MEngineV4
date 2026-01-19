@@ -1,7 +1,8 @@
 add_subdirectory(Asset)
 add_subdirectory(AssetManager)
+add_subdirectory(Component)
 add_library(Resource INTERFACE)
-target_link_libraries(Resource INTERFACE Asset  AssetManager)
+target_link_libraries(Resource INTERFACE Asset  AssetManager Component)
 
 
 #Engine

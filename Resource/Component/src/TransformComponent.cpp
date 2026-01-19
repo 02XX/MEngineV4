@@ -1,6 +1,6 @@
 #include "TransformComponent.hpp"
 
-namespace MEngine::Function
+namespace MEngine::Resource
 {
 void TransformComponent::Translate(const Vector3 &delta)
 {
@@ -18,4 +18,4 @@ void TransformComponent::Scale(const Vector3 &scale)
     localScale *= scale;
     Dirty = true;
 }
-} // namespace MEngine::Function
+} // namespace MEngine::Resource
