@@ -13,10 +13,10 @@ class TransformComponent : public Component
     std::string name = "None";
 
     Vector3 localPosition{0.0f, 0.0f, 0.0f};
-    Quaternion localRotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f);
+    Quaternion localRotation{};
     Vector3 localScale{1.0f, 1.0f, 1.0f};
     Vector3 worldPosition{0.0f, 0.0f, 0.0f};
-    Quaternion worldRotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f);
+    Quaternion worldRotation{};
     Vector3 worldScale{1.0f, 1.0f, 1.0f};
 
     Matrix4 modelMatrix = Matrix4(1.0f);

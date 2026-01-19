@@ -6,18 +6,21 @@ namespace MEngine::Resource
 {
 void MeshManager::CreateDefault()
 {
-    auto cubeMesh = CreateCubeMesh();
-    auto sphereMesh = CreateSphereMesh();
-    auto planeMesh = CreatePlaneMesh();
-    auto cylinderMesh = CreateCylinderMesh();
-    auto skyMesh = CreateSkyMesh();
-    auto fullscreenTriangleMesh = CreateFullscreenTriangleMesh();
+    auto triangleMesh = CreateTriangle();
+    auto cubeMesh = CreateCube();
+    auto sphereMesh = CreateSphere();
+    auto planeMesh = CreatePlane();
+    auto cylinderMesh = CreateCylinder();
+    auto skyMesh = CreateSky();
+    auto fullscreenTriangleMesh = CreateFullscreenTriangle();
+    triangleMesh->SetID(mDefaultMeshes[DefaultMeshType::Triangle]);
     cubeMesh->SetID(mDefaultMeshes[DefaultMeshType::Cube]);
     sphereMesh->SetID(mDefaultMeshes[DefaultMeshType::Sphere]);
     planeMesh->SetID(mDefaultMeshes[DefaultMeshType::Plane]);
     cylinderMesh->SetID(mDefaultMeshes[DefaultMeshType::Cylinder]);
     skyMesh->SetID(mDefaultMeshes[DefaultMeshType::Sky]);
     fullscreenTriangleMesh->SetID(mDefaultMeshes[DefaultMeshType::FullscreenTriangle]);
+    Add(triangleMesh);
     Add(cubeMesh);
     Add(sphereMesh);
     Add(planeMesh);
@@ -25,67 +28,137 @@ void MeshManager::CreateDefault()
     Add(skyMesh);
     Add(fullscreenTriangleMesh);
 }
-std::shared_ptr<StaticMesh> MeshManager::CreateCubeMesh()
+std::shared_ptr<StaticMesh> MeshManager::CreateTriangle()
 {
-    // Cube vertices and indices
-    // 立方体顶点数据（每个面4个顶点，共24个顶点）
     const std::vector<Vertex> vertices = {
-        // 前面 (Z+)
-        {{-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}, // 0
-        {{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},  // 1
-        {{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},   // 2
-        {{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},  // 3
+        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}}, // 顶点1
+        {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}},  // 顶点2
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},   // 顶点3
+    };
+    const std::vector<uint32_t> indices = {
+        0,
+        2,
+        1,
+    };
+    auto mesh = std::make_shared<StaticMesh>(DefaultMeshType::Triangle, vertices, indices);
+    LogInfo("Created「triangle」mesh");
+    return mesh;
+}
+std::shared_ptr<StaticMesh> MeshManager::CreateCube()
+{
+    // // Cube vertices and indices
+    // // 左手系，Y轴向上，Z轴指向屏幕里内，X轴向右
+    // // 逆时针为正面， 摄像机从-Z看向+Z方向
+    // const std::vector<Vertex> vertices = {
+    //     // 正面（-Z）
+    //     {{-0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},  // 0
+    //     {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},   // 1
+    //     {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}}, // 2
+    //     {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}},  // 3
 
-        // 后面 (Z-)
-        {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},  // 4
-        {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}}, // 5
-        {{-0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}},  // 6
-        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}},   // 7
+    //     // 后面 (+Z)
+    //     {{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},   // 4
+    //     {{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},  // 5
+    //     {{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},  // 6
+    //     {{-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}}, // 7
 
-        // 左面 (X-)
-        {{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // 8
-        {{-0.5f, -0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},  // 9
-        {{-0.5f, 0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},   // 10
-        {{-0.5f, 0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},  // 11
+    //     // 左面 (-X)
+    //     {{-0.5f, 0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},   // 8
+    //     {{-0.5f, 0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},  // 9
+    //     {{-0.5f, -0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},  // 10
+    //     {{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}, // 11
 
-        // 右面 (X+)
-        {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},  // 12
-        {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // 13
-        {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},  // 14
-        {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},   // 15
+    //     // 右面 (+X)
+    //     {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},  // 12
+    //     {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},   // 13
+    //     {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}}, // 14
+    //     {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},  // 15
 
-        // 顶面 (Y+)
+    //     // 顶面 (+Y)
+    //     {{-0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},  // 16
+    //     {{0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},   // 17
+    //     {{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}, // 18
+    //     {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},  // 19
+
+    //     // 底面 (-Y)
+    //     {{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}}, // 20
+    //     {{0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}},  // 21
+    //     {{-0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},  // 22
+    //     {{0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},   // 23
+    // };
+
+    // // 索引数据（每个面2个三角形，共36个索引，全部为逆时针顺序）
+    // const std::vector<uint32_t> indices = {// 正面（-Z）
+    //                                        0, 2, 1, 2, 3, 1,
+    //                                        // 后面 (+Z)
+    //                                        4, 6, 5, 6, 7, 5,
+    //                                        // 左面(-X)
+    //                                        8, 10, 9, 10, 11, 9,
+    //                                        // 右面(+X)
+    //                                        12, 14, 13, 14, 15, 13,
+    //                                        // 顶面(+Y)
+    //                                        16, 18, 17, 18, 19, 17,
+    //                                        // 底面(-Y)
+    //                                        20, 22, 21, 22, 23, 21};
+    // Cube vertices and indices
+    // 左手系，Y轴向上，Z轴指向屏幕里内，X轴向右
+    // 逆时针为正面， 摄像机从-Z看向+Z方向
+    const std::vector<Vertex> vertices = {
+        // 正面（-Z）
+        {{-0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},  // 0
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},   // 1
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}}, // 2
+        {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}},  // 3
+
+        // 后面 (+Z)
+        {{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},   // 4
+        {{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},  // 5
+        {{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},  // 6
+        {{-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}}, // 7
+
+        // 左面 (-X)
+        {{-0.5f, 0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},   // 8
+        {{-0.5f, 0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},  // 9
+        {{-0.5f, -0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}},  // 10
+        {{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}, // 11
+
+        // 右面 (+X)
+        {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},  // 12
+        {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},   // 13
+        {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}}, // 14
+        {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}},  // 15
+
+        // 顶面 (+Y)
         {{-0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},  // 16
         {{0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},   // 17
-        {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},  // 18
-        {{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}, // 19
+        {{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}, // 18
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},  // 19
 
-        // 底面 (Y-)
-        {{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}}, // 20
-        {{0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},  // 21
-        {{0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}},   // 22
-        {{-0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}},  // 23
+        // 底面 (-Y)
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}}, // 20
+        {{0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}},  // 21
+        {{-0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}},  // 22
+        {{0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}},   // 23
     };
 
     // 索引数据（每个面2个三角形，共36个索引，全部为逆时针顺序）
-    const std::vector<uint32_t> indices = {// 前面 (Z+) 逆时针：0→1→2→3
-                                           // 前面
-                                           0, 1, 2, 0, 2, 3,
-                                           // 后面
-                                           4, 5, 6, 4, 6, 7,
-                                           // 左面
-                                           8, 9, 10, 8, 10, 11,
-                                           // 右面
-                                           12, 13, 14, 12, 14, 15,
-                                           // 顶面
-                                           16, 17, 18, 16, 18, 19,
-                                           // 底面
-                                           20, 21, 22, 20, 22, 23};
-    auto mesh = std::make_shared<StaticMesh>("Cube Mesh", vertices, indices);
+    const std::vector<uint32_t> indices = {// 正面（-Z）
+                                           0, 2, 1, 2, 3, 1,
+                                           // 后面 (+Z)
+                                           4, 6, 5, 6, 7, 5,
+                                           // 左面(-X)
+                                           8, 10, 9, 10, 11, 9,
+                                           // 右面(+X)
+                                           12, 14, 13, 14, 15, 13,
+                                           // 顶面(+Y)
+                                           16, 18, 17, 18, 19, 17,
+                                           // 底面(-Y)
+                                           20, 22, 21, 22, 23, 21};
+    auto mesh = std::make_shared<StaticMesh>(DefaultMeshType::Cube, vertices, indices);
     LogInfo("Created「cube」mesh");
     return mesh;
 }
-std::shared_ptr<StaticMesh> MeshManager::CreateSphereMesh()
+std::shared_ptr<StaticMesh> MeshManager::CreateSphere()
 {
     const unsigned int sectorCount = 36; // 纬度
     const unsigned int stackCount = 18;  // 经度
@@ -141,29 +214,36 @@ std::shared_ptr<StaticMesh> MeshManager::CreateSphereMesh()
             }
         }
     }
-    auto mesh = std::make_shared<StaticMesh>("Sphere Mesh", vertices, indices);
+    auto mesh = std::make_shared<StaticMesh>(DefaultMeshType::Sphere, vertices, indices);
     LogInfo("Created「sphere」mesh");
     return mesh;
 }
-std::shared_ptr<StaticMesh> MeshManager::CreatePlaneMesh()
+std::shared_ptr<StaticMesh> MeshManager::CreatePlane()
 {
-    // 平面顶点
+    // // 平面顶点
+    // const std::vector<Vertex> vertices = {
+    //     // 顶面（Z+）
+    //     {{-0.5f, 0.0f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}},  // 0
+    //     {{0.5f, 0.0f, 0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},   // 1
+    //     {{0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},  // 2
+    //     {{-0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // 3
+    // };
+
     const std::vector<Vertex> vertices = {
-        // 顶面（Z+）
-        {{-0.5f, 0.0f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}},  // 0
-        {{0.5f, 0.0f, 0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}},   // 1
-        {{0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},  // 2
-        {{-0.5f, 0.0f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // 3
+        // 正面(-Z)
+        {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}},  // 0
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}},   // 1
+        {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}}, // 2
+        {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}},  // 3
     };
-
     // 索引数据
-    const std::vector<uint32_t> indices = {0, 1, 2, 0, 2, 3};
+    const std::vector<uint32_t> indices = {0, 2, 1, 2, 3, 1};
 
-    auto mesh = std::make_shared<StaticMesh>("Plane Mesh", vertices, indices);
+    auto mesh = std::make_shared<StaticMesh>(DefaultMeshType::Plane, vertices, indices);
     LogInfo("Created「plane」mesh");
     return mesh;
 }
-std::shared_ptr<StaticMesh> MeshManager::CreateCylinderMesh()
+std::shared_ptr<StaticMesh> MeshManager::CreateCylinder()
 {
     const unsigned int sectorCount = 36; // 圆周分段数
     const float radius = 0.5f;           // 圆柱半径
@@ -273,20 +353,11 @@ std::shared_ptr<StaticMesh> MeshManager::CreateCylinderMesh()
         indices.push_back(bottomCenterIndex + 1 + i + 1);
         indices.push_back(bottomCenterIndex + 1 + i);
     }
-    auto mesh = std::make_shared<StaticMesh>("Cylinder Mesh", vertices, indices);
+    auto mesh = std::make_shared<StaticMesh>(DefaultMeshType::Cylinder, vertices, indices);
     LogInfo("Created「cylinder」mesh");
     return mesh;
 }
-std::shared_ptr<StaticMesh> MeshManager::GetMesh(DefaultMeshType type) const
-{
-    if (mDefaultMeshes.find(type) != mDefaultMeshes.end())
-    {
-        return Get(mDefaultMeshes.at(type));
-    }
-    LogError("Default mesh type {} not found", static_cast<int>(type));
-    return nullptr;
-}
-std::shared_ptr<StaticMesh> MeshManager::CreateSkyMesh()
+std::shared_ptr<StaticMesh> MeshManager::CreateSky()
 {
     const std::vector<Vertex> vertices = {
         // 前面
@@ -314,11 +385,11 @@ std::shared_ptr<StaticMesh> MeshManager::CreateSkyMesh()
                                            // 底面
                                            1, 5, 4, 4, 0, 1};
 
-    auto mesh = std::make_shared<StaticMesh>("Sky Mesh", vertices, indices);
+    auto mesh = std::make_shared<StaticMesh>(DefaultMeshType::Sky, vertices, indices);
     LogInfo("Created「sky」mesh");
     return mesh;
 }
-std::shared_ptr<StaticMesh> MeshManager::CreateFullscreenTriangleMesh()
+std::shared_ptr<StaticMesh> MeshManager::CreateFullscreenTriangle()
 {
     const std::vector<Vertex> vertices = {
         // 全屏三角形顶点
@@ -329,7 +400,7 @@ std::shared_ptr<StaticMesh> MeshManager::CreateFullscreenTriangleMesh()
 
     const std::vector<uint32_t> indices = {0, 1, 2}; // 三角形索引
 
-    auto mesh = std::make_shared<StaticMesh>("Fullscreen Triangle Mesh", vertices, indices);
+    auto mesh = std::make_shared<StaticMesh>(DefaultMeshType::FullscreenTriangle, vertices, indices);
     LogInfo("Created「fullscreen triangle」mesh");
     return mesh;
 }

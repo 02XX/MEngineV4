@@ -5,34 +5,37 @@
 #include <memory>
 namespace MEngine::Resource
 {
-enum class DefaultMeshType
+struct DefaultMeshType
 {
-    Cube,
-    Cylinder,
-    Plane,
-    Sphere,
-    Sky,
-    FullscreenTriangle
+    static inline const char *Triangle = "Triangle";
+    static inline const char *Cube = "Cube";
+    static inline const char *Sphere = "Sphere";
+    static inline const char *Plane = "Plane";
+    static inline const char *Cylinder = "Cylinder";
+    static inline const char *Sky = "Sky";
+    static inline const char *FullscreenTriangle = "FullscreenTriangle";
 };
 class MeshManager final : public Manager<StaticMesh>, public virtual IManager<StaticMesh>
 {
   private:
-    std::unordered_map<DefaultMeshType, Core::UUID> mDefaultMeshes{
-        {DefaultMeshType::Cube, Core::UUID{"00000000-0000-0000-0000-000000000001"}},
-        {DefaultMeshType::Cylinder, Core::UUID{"00000000-0000-0000-0000-000000000002"}},
-        {DefaultMeshType::Plane, Core::UUID{"00000000-0000-0000-0000-000000000003"}},
-        {DefaultMeshType::Sphere, Core::UUID{"00000000-0000-0000-0000-000000000004"}},
-        {DefaultMeshType::Sky, Core::UUID{"00000000-0000-0000-0000-000000000005"}},
-        {DefaultMeshType::FullscreenTriangle, Core::UUID{"00000000-0000-0000-0000-000000000006"}},
+    std::unordered_map<std::string, Core::UUID> mDefaultMeshes{
+        {DefaultMeshType::Triangle, Core::UUID{"00000000-0000-0000-0000-000000000001"}},
+        {DefaultMeshType::Cube, Core::UUID{"00000000-0000-0000-0000-000000000002"}},
+        {DefaultMeshType::Sphere, Core::UUID{"00000000-0000-0000-0000-000000000003"}},
+        {DefaultMeshType::Plane, Core::UUID{"00000000-0000-0000-0000-000000000004"}},
+        {DefaultMeshType::Cylinder, Core::UUID{"00000000-0000-0000-0000-000000000005"}},
+        {DefaultMeshType::Sky, Core::UUID{"00000000-0000-0000-0000-000000000006"}},
+        {DefaultMeshType::FullscreenTriangle, Core::UUID{"00000000-0000-0000-0000-000000000007"}},
     };
 
   private:
-    std::shared_ptr<StaticMesh> CreateCubeMesh();
-    std::shared_ptr<StaticMesh> CreateSphereMesh();
-    std::shared_ptr<StaticMesh> CreatePlaneMesh();
-    std::shared_ptr<StaticMesh> CreateCylinderMesh();
-    std::shared_ptr<StaticMesh> CreateSkyMesh();
-    std::shared_ptr<StaticMesh> CreateFullscreenTriangleMesh();
+    std::shared_ptr<StaticMesh> CreateTriangle();
+    std::shared_ptr<StaticMesh> CreateCube();
+    std::shared_ptr<StaticMesh> CreateSphere();
+    std::shared_ptr<StaticMesh> CreatePlane();
+    std::shared_ptr<StaticMesh> CreateCylinder();
+    std::shared_ptr<StaticMesh> CreateSky();
+    std::shared_ptr<StaticMesh> CreateFullscreenTriangle();
 
   public:
     MeshManager()
@@ -44,7 +47,6 @@ class MeshManager final : public Manager<StaticMesh>, public virtual IManager<St
         int a = 0;
     };
     void CreateDefault() override;
-    std::shared_ptr<StaticMesh> GetMesh(DefaultMeshType type) const;
 };
 
 } // namespace MEngine::Resource

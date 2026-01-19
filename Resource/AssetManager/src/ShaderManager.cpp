@@ -93,6 +93,7 @@ std::vector<uint32_t> ShaderManager::CompileSlangToSPIRV(const AssetURL &url, co
     if (!entryPoint)
     {
         LogError("Failed to find entry point '{}' in module: {}", entryPointName, url.GetPath().string());
+        LogError("Diagnostics: \n{}", static_cast<const char *>(diagnosticBlob->getBufferPointer()));
         return {};
     }
     IComponentType *components[] = {module, entryPoint};
@@ -102,6 +103,7 @@ std::vector<uint32_t> ShaderManager::CompileSlangToSPIRV(const AssetURL &url, co
     if (SLANG_FAILED(result) || !composedProgram)
     {
         LogError("Failed to create composite component type for module: {}", url.GetPath().string());
+        LogError("Diagnostics: \n{}", static_cast<const char *>(diagnosticBlob->getBufferPointer()));
         return {};
     }
     ComPtr<IBlob> spirvBlob{};
@@ -111,6 +113,7 @@ std::vector<uint32_t> ShaderManager::CompileSlangToSPIRV(const AssetURL &url, co
     if (SLANG_FAILED(result) || !spirvBlob)
     {
         LogError("Failed to get SPIR-V code for module: {}", url.GetPath().string());
+        LogError("Diagnostics: \n{}", static_cast<const char *>(diagnosticBlob->getBufferPointer()));
         return {};
     }
     const uint32_t *codePtr = (const uint32_t *)spirvBlob->getBufferPointer();

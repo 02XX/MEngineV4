@@ -212,7 +212,7 @@ std::shared_ptr<Scene> Editor::DefaultScene()
 
     auto ecsRegister = defaultScene->mRegistry;
     auto cubeEntity = ecsRegister->create();
-    auto cubeMesh = mAssetManager->GetManager<StaticMesh, MeshManager>()->GetMesh(DefaultMeshType::Cube);
+    auto cubeMesh = mAssetManager->GetManager<StaticMesh, MeshManager>()->GetByName(DefaultMeshType::Cube);
     auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
     auto defaultMat = pbrMaterialManager->GetByName(DefaultPBRMaterialType::ForwardOpaque);
     auto &cubeEntityTransformComponent = ecsRegister->emplace<TransformComponent>(cubeEntity);
@@ -226,17 +226,18 @@ std::shared_ptr<Scene> Editor::DefaultScene()
     auto cameraEntity = ecsRegister->create();
     auto &cameraTransformComponent = ecsRegister->emplace<TransformComponent>(cameraEntity);
     cameraTransformComponent.name = "EditorCamera";
-    cameraTransformComponent.localPosition = Vector3(0.0f, 0.0f, -5.0f);
+    cameraTransformComponent.localPosition = Vector3(0.0f, 0.0f, -10.0f);
     auto &cameraEntityCameraComponent = ecsRegister->emplace<CameraComponent>(cameraEntity);
     cameraEntityCameraComponent.isEditorCamera = true;
     cameraEntityCameraComponent.isMainCamera = true;
 
     auto lightEntity = ecsRegister->create();
     auto &lightTransformComponent = ecsRegister->emplace<TransformComponent>(lightEntity);
-    lightTransformComponent.name = "DirectionalLight";
+    lightTransformComponent.name = "PointLight";
     auto &lightComponent = ecsRegister->emplace<LightComponent>(lightEntity);
-    lightComponent.LightType = LightType::Directional;
+    lightComponent.LightType = LightType::Point;
     lightComponent.Intensity = 1.0f;
+    lightComponent.Radius = 10.0f;
     lightComponent.Color = Vector3(0.0f, 0.0f, 1.0f);
     return defaultScene;
 }
@@ -522,6 +523,17 @@ void Editor::Toolbar()
                 if (ImGui::Selectable(resolution.ToString().data(), mCurrentResolution == resolution))
                 {
                     mCurrentResolution = resolution;
+                    auto cameraEntities = mScene->mRegistry->view<CameraComponent>();
+                    for (auto entity : cameraEntities)
+                    {
+                        auto &cameraComp = cameraEntities.get<CameraComponent>(entity);
+                        if (cameraComp.isEditorCamera)
+                        {
+                            cameraComp.aspectRatio =
+                                static_cast<float>(mCurrentResolution.width) / mCurrentResolution.height;
+                            break;
+                        }
+                    }
                     mNeedReCreateFrameResources = true;
                 }
             }
@@ -771,6 +783,24 @@ void Editor::Inspector()
                 if (ImGui::DragFloat("Intensity", &lightComp.Intensity, 0.1f, 0.0f, 100.0f))
                 {
                     lightComp.Dirty = true;
+                }
+                if (lightComp.LightType == LightType::Spot)
+                {
+                    if (ImGui::DragFloat("Inner Cone Angle", &lightComp.InnerConeAngle, 0.1f, 0.0f, 90.0f))
+                    {
+                        lightComp.Dirty = true;
+                    }
+                    if (ImGui::DragFloat("Outer Cone Angle", &lightComp.OuterConeAngle, 0.1f, 0.0f, 90.0f))
+                    {
+                        lightComp.Dirty = true;
+                    }
+                }
+                if (lightComp.LightType == LightType::Point)
+                {
+                    if (ImGui::DragFloat("Radius", &lightComp.Radius, 0.1f, 0.0f, 100.0f))
+                    {
+                        lightComp.Dirty = true;
+                    }
                 }
             }
         }

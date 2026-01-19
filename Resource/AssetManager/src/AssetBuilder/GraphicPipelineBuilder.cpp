@@ -81,7 +81,6 @@ void GraphicPipelineBuilder::SetLayout()
         mContext->DefaultDescriptorSetLayouts[Context::DefaultDescriptorSetLayoutType::TextureBindless].get(),
         mContext->DefaultDescriptorSetLayouts[Context::DefaultDescriptorSetLayoutType::GlobalStorage].get(),
     };
-    
 }
 void GraphicPipelineBuilder::SetDepthStencilAttachmentFormat()
 {

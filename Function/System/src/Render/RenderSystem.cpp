@@ -77,20 +77,6 @@ void RenderSystem::PrepareRenderQueues()
     mScene->GetResource()->InitResource(mContext);
     auto cameraEntities = mScene->mRegistry->view<TransformComponent, CameraComponent>();
     auto lightEntities = mScene->mRegistry->view<LightComponent, TransformComponent>();
-    for (const auto &entity : cameraEntities)
-    {
-        auto &cameraComponent = mScene->mRegistry->get<CameraComponent>(entity);
-        auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
-        if (cameraComponent.Dirty && cameraComponent.isMainCamera)
-        {
-            mScene->mSceneParams.ViewMatrix = cameraComponent.viewMatrix;
-            mScene->mSceneParams.ProjectionMatrix = cameraComponent.projectionMatrix;
-            mScene->mSceneParams.CameraPosition = Vector4(transformComponent.worldPosition, 1.0f);
-            cameraComponent.Dirty = false;
-            mScene->mSceneParamsDirty = true;
-            break;
-        }
-    }
     int lightIndex = 0;
     for (const auto &entity : lightEntities)
     {
@@ -109,6 +95,23 @@ void RenderSystem::PrepareRenderQueues()
             lightParam.Direction = Vector4(transformComponent.worldRotation * glm::vec3(0.0f, 0.0f, 1.0f), 1.0f);
             lightComponent.Dirty = false;
             mScene->mLightParamsDirty = true;
+        }
+    }
+    for (const auto &entity : cameraEntities)
+    {
+        auto &cameraComponent = mScene->mRegistry->get<CameraComponent>(entity);
+        auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+        if (cameraComponent.Dirty && cameraComponent.isMainCamera)
+        {
+            mScene->mSceneParams.ViewMatrix = cameraComponent.viewMatrix;
+            mScene->mSceneParams.ProjectionMatrix = cameraComponent.projectionMatrix;
+            mScene->mSceneParams.CameraPosition = Vector4(transformComponent.worldPosition, 1.0f);
+            mScene->mSceneParams.CameraDirection =
+                Vector4(transformComponent.worldRotation * glm::vec3(0.0f, 0.0f, 1.0f), 1.0f);
+            mScene->mSceneParams.LightCount = lightIndex;
+            cameraComponent.Dirty = false;
+            mScene->mSceneParamsDirty = true;
+            break;
         }
     }
     if (mScene->mSceneParamsDirty || mScene->mLightParamsDirty)
@@ -389,6 +392,7 @@ void RenderSystem::GBuffer(OffscreenFrameResource *frameResource)
         .setPDepthAttachment(&depthStencilAttachmentInfo);
     currentGraphicCommandBuffer.beginRendering(renderingInfo);
     vk::Viewport viewport;
+    // 先投影到上面，再进行正面FrontFace判定
     viewport.setX(0.0f)
         .setY(frameResource->Extent.height)
         .setWidth(static_cast<float>(frameResource->Extent.width))
