@@ -23,6 +23,8 @@
 #include <thread>
 #include <vector>
 
+#include <ImGuizmo.h>
+
 using namespace MEngine::Function;
 namespace MEngine::Tool
 {
@@ -70,7 +72,8 @@ class Editor
     bool mNeedReCreateSwapChain = true;
     // ImGui
     ImGuiID mDockSpaceID{};
-
+    ImGuizmo::OPERATION mGuizmoOperation = ImGuizmo::TRANSLATE;
+    ImGuizmo::MODE mGuizmoMode = ImGuizmo::LOCAL;
     //====render thread====
     double FPS = 144; // 目标帧率
     vk::SurfaceKHR mSurface{};

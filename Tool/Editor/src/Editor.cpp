@@ -192,6 +192,7 @@ void Editor::InitImGui()
         LogError("Failed to initialize ImGui Vulkan backend");
         throw std::runtime_error("ImGui Vulkan init failed");
     }
+    // Fonts
     ImFontConfig fontConfig{};
     auto notoSansFont = io.Fonts->AddFontFromFileTTF("Assets/Fonts/MSYH.TTC", 18.0f, &fontConfig,
                                                      io.Fonts->GetGlyphRangesChineseFull());
@@ -201,6 +202,9 @@ void Editor::InitImGui()
         throw std::runtime_error("NotoSans font load failed");
     }
     io.FontDefault = notoSansFont;
+    // Guizmo
+    ImGuizmo::SetImGuiContext(ImGui::GetCurrentContext());
+    ImGuizmo::Enable(true);
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
         mOffscreenFrameResources[i] = std::make_shared<OffscreenFrameResource>(
@@ -238,7 +242,7 @@ std::shared_ptr<Scene> Editor::DefaultScene()
     auto lightEntity = ecsRegister->create();
     auto &lightTransformComponent = ecsRegister->emplace<TransformComponent>(lightEntity);
     lightTransformComponent.name = "PointLight";
-    lightTransformComponent.localPosition = Vector3(0.0f, 5.0f, -5.0f);
+    lightTransformComponent.localPosition = Vector3(3.0f, 0.0f, 0.0f);
     auto &lightComponent = ecsRegister->emplace<LightComponent>(lightEntity);
     lightComponent.LightType = LightType::Point;
     lightComponent.Intensity = 1.0f;
@@ -499,26 +503,24 @@ void Editor::UILayout()
 void Editor::Toolbar()
 {
     ImGui::Begin("Toolbar", nullptr, ImGuiWindowFlags_None);
-    // 帧率
-    ImGui::TextColored(ImVec4(1, 1, 0, 1), "FPS: %.1f", ImGui::GetIO().Framerate);
-    // ImGui::BeginGroup();
-    // {
-    //     ImGui::TextColored(ImVec4(1, 1, 0, 1), "FPS: %1.f", ImGui::GetIO().Framerate);
-    //     if (ImGui::RadioButton("Translate", mGuizmoOperation == ImGuizmo::TRANSLATE) || ImGui::IsKeyDown(ImGuiKey_W))
-    //         mGuizmoOperation = ImGuizmo::TRANSLATE;
-    //     ImGui::SameLine();
-    //     if (ImGui::RadioButton("Rotate", mGuizmoOperation == ImGuizmo::ROTATE) || ImGui::IsKeyDown(ImGuiKey_E))
-    //         mGuizmoOperation = ImGuizmo::ROTATE;
-    //     ImGui::SameLine();
-    //     if (ImGui::RadioButton("Scale", mGuizmoOperation == ImGuizmo::SCALE) || ImGui::IsKeyDown(ImGuiKey_R))
-    //         mGuizmoOperation = ImGuizmo::SCALE;
-    //     if (ImGui::RadioButton("Local", mGuizmoMode == ImGuizmo::LOCAL))
-    //         mGuizmoMode = ImGuizmo::LOCAL;
-    //     ImGui::SameLine();
-    //     if (ImGui::RadioButton("World", mGuizmoMode == ImGuizmo::WORLD))
-    //         mGuizmoMode = ImGuizmo::WORLD;
-    //     ImGui::EndGroup();
-    // }
+    ImGui::BeginGroup();
+    {
+        ImGui::TextColored(ImVec4(1, 1, 0, 1), "FPS: %1.f", ImGui::GetIO().Framerate);
+        if (ImGui::RadioButton("Translate", mGuizmoOperation == ImGuizmo::TRANSLATE) || ImGui::IsKeyDown(ImGuiKey_W))
+            mGuizmoOperation = ImGuizmo::TRANSLATE;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Rotate", mGuizmoOperation == ImGuizmo::ROTATE) || ImGui::IsKeyDown(ImGuiKey_E))
+            mGuizmoOperation = ImGuizmo::ROTATE;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Scale", mGuizmoOperation == ImGuizmo::SCALE) || ImGui::IsKeyDown(ImGuiKey_R))
+            mGuizmoOperation = ImGuizmo::SCALE;
+        if (ImGui::RadioButton("Local", mGuizmoMode == ImGuizmo::LOCAL))
+            mGuizmoMode = ImGuizmo::LOCAL;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("World", mGuizmoMode == ImGuizmo::WORLD))
+            mGuizmoMode = ImGuizmo::WORLD;
+        ImGui::EndGroup();
+    }
     ImGui::BeginGroup();
     {
         if (ImGui::BeginCombo("Resolution", mCurrentResolution.ToString().c_str()))
@@ -568,6 +570,69 @@ void Editor::ViewPort()
     cursorPos.y += (availSize.y - renderH) * 0.5f;
     ImGui::SetCursorPos(cursorPos);
     ImGui::Image(reinterpret_cast<ImTextureID>(mFrameDescriptorSets[mCurrentFrameIndex]), {renderW, renderH});
+    ImVec2 imagePos = ImGui::GetItemRectMin();
+    ImVec2 imageSize = ImGui::GetItemRectSize();
+    ImGuizmo::SetRect(imagePos.x, imagePos.y, imageSize.x, imageSize.y);
+    ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
+    if (mSelectedEntity != NullEntity)
+    {
+        auto &registry = mScene->mRegistry;
+        // Camera
+        auto cameraEntities = registry->view<CameraComponent, TransformComponent>();
+        Entity editorCameraEntity = NullEntity;
+        for (auto entity : cameraEntities)
+        {
+            auto &cameraComp = cameraEntities.get<CameraComponent>(entity);
+            if (cameraComp.isEditorCamera && cameraComp.isMainCamera)
+            {
+                editorCameraEntity = entity;
+                break;
+            }
+        }
+        if (registry->valid(mSelectedEntity) && registry->all_of<TransformComponent>(mSelectedEntity))
+        {
+            auto &transformComp = registry->get<TransformComponent>(mSelectedEntity);
+            auto &cameraComp = registry->get<CameraComponent>(editorCameraEntity);
+            auto modelMatrix = transformComp.modelMatrix;
+            auto viewMatrix = cameraComp.viewMatrix;
+            auto projectionMatrix = cameraComp.projectionMatrix;
+            //===================ImGuizmo===================
+            ImGuizmo::Manipulate(glm::value_ptr(viewMatrix), glm::value_ptr(projectionMatrix), mGuizmoOperation,
+                                 mGuizmoMode, glm::value_ptr(modelMatrix));
+            if (ImGuizmo::IsUsing())
+            {
+                glm::vec3 translation, scale, skew;
+                glm::quat rotation;
+                glm::vec4 perspective;
+                if (glm::decompose(modelMatrix, scale, rotation, translation, skew, perspective))
+                {
+                    transformComp.localPosition = translation;
+                    transformComp.localRotation = rotation;
+                    transformComp.localScale = scale;
+                    transformComp.Dirty = true;
+                }
+            }
+            if (registry->any_of<LightComponent>(mSelectedEntity))
+            {
+                auto &lightComp = registry->get<LightComponent>(mSelectedEntity);
+                switch (lightComp.LightType)
+                {
+                case Resource::LightType::Directional: {
+                    break;
+                }
+                case Resource::LightType::Point: {
+
+                    break;
+                }
+                case Resource::LightType::Spot: {
+                    break;
+                }
+                default:
+                    break;
+                }
+            }
+        }
+    }
     ImGui::End();
     ImGui::PopStyleVar();
 }
