@@ -13,6 +13,7 @@
                 "vulkan-binding"
             ]
         },
+        "imguizmo",
         "nlohmann-json",
         "readerwriterqueue",
         "shaderc",

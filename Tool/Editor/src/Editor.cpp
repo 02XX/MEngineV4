@@ -1,5 +1,6 @@
 #include "Editor.hpp"
 #include "CameraComponent.hpp"
+#include "ECS.hpp"
 #include "LightComponent.hpp"
 #include "Logger.hpp"
 #include "MReflection.hpp"
@@ -17,12 +18,14 @@
 #include "RenderSystem.hpp"
 #include "Scene.hpp"
 #include "SceneManager.hpp"
+#include "ShaderUtil.hpp"
 #include "StaticMesh.hpp"
 #include "TextureRenderTarget2D.hpp"
 #include "TextureRenderTarget2DResource.hpp"
 #include "TransformComponent.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <glm/geometric.hpp>
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 #include <imgui_stdlib.h>
@@ -574,28 +577,65 @@ void Editor::ViewPort()
     ImVec2 imageSize = ImGui::GetItemRectSize();
     ImGuizmo::SetRect(imagePos.x, imagePos.y, imageSize.x, imageSize.y);
     ImGuizmo::SetDrawlist(ImGui::GetWindowDrawList());
-    if (mSelectedEntity != NullEntity)
+    Utils::SetViewPort(imagePos, imageSize);
+    auto drawList = ImGui::GetWindowDrawList();
+    auto &registry = mScene->mRegistry;
+    // Camera
+    auto cameraEntities = registry->view<CameraComponent, TransformComponent>();
+    Entity editorCameraEntity = NullEntity;
+    for (auto entity : cameraEntities)
     {
-        auto &registry = mScene->mRegistry;
-        // Camera
-        auto cameraEntities = registry->view<CameraComponent, TransformComponent>();
-        Entity editorCameraEntity = NullEntity;
-        for (auto entity : cameraEntities)
+        auto &cameraComp = cameraEntities.get<CameraComponent>(entity);
+        if (cameraComp.isEditorCamera && cameraComp.isMainCamera)
         {
-            auto &cameraComp = cameraEntities.get<CameraComponent>(entity);
-            if (cameraComp.isEditorCamera && cameraComp.isMainCamera)
+            editorCameraEntity = entity;
+            break;
+        }
+    }
+    auto &cameraComp = registry->get<CameraComponent>(editorCameraEntity);
+    auto &cameraTransformComp = registry->get<TransformComponent>(editorCameraEntity);
+    auto viewMatrix = cameraComp.viewMatrix;
+    auto projectionMatrix = cameraComp.projectionMatrix;
+    auto lightEntities = registry->view<LightComponent, TransformComponent>();
+    Utils::SetMatrix(viewMatrix, projectionMatrix);
+    for (auto entity : lightEntities)
+    {
+        auto &lightComp = lightEntities.get<LightComponent>(entity);
+        auto &transformComp = lightEntities.get<TransformComponent>(entity);
+        Utils::DrawCircle(transformComp.worldPosition, Vector3(0.0f, 0.0f, -1.0f), 0.5, IM_COL32(255, 255, 0, 255));
+        if (mSelectedEntity != NullEntity && registry->any_of<LightComponent>(mSelectedEntity))
+        {
+            switch (lightComp.LightType)
             {
-                editorCameraEntity = entity;
+            case Resource::LightType::Directional: {
+                break;
+            }
+            case Resource::LightType::Point: {
+                Utils::DrawCircle(transformComp.worldPosition, Vector3(1.0f, 0.0f, 0.0f), lightComp.Radius,
+                                  IM_COL32(255, 255, 0, 255), 128); // YZ平面
+                Utils::DrawCircle(transformComp.worldPosition, Vector3(0.0f, 1.0f, 0.0f), lightComp.Radius,
+                                  IM_COL32(255, 255, 0, 255), 128); // XZ平面
+                Utils::DrawCircle(transformComp.worldPosition, Vector3(0.0f, 0.0f, 1.0f), lightComp.Radius,
+                                  IM_COL32(255, 255, 0, 255), 128); // XY平面
+                Vector3 viewNormal = glm::normalize(cameraTransformComp.worldPosition - transformComp.worldPosition);
+                Utils::DrawCircle(transformComp.worldPosition, viewNormal, lightComp.Radius, IM_COL32(0, 255, 255, 255),
+                                  128, 2.0f);
+                break;
+            }
+            case Resource::LightType::Spot: {
+                break;
+            }
+            default:
                 break;
             }
         }
+    }
+    if (mSelectedEntity != NullEntity)
+    {
         if (registry->valid(mSelectedEntity) && registry->all_of<TransformComponent>(mSelectedEntity))
         {
             auto &transformComp = registry->get<TransformComponent>(mSelectedEntity);
-            auto &cameraComp = registry->get<CameraComponent>(editorCameraEntity);
             auto modelMatrix = transformComp.modelMatrix;
-            auto viewMatrix = cameraComp.viewMatrix;
-            auto projectionMatrix = cameraComp.projectionMatrix;
             //===================ImGuizmo===================
             ImGuizmo::Manipulate(glm::value_ptr(viewMatrix), glm::value_ptr(projectionMatrix), mGuizmoOperation,
                                  mGuizmoMode, glm::value_ptr(modelMatrix));
@@ -612,27 +652,9 @@ void Editor::ViewPort()
                     transformComp.Dirty = true;
                 }
             }
-            if (registry->any_of<LightComponent>(mSelectedEntity))
-            {
-                auto &lightComp = registry->get<LightComponent>(mSelectedEntity);
-                switch (lightComp.LightType)
-                {
-                case Resource::LightType::Directional: {
-                    break;
-                }
-                case Resource::LightType::Point: {
-
-                    break;
-                }
-                case Resource::LightType::Spot: {
-                    break;
-                }
-                default:
-                    break;
-                }
-            }
         }
     }
+
     ImGui::End();
     ImGui::PopStyleVar();
 }
@@ -728,12 +750,12 @@ void Editor::RenderEntityNode(Entity entity)
 {
     auto &registry = mScene->mRegistry;
     auto &transform = registry->get<TransformComponent>(entity);
-    if (registry->any_of<CameraComponent>(entity))
-    {
-        auto &cameraComp = registry->get<CameraComponent>(entity);
-        if (cameraComp.isEditorCamera)
-            return;
-    }
+    // if (registry->any_of<CameraComponent>(entity))
+    // {
+    //     auto &cameraComp = registry->get<CameraComponent>(entity);
+    //     if (cameraComp.isEditorCamera)
+    //         return;
+    // }
     ImGuiTreeNodeFlags flags =
         ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen;
 
