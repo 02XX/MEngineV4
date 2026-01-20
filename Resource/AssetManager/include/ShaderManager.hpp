@@ -9,8 +9,11 @@ using namespace Slang;
 namespace MEngine::Resource
 {
 struct DefaultShaderType
-
 {
+    static constexpr const char *ForwardOpaquePhongVert = "forward_opaque_phong_vert";
+    static constexpr const char *ForwardOpaquePhongFrag = "forward_opaque_phong_frag";
+    static constexpr const char *ForwardTransparentPhongVert = "forward_transparent_phong_vert";
+    static constexpr const char *ForwardTransparentPhongFrag = "forward_transparent_phong_frag";
     static constexpr const char *ForwardOpaquePBRVert = "forward_opaque_pbr_vert";
     static constexpr const char *ForwardOpaquePBRFrag = "forward_opaque_pbr_frag";
     static constexpr const char *GBufferOpaquePBRVert = "gbuffer_opaque_pbr_vert";
@@ -36,18 +39,22 @@ class ShaderManager final : public Manager<Shader>, public virtual IManager<Shad
 {
   private:
     static inline const std::unordered_map<std::string, Core::UUID> sDefaultShaders{
-        {DefaultShaderType::ForwardOpaquePBRVert, Core::UUID{"00000000-0000-0000-0000-000000000000"}},
-        {DefaultShaderType::ForwardOpaquePBRFrag, Core::UUID{"00000000-0000-0000-0000-000000000001"}},
-        {DefaultShaderType::LightingOpaquePBRVert, Core::UUID{"00000000-0000-0000-0000-000000000002"}},
-        {DefaultShaderType::LightingOpaquePBRFrag, Core::UUID{"00000000-0000-0000-0000-000000000003"}},
-        {DefaultShaderType::SkyboxVert, Core::UUID{"00000000-0000-0000-0000-000000000004"}},
-        {DefaultShaderType::SkyboxFrag, Core::UUID{"00000000-0000-0000-0000-000000000005"}},
+        {DefaultShaderType::ForwardOpaquePhongVert, Core::UUID{"00000000-0000-0000-0000-000000000000"}},
+        {DefaultShaderType::ForwardOpaquePhongFrag, Core::UUID{"00000000-0000-0000-0000-000000000001"}},
+        {DefaultShaderType::ForwardTransparentPhongVert, Core::UUID{"00000000-0000-0000-0000-000000000002"}},
+        {DefaultShaderType::ForwardTransparentPhongFrag, Core::UUID{"00000000-0000-0000-0000-000000000003"}},
+        {DefaultShaderType::ForwardOpaquePBRVert, Core::UUID{"00000000-0000-0000-0000-000000000004"}},
+        {DefaultShaderType::ForwardOpaquePBRFrag, Core::UUID{"00000000-0000-0000-0000-000000000005"}},
         {DefaultShaderType::GBufferOpaquePBRVert, Core::UUID{"00000000-0000-0000-0000-000000000006"}},
         {DefaultShaderType::GBufferOpaquePBRFrag, Core::UUID{"00000000-0000-0000-0000-000000000007"}},
-        {DefaultShaderType::PostprocessVert, Core::UUID{"00000000-0000-0000-0000-000000000008"}},
-        {DefaultShaderType::PostprocessFrag, Core::UUID{"00000000-0000-0000-0000-000000000009"}},
-        {DefaultShaderType::UIVert, Core::UUID{"00000000-0000-0000-0000-000000000010"}},
-        {DefaultShaderType::UIFrag, Core::UUID{"00000000-0000-0000-0000-000000000011"}},
+        {DefaultShaderType::LightingOpaquePBRVert, Core::UUID{"00000000-0000-0000-0000-000000000008"}},
+        {DefaultShaderType::LightingOpaquePBRFrag, Core::UUID{"00000000-0000-0000-0000-000000000009"}},
+        {DefaultShaderType::SkyboxVert, Core::UUID{"00000000-0000-0000-0000-000000000010"}},
+        {DefaultShaderType::SkyboxFrag, Core::UUID{"00000000-0000-0000-0000-000000000011"}},
+        {DefaultShaderType::PostprocessVert, Core::UUID{"00000000-0000-0000-0000-000000000012"}},
+        {DefaultShaderType::PostprocessFrag, Core::UUID{"00000000-0000-0000-0000-000000000013"}},
+        {DefaultShaderType::UIVert, Core::UUID{"00000000-0000-0000-0000-000000000014"}},
+        {DefaultShaderType::UIFrag, Core::UUID{"00000000-0000-0000-0000-000000000015"}},
     };
 
     ComPtr<slang::IGlobalSession> mSlangGlobalSession;

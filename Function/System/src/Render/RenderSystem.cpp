@@ -1,5 +1,6 @@
 #include "RenderSystem.hpp"
 #include "CameraComponent.hpp"
+#include "GraphicPipelineManager.hpp"
 #include "LightComponent.hpp"
 #include "Logger.hpp"
 #include "Material.hpp"
@@ -11,6 +12,9 @@
 #include "PBRMaterial.hpp"
 #include "PBRMaterialManager.hpp"
 #include "PBRMaterialResource.hpp"
+#include "PhongMaterial.hpp"
+#include "PhongMaterialManager.hpp"
+#include "PhongMaterialResource.hpp"
 #include "RenderResource.hpp"
 #include "Scene.hpp"
 #include "SceneManager.hpp"
@@ -57,6 +61,12 @@ void RenderSystem::PrepareRenderQueues()
                 auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
                 pbrMaterialManager->PushPendingUpdateAsset(
                     std::static_pointer_cast<PBRMaterial>(materialComponent.Material));
+            }
+            else if (auto phongMaterial = std::dynamic_pointer_cast<PhongMaterial>(materialAsset))
+            {
+                auto phongMaterialManager = mAssetManager->GetManager<PhongMaterial, PhongMaterialManager>();
+                phongMaterialManager->PushPendingUpdateAsset(
+                    std::static_pointer_cast<PhongMaterial>(materialComponent.Material));
             }
             else
             {
@@ -144,7 +154,19 @@ void RenderSystem::Render()
     }
     mOffscreenFrameResource->SecondaryTransferCommandBuffers.clear();
     vk::CommandBufferInheritanceInfo inheritanceInfo{};
-    // PBRMaterialResource
+    // PhongMaterialResource
+    auto phongMaterialManager = mAssetManager->GetManager<PhongMaterial, PhongMaterialManager>();
+    if (phongMaterialManager->GetPendingUpdateAssetCount() != 0)
+    {
+        vk::CommandBufferAllocateInfo materialCommandAllocateInfo{};
+        materialCommandAllocateInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
+            .setLevel(vk::CommandBufferLevel::eSecondary)
+            .setCommandBufferCount(1);
+        auto secondaryMaterialCommandBuffers = device.allocateCommandBuffers(materialCommandAllocateInfo).front();
+        phongMaterialManager->UpdateAssetRenderResource(mContext, secondaryMaterialCommandBuffers, &inheritanceInfo);
+        mOffscreenFrameResource->SecondaryTransferCommandBuffers.push_back(secondaryMaterialCommandBuffers);
+    }
+    //  PBRMaterialResource
     auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
     if (pbrMaterialManager->GetPendingUpdateAssetCount() != 0)
     {
@@ -320,6 +342,45 @@ void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
             currentGraphicCommandBuffer.drawIndexed(staticMeshResource->GetIndexCount(), 1, 0, 0, 0);
         }
     }
+    if (mRenderQueues.contains(DefaultGraphicPipelineType::ForwardOpaquePhong))
+    {
+        auto &entities = mRenderQueues.at(DefaultGraphicPipelineType::ForwardOpaquePhong);
+        auto pipelineAsset = mAssetManager->GetByName<GraphicPipeline>(DefaultGraphicPipelineType::ForwardOpaquePhong);
+        auto graphicPipelineGBufferPipeline = pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipeline();
+        auto graphicPipelineGBufferPipelineLayout =
+            pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipelineLayout();
+        currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelineGBufferPipeline);
+        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                                       graphicPipelineGBufferPipelineLayout, 0,
+                                                       mContext->TextureBindlessDescriptorSet.get(), {});
+        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                                       graphicPipelineGBufferPipelineLayout, 1,
+                                                       mScene->GetResourceAs<SceneResource>()->mDescriptorSet, {});
+        for (const auto &entity : entities)
+        {
+            auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);
+            auto &meshComponent = mScene->mRegistry->get<MeshComponent>(entity);
+            auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
+
+            auto phongMaterial = static_cast<PhongMaterial *>(materialComponent.Material.get());
+            auto phongMaterialResource = materialComponent.Material->GetResourceAs<PhongMaterialResource>();
+
+            auto modelMatrix = transformComponent.modelMatrix;
+            currentGraphicCommandBuffer.pushConstants(graphicPipelineGBufferPipelineLayout,
+                                                      vk::ShaderStageFlagBits::eVertex |
+                                                          vk::ShaderStageFlagBits::eFragment,
+                                                      0, sizeof(Matrix4), &modelMatrix);
+            currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                                           graphicPipelineGBufferPipelineLayout, 2,
+                                                           phongMaterialResource->mDescriptorSet, {});
+            auto staticMeshResource = meshComponent.Mesh->GetResourceAs<StaticMeshResource>();
+            auto vertexBuffer = staticMeshResource->GetVertexBuffer();
+            auto indexBuffer = staticMeshResource->GetIndexBuffer();
+            currentGraphicCommandBuffer.bindVertexBuffers(0, vertexBuffer, {0});
+            currentGraphicCommandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+            currentGraphicCommandBuffer.drawIndexed(staticMeshResource->GetIndexCount(), 1, 0, 0, 0);
+        }
+    }
     currentGraphicCommandBuffer.endRendering();
 }
 void RenderSystem::ForwardTransparent(OffscreenFrameResource *frameResource)
@@ -406,11 +467,13 @@ void RenderSystem::GBuffer(OffscreenFrameResource *frameResource)
     // if (mRenderQueues.contains(DefaultGraphicPipelineType::GBufferOpaquePBR))
     // {
     //     auto &entities = mRenderQueues.at(DefaultGraphicPipelineType::GBufferOpaquePBR);
-    //     auto pipelineAsset = mAssetManager->GetByName<GraphicPipeline>(DefaultGraphicPipelineType::GBufferOpaquePBR);
-    //     auto graphicPipelineGBufferPipeline = pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipeline();
+    //     auto pipelineAsset =
+    //     mAssetManager->GetByName<GraphicPipeline>(DefaultGraphicPipelineType::GBufferOpaquePBR); auto
+    //     graphicPipelineGBufferPipeline = pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipeline();
     //     auto graphicPipelineGBufferPipelineLayout =
     //         pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipelineLayout();
-    //     currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelineGBufferPipeline);
+    //     currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics,
+    //     graphicPipelineGBufferPipeline);
     //     currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
     //                                                    graphicPipelineGBufferPipelineLayout, 0,
     //                                                    mContext->TextureBindlessDescriptorSet.get(), {});

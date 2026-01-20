@@ -10,6 +10,12 @@ namespace MEngine::Resource
 {
 void ShaderManager::CreateDefault()
 {
+    auto frowardOpaquePhongVertShader =
+        CreateShader(DefaultShaderType::ForwardOpaquePhongVert, AssetURL("shader://ForwardOpaquePhong.slang"),
+                     ShaderEntryPoint::VertMain);
+    auto frowardOpaquePhongFragShader =
+        CreateShader(DefaultShaderType::ForwardOpaquePhongFrag, AssetURL("shader://ForwardOpaquePhong.slang"),
+                     ShaderEntryPoint::FragMain);
     auto frowardOpaquePBRVertShader =
         CreateShader(DefaultShaderType::ForwardOpaquePBRVert, AssetURL("shader://ForwardOpaquePBR.slang"),
                      ShaderEntryPoint::VertMain);
@@ -25,13 +31,16 @@ void ShaderManager::CreateDefault()
     // auto lightingFragShader = CreateShader(DefaultShaderType::LightingOpaquePBRFrag,
     //                                        AssetURL("shader://LightingOpaquePBR.slang"), ShaderEntryPoint::FragMain);
 
+    frowardOpaquePhongVertShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePhongVert));
+    frowardOpaquePhongFragShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePhongFrag));
     frowardOpaquePBRVertShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePBRVert));
     frowardOpaquePBRFragShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePBRFrag));
     // gBufferVertShader->SetID(sDefaultShaders.at(DefaultShaderType::GBufferOpaquePBRVert));
     // gBufferFragShader->SetID(sDefaultShaders.at(DefaultShaderType::GBufferOpaquePBRFrag));
     // lightingVertShader->SetID(sDefaultShaders.at(DefaultShaderType::LightingOpaquePBRVert));
     // lightingFragShader->SetID(sDefaultShaders.at(DefaultShaderType::LightingOpaquePBRFrag));
-
+    Add(frowardOpaquePhongVertShader);
+    Add(frowardOpaquePhongFragShader);
     Add(frowardOpaquePBRVertShader);
     Add(frowardOpaquePBRFragShader);
     // Add(gBufferVertShader);

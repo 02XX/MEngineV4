@@ -11,6 +11,9 @@
 #include "PBRMaterial.hpp"
 #include "PBRMaterialManager.hpp"
 #include "PBRMaterialResource.hpp"
+#include "PhongMaterial.hpp"
+#include "PhongMaterialManager.hpp"
+#include "PhongMaterialResource.hpp"
 #include "RenderSystem.hpp"
 #include "Scene.hpp"
 #include "SceneManager.hpp"
@@ -214,7 +217,8 @@ std::shared_ptr<Scene> Editor::DefaultScene()
     auto cubeEntity = ecsRegister->create();
     auto cubeMesh = mAssetManager->GetManager<StaticMesh, MeshManager>()->GetByName(DefaultMeshType::Cube);
     auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
-    auto defaultMat = pbrMaterialManager->GetByName(DefaultPBRMaterialType::ForwardOpaque);
+    auto phongMaterialManager = mAssetManager->GetManager<PhongMaterial, PhongMaterialManager>();
+    auto defaultMat = phongMaterialManager->GetByName(DefaultPhongMaterialType::ForwardOpaque);
     auto &cubeEntityTransformComponent = ecsRegister->emplace<TransformComponent>(cubeEntity);
     cubeEntityTransformComponent.name = "Cube";
     cubeEntityTransformComponent.Rotate(45, Vector3{1.0f, 0.0f, 0.0f});
@@ -234,11 +238,12 @@ std::shared_ptr<Scene> Editor::DefaultScene()
     auto lightEntity = ecsRegister->create();
     auto &lightTransformComponent = ecsRegister->emplace<TransformComponent>(lightEntity);
     lightTransformComponent.name = "PointLight";
+    lightTransformComponent.localPosition = Vector3(0.0f, 5.0f, -5.0f);
     auto &lightComponent = ecsRegister->emplace<LightComponent>(lightEntity);
     lightComponent.LightType = LightType::Point;
     lightComponent.Intensity = 1.0f;
     lightComponent.Radius = 10.0f;
-    lightComponent.Color = Vector3(0.0f, 0.0f, 1.0f);
+    lightComponent.Color = Vector3(1.0f, 1.0f, 1.0f);
     return defaultScene;
 }
 void Editor::UIAcquireSwapChainImage(OffscreenFrameResource *frameResource)
@@ -752,11 +757,15 @@ void Editor::Inspector()
             if (ImGui::CollapsingHeader("TransformComponent", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 ImGui::InputText("Name", &transform.name);
-                ImGui::DragFloat3("Position", &transform.localPosition.x, 0.1f);
+                if (ImGui::DragFloat3("Position", &transform.localPosition.x, 0.1f))
+                {
+                    transform.Dirty = true;
+                }
                 glm::vec3 euler = glm::degrees(glm::eulerAngles(transform.localRotation));
                 if (ImGui::DragFloat3("Rotation", glm::value_ptr(euler), 0.01f))
                 {
                     transform.localRotation = glm::quat(glm::radians(euler));
+                    transform.Dirty = true;
                 }
                 ImGui::DragFloat3("Scale", &transform.localScale.x, 0.1f);
             }
@@ -832,6 +841,24 @@ void Editor::Inspector()
                     if (ImGui::ColorEdit4("Albedo", glm::value_ptr(pbrProps.Albedo)))
                     {
                         pbrProps.Albedo = glm::clamp(pbrProps.Albedo, glm::vec4(0.0f), glm::vec4(1.0f));
+                        materialComp.Dirty = true;
+                    }
+                }
+                else if (auto phongMat = std::dynamic_pointer_cast<PhongMaterial>(material))
+                {
+                    auto &phongParam = phongMat->mParam;
+                    if (ImGui::ColorEdit4("Diffuse", glm::value_ptr(phongParam.Diffuse)))
+                    {
+                        phongParam.Diffuse = glm::clamp(phongParam.Diffuse, glm::vec4(0.0f), glm::vec4(1.0f));
+                        materialComp.Dirty = true;
+                    }
+                    if (ImGui::ColorEdit4("Specular", glm::value_ptr(phongParam.Specular)))
+                    {
+                        phongParam.Specular = glm::clamp(phongParam.Specular, glm::vec4(0.0f), glm::vec4(1.0f));
+                        materialComp.Dirty = true;
+                    }
+                    if (ImGui::DragFloat("Shininess", &phongParam.Shininess, 1.0f, 1.0f, 256.0f))
+                    {
                         materialComp.Dirty = true;
                     }
                 }

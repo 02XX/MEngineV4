@@ -50,6 +50,7 @@ class Context
         static constexpr const char *TextureBindless = "TextureBindless";
         static constexpr const char *GlobalStorage = "GlobalStorage";
         static constexpr const char *PBR = "PBR";
+        static constexpr const char *Phong = "Phong";
     };
     static inline const std::unordered_map<std::string, std::vector<vk::DescriptorSetLayoutBinding>>
         DefaultDescriptorSetLayoutBindings{
@@ -60,7 +61,7 @@ class Context
                      .setBinding(0)
                      .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
                      .setDescriptorCount(MAX_DESCRIPTOR_COUNT) // Texture数组
-                     .setStageFlags(vk::ShaderStageFlagBits::eFragment)
+                     .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
                      .setPImmutableSamplers(nullptr),
              }},
             {DefaultDescriptorSetLayoutType::GlobalStorage,
@@ -77,7 +78,7 @@ class Context
                      .setBinding(1)
                      .setDescriptorType(vk::DescriptorType::eStorageBuffer)
                      .setDescriptorCount(1)
-                     .setStageFlags(vk::ShaderStageFlagBits::eFragment)
+                     .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
                      .setPImmutableSamplers(nullptr),
              }},
             {DefaultDescriptorSetLayoutType::PBR,
@@ -87,9 +88,21 @@ class Context
                      .setBinding(0)
                      .setDescriptorType(vk::DescriptorType::eUniformBuffer)
                      .setDescriptorCount(1)
-                     .setStageFlags(vk::ShaderStageFlagBits::eFragment)
+                     .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
                      .setPImmutableSamplers(nullptr),
-             }}};
+             }},
+            {DefaultDescriptorSetLayoutType::Phong,
+             {
+                 // binding 0
+                 vk::DescriptorSetLayoutBinding()
+                     .setBinding(0)
+                     .setDescriptorType(vk::DescriptorType::eUniformBuffer)
+                     .setDescriptorCount(1)
+                     .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
+                     .setPImmutableSamplers(nullptr),
+             }}
+
+        };
     std::unordered_map<std::string, vk::UniqueDescriptorSetLayout> DefaultDescriptorSetLayouts{};
     std::queue<uint32_t> FreeDescriptorIndices{};
     uint32_t NextDescriptorIndex = 0;
