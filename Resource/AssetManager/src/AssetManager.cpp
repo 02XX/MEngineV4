@@ -1,7 +1,6 @@
 #include "AssetManager.hpp"
 #include "GraphicPipelineManager.hpp"
 #include "MeshManager.hpp"
-#include "PBRMaterialManager.hpp"
 #include "PhongMaterialManager.hpp"
 #include "SceneManager.hpp"
 #include "ShaderManager.hpp"
@@ -17,14 +16,12 @@ AssetManager::AssetManager(std::shared_ptr<Context> context) : mContext(context)
     auto graphicPipelineManager = std::make_shared<GraphicPipelineManager>(mContext, shaderManager);
     auto meshManager = std::make_shared<MeshManager>();
     auto phongMaterialManager = std::make_shared<PhongMaterialManager>(textureManager, graphicPipelineManager);
-    auto pbrMaterialManager = std::make_shared<PBRMaterialManager>(textureManager, graphicPipelineManager);
-    auto sceneManager = std::make_shared<SceneManager>(pbrMaterialManager, meshManager);
+    auto sceneManager = std::make_shared<SceneManager>(phongMaterialManager, meshManager);
     RegisterManager<Shader>(shaderManager);
     RegisterManager<Texture2D>(textureManager);
     RegisterManager<GraphicPipeline>(graphicPipelineManager);
     RegisterManager<StaticMesh>(meshManager);
     RegisterManager<PhongMaterial>(phongMaterialManager);
-    RegisterManager<PBRMaterial>(pbrMaterialManager);
     RegisterManager<Scene>(sceneManager);
 }
 } // namespace MEngine::Resource

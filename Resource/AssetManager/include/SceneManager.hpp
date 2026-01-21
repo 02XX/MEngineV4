@@ -2,7 +2,7 @@
 #include "AssetURL.hpp"
 #include "Manager.hpp"
 #include "MeshManager.hpp"
-#include "PBRMaterialManager.hpp"
+#include "PhongMaterialManager.hpp"
 #include "Scene.hpp"
 #include "UpdateManager.hpp"
 #include <memory>
@@ -16,7 +16,7 @@ struct DefaultScene
 class SceneManager final : public UpdateManager<Scene>, public virtual IManager<Scene>
 {
   private:
-    std::shared_ptr<PBRMaterialManager> mPBRMaterialManager;
+    std::shared_ptr<PhongMaterialManager> mPBRMaterialManager;
     std::shared_ptr<MeshManager> mMeshManager;
 
   private:
@@ -25,8 +25,8 @@ class SceneManager final : public UpdateManager<Scene>, public virtual IManager<
     };
 
   public:
-    SceneManager(std::shared_ptr<PBRMaterialManager> pbrMaterialManager, std::shared_ptr<MeshManager> meshManager)
-        : UpdateManager<Scene>(), mPBRMaterialManager(pbrMaterialManager), mMeshManager(meshManager)
+    SceneManager(std::shared_ptr<PhongMaterialManager> phongMaterialManager, std::shared_ptr<MeshManager> meshManager)
+        : UpdateManager<Scene>(), mPBRMaterialManager(phongMaterialManager), mMeshManager(meshManager)
     {
         CreateDefault();
     }

@@ -43,12 +43,5 @@ class GraphicPipelineManager final : public PipelineManager<GraphicPipeline>
     ~GraphicPipelineManager() override = default;
     void CreateDefault() override;
     std::shared_ptr<GraphicPipeline> CreateForwardOpaquePhong();
-    std::shared_ptr<GraphicPipeline> CreateForwardTransparentPhong();
-    std::shared_ptr<GraphicPipeline> CreateForwardOpaquePBR();
-    std::shared_ptr<GraphicPipeline> CreateGBufferOpaquePBR();
-    std::shared_ptr<GraphicPipeline> CreateLightingOpaquePBR();
-    std::shared_ptr<GraphicPipeline> CreateSkyBox();
-    std::shared_ptr<GraphicPipeline> CreatePostProcess();
-    std::shared_ptr<GraphicPipeline> CreateUI();
 };
 } // namespace MEngine::Resource

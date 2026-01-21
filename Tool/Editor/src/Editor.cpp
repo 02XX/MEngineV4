@@ -9,9 +9,7 @@
 #include "Math.hpp"
 #include "MeshComponent.hpp"
 #include "MeshManager.hpp"
-#include "PBRMaterial.hpp"
-#include "PBRMaterialManager.hpp"
-#include "PBRMaterialResource.hpp"
+
 #include "PhongMaterial.hpp"
 #include "PhongMaterialManager.hpp"
 #include "PhongMaterialResource.hpp"
@@ -223,7 +221,6 @@ std::shared_ptr<Scene> Editor::DefaultScene()
     auto ecsRegister = defaultScene->mRegistry;
     auto cubeEntity = ecsRegister->create();
     auto cubeMesh = mAssetManager->GetManager<StaticMesh, MeshManager>()->GetByName(DefaultMeshType::Cube);
-    auto pbrMaterialManager = mAssetManager->GetManager<PBRMaterial, PBRMaterialManager>();
     auto phongMaterialManager = mAssetManager->GetManager<PhongMaterial, PhongMaterialManager>();
     auto defaultMat = phongMaterialManager->GetByName(DefaultPhongMaterialType::ForwardOpaque);
     auto &cubeEntityTransformComponent = ecsRegister->emplace<TransformComponent>(cubeEntity);
@@ -922,16 +919,7 @@ void Editor::Inspector()
             {
                 auto &materialComp = registry->get<MaterialComponent>(mSelectedEntity);
                 auto material = materialComp.Material;
-                if (auto pbrMat = std::dynamic_pointer_cast<PBRMaterial>(material))
-                {
-                    auto &pbrProps = pbrMat->mProperties;
-                    if (ImGui::ColorEdit4("Albedo", glm::value_ptr(pbrProps.Albedo)))
-                    {
-                        pbrProps.Albedo = glm::clamp(pbrProps.Albedo, glm::vec4(0.0f), glm::vec4(1.0f));
-                        materialComp.Dirty = true;
-                    }
-                }
-                else if (auto phongMat = std::dynamic_pointer_cast<PhongMaterial>(material))
+                if (auto phongMat = std::dynamic_pointer_cast<PhongMaterial>(material))
                 {
                     auto &phongParam = phongMat->mParam;
                     if (ImGui::ColorEdit4("Diffuse", glm::value_ptr(phongParam.Diffuse)))
