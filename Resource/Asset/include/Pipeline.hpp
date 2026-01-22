@@ -19,7 +19,7 @@ class Pipeline : public Asset
              std::vector<vk::PushConstantRange> pushConstantRanges)
         : Asset(name), mDescriptorSetLayouts(descriptorSetLayouts), mPushConstantRanges(pushConstantRanges)
     {
+        mAssetType = AssetType::Pipeline;
     }
-    ~Pipeline() override = default;
 };
 } // namespace MEngine::Resource

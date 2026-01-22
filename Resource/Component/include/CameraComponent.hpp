@@ -8,7 +8,6 @@ namespace MEngine::Resource
 class CameraComponent : public Component
 {
   public:
-    ~CameraComponent() override = default;
     Vector3 target = {0.0f, 0.0f, 0.0f};
     Vector3 up = {0.0f, 1.0f, 0.0f};
     float fovY = 60;

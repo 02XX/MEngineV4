@@ -12,7 +12,7 @@ class ShaderResource final : public RenderResource
 
   public:
     ShaderResource(Shader *shader);
-    ~ShaderResource() override = default;
+
     void InitRHI(std::shared_ptr<Context> context) override;
     void ReleaseRHI(std::shared_ptr<Context> context) override;
     inline const vk::ShaderModule GetShaderModule() const

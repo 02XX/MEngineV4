@@ -13,18 +13,23 @@ class Material : public Asset
 {
     friend class MaterialResource;
 
+  public:
+    GraphicPipeline *mPipeline{};
+    vk::DeviceSize mBufferSize{};
+    bool mDynamic{false};
+
   protected:
-    std::shared_ptr<GraphicPipeline> mPipeline{};
+    Material() : Asset()
+    {
+        mAssetType = AssetType::Material;
+    }
 
   public:
-    Material(const std::string &name, const std::shared_ptr<GraphicPipeline> &pipeline)
-        : Asset(name), mPipeline(pipeline)
+    Material(const std::string &name, GraphicPipeline *pipeline, vk::DeviceSize bufferSize, bool dynamic = true)
+        : Asset(name), mPipeline(pipeline), mDynamic(dynamic), mBufferSize(bufferSize)
     {
+        mResource = std::make_unique<MaterialResource>(this);
     }
-    ~Material() override = default;
-    inline std::shared_ptr<GraphicPipeline> GetPipeline() const
-    {
-        return mPipeline;
-    }
+    virtual void UpdateMaterialData(uint8_t *target) = 0;
 };
 } // namespace MEngine::Resource

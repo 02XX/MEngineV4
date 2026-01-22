@@ -9,7 +9,6 @@ namespace MEngine::Resource
 class TransformComponent : public Component
 {
   public:
-    ~TransformComponent() override = default;
     std::string name = "None";
 
     Vector3 localPosition{0.0f, 0.0f, 0.0f};

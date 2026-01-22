@@ -1,16 +1,15 @@
 #pragma once
-#include "ConcurrentQueue.hpp"
 #include "Context.hpp"
-#include <functional>
 #include <memory>
 
 using namespace MEngine::Platform;
-using namespace MEngine::Core;
 namespace MEngine::Resource
 {
 class Asset;
 class RenderResource : public std::enable_shared_from_this<RenderResource>
 {
+    friend class AssetManager;
+
   protected:
     Asset *mOwnerAsset{};
 
@@ -45,6 +44,4 @@ class RenderResource : public std::enable_shared_from_this<RenderResource>
   private:
     State mState = State::Uninitialized;
 };
-inline ConcurrentQueue<std::function<void(std::shared_ptr<Context>)>> PendingInit{};
-inline ConcurrentQueue<std::function<void(std::shared_ptr<Context>)>> PendingDeletions{};
 } // namespace MEngine::Resource

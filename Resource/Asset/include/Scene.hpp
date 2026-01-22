@@ -40,6 +40,5 @@ class Scene : public Asset
 
   public:
     Scene(const std::string &name);
-    ~Scene() override = default;
 };
 } // namespace MEngine::Resource

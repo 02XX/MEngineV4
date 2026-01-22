@@ -11,12 +11,10 @@ class Base
 class DerivedA : public Base
 {
   public:
-    ~DerivedA() override = default;
 };
 class DerivedB : public Base
 {
   public:
-    ~DerivedB() override = default;
 };
 
 class DispatcherTest : public ::testing::Test

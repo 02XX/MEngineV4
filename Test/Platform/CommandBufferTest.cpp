@@ -1,7 +1,7 @@
 #include "Context.hpp"
 #include <gtest/gtest.h>
 #include <memory>
-#include <vulkan/vulkan_handles.hpp>
+
 using namespace MEngine::Platform;
 class CommandBufferTest : public ::testing::Test
 {

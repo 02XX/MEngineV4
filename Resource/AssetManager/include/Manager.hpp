@@ -1,7 +1,7 @@
 #pragma once
-#include "ConcurrentQueue.hpp"
 #include "IManager.hpp"
 #include "Logger.hpp"
+#include "PendingResourceManager.hpp"
 #include "UUID.hpp"
 #include <concepts>
 #include <memory>
@@ -10,15 +10,21 @@
 
 namespace MEngine::Resource
 {
-template <std::derived_from<Asset> TAsset> class Manager : public virtual IManager<TAsset>
+template <std::derived_from<Asset> TAsset, std::derived_from<RenderResource> TRenderResource>
+class Manager : public virtual IManager, public PendingResourceManager<TRenderResource>
 {
   protected:
-    std::unordered_map<Core::UUID, std::shared_ptr<TAsset>> mAssets;
+    std::shared_ptr<Context> mContext{};
+
+  protected:
+    std::unordered_map<Core::UUID, std::shared_ptr<TAsset>> mAssets{};
     std::unordered_map<std::string, Core::UUID> mNameToIDMap;
 
   public:
-    ~Manager() override = default;
-    virtual void Add(std::shared_ptr<TAsset> asset) override
+    Manager(std::shared_ptr<Context> context) : mContext(context)
+    {
+    }
+    void Add(std::shared_ptr<Asset> asset) override
     {
         if (!asset)
         {
@@ -29,10 +35,10 @@ template <std::derived_from<Asset> TAsset> class Manager : public virtual IManag
         {
             LogWarn("Asset with ID {} already exists. Overwriting.", asset->GetID().ToString());
         }
-        mAssets[asset->GetID()] = asset;
+        mAssets[asset->GetID()] = std::static_pointer_cast<TAsset>(asset);
         mNameToIDMap[asset->GetName()] = asset->GetID();
     }
-    virtual std::shared_ptr<TAsset> Get(const Core::UUID &id) const override
+    std::shared_ptr<Asset> Get(const Core::UUID &id) const override
     {
         if (mAssets.contains(id))
         {
@@ -41,7 +47,7 @@ template <std::derived_from<Asset> TAsset> class Manager : public virtual IManag
         LogError("Asset with ID {} not found", id.ToString());
         return nullptr;
     }
-    virtual std::shared_ptr<TAsset> GetByName(const std::string &name) const override
+    std::shared_ptr<Asset> GetByName(const std::string &name) const override
     {
         if (mNameToIDMap.contains(name))
         {
@@ -50,16 +56,32 @@ template <std::derived_from<Asset> TAsset> class Manager : public virtual IManag
         LogError("Asset with name {} not found", name);
         return nullptr;
     }
-    virtual std::vector<std::shared_ptr<TAsset>> GetAll() const override
+    std::vector<std::shared_ptr<Asset>> GetAll() const override
     {
-        return mAssets | std::views::values | std::ranges::to<std::vector<std::shared_ptr<TAsset>>>();
+        return mAssets | std::views::values | std::ranges::to<std::vector<std::shared_ptr<Asset>>>();
     }
-    virtual void Remove(const Core::UUID &id) override
+    void Remove(const Core::UUID &id) override
     {
         if (mAssets.contains(id))
         {
             mAssets.erase(id);
         }
+    }
+    void ProcessPendingDeletionResources(RenderContext renderContext) override
+    {
+        // for (auto &[id, asset] : mAssets)
+        // {
+        //     if (asset.use_count() == 1)
+        //     {
+        //         PendingDelete(std::move(asset->mResource));
+        //     }
+        // }
+        PendingResourceManager<TRenderResource>::ProcessPendingDeletionResources(renderContext);
+    }
+    void DestroyAll() override
+    {
+        mAssets.clear();
+        mNameToIDMap.clear();
     }
 };
 } // namespace MEngine::Resource

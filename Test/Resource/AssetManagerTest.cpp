@@ -1,13 +1,13 @@
 #include "AssetManager.hpp"
 #include "Context.hpp"
-#include "GraphicPipelineManager.hpp"
-#include "MeshManager.hpp"
-#include "PBRMaterialManager.hpp"
+#include "IPendingResourceManager.hpp"
+#include "Logger.hpp"
 #include "ShaderManager.hpp"
-#include "Texture2DManager.hpp"
+#include "ShaderResource.hpp"
 #include <gtest/gtest.h>
 #include <memory>
-
+#include <stop_token>
+#include <thread>
 
 using namespace MEngine::Resource;
 using namespace MEngine::Platform;
@@ -15,67 +15,40 @@ class AssetManagerTest : public ::testing::Test
 {
   protected:
     std::shared_ptr<Context> mContext;
+    // std::jthread mRenderThread;
     void SetUp() override
     {
+        Logger::GetInstance().GetLogger()->SetLogLevel(LogLevel::Trace);
         ContextConfig config{};
         config.InstanceRequiredLayers = {"VK_LAYER_KHRONOS_validation"};
         mContext = std::make_shared<Context>(config);
+        // mRenderThread = std::jthread([&](std::stop_token stoken) {
+        //     while (!stoken.stop_requested())
+        //     {
+        //         RenderContext renderContext{mContext, vk::CommandBuffer{}};
+        //         AssetManager::Instance().ProcessPendingInitResources(renderContext);
+        //         AssetManager::Instance().ProcessPendingUpdateResources(renderContext);
+        //         AssetManager::Instance().ProcessPendingDeletionResources(renderContext);
+        //         std::this_thread::sleep_for(std::chrono::milliseconds(16));
+        //     }
+        // });
+        AssetManager::Instance().Init(mContext);
     }
     void TearDown() override
     {
-        std::function<void(std::shared_ptr<Context> context)> item{};
-        while (PendingDeletions.TryPop(item))
-        {
-            item(mContext);
-        }
+        RenderContext renderContext{mContext, vk::CommandBuffer{}};
+        AssetManager::Instance().DestroyAll();
+        AssetManager::Instance().ProcessPendingDeletionResources(renderContext);
     }
 };
-TEST_F(AssetManagerTest, ShaderManager)
+TEST_F(AssetManagerTest, All)
 {
-    auto shaderManager = std::make_shared<ShaderManager>();
-    auto shaders = shaderManager->GetAll();
-    for (auto shader : shaders)
+    auto assetManager = &AssetManager::Instance();
+    auto assets = assetManager->GetAll();
+    for (auto asset : assets)
     {
-        shader->GetResource()->InitResource(mContext);
+        assetManager->PendingInit(asset->GetResource());
     }
-}
-// TEST_F(AssetManagerTest, GraphicPipelineManager)
-// {
-//     auto shaderManager = std::make_shared<ShaderManager>();
-//     auto graphicPipelineManager = std::make_shared<GraphicPipelineManager>(mContext, shaderManager);
-//     auto pipelines = graphicPipelineManager->GetAll();
-//     for (auto pipeline : pipelines)
-//     {
-//         pipeline->GetResource()->InitResource(mContext);
-//     }
-// }
-TEST_F(AssetManagerTest, Texture2DManager)
-{
-    auto textureManager = std::make_shared<Texture2DManager>();
-    auto textures = textureManager->GetAll();
-    for (auto texture : textures)
-    {
-        texture->GetResource()->InitResource(mContext);
-    }
-}
-TEST_F(AssetManagerTest, PBRMaterialManager)
-{
-    auto shaderManager = std::make_shared<ShaderManager>();
-    auto textureManager = std::make_shared<Texture2DManager>();
-    auto graphicPipelineManager = std::make_shared<GraphicPipelineManager>(mContext, shaderManager);
-    auto pbrMaterialManager = std::make_shared<PBRMaterialManager>(textureManager, graphicPipelineManager);
-    auto materials = pbrMaterialManager->GetAll();
-    for (auto material : materials)
-    {
-        material->GetResource()->InitResource(mContext);
-    }
-}
-TEST_F(AssetManagerTest, MeshManager)
-{
-    auto meshManager = std::make_shared<MeshManager>();
-    auto meshes = meshManager->GetAll();
-    for (auto mesh : meshes)
-    {
-        mesh->GetResource()->InitResource(mContext);
-    }
+    RenderContext renderContext{mContext, vk::CommandBuffer{}};
+    AssetManager::Instance().ProcessPendingInitResources(renderContext);
 }

@@ -25,7 +25,6 @@ class AssetURL final
     static std::unordered_map<Protocol, std::filesystem::path> mProtocolToBasePath;
 
   public:
-    ~AssetURL() = default;
     AssetURL(const std::string &url);
     Protocol GetProtocol() const;
     const std::filesystem::path &GetPath() const;

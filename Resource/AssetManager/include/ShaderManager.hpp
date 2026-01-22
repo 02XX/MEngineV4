@@ -1,10 +1,13 @@
 #pragma once
 #include "AssetURL.hpp"
 #include "Manager.hpp"
+#include "PendingResourceManager.hpp"
 #include "Shader.hpp"
+#include "ShaderResource.hpp"
 #include <memory>
 #include <slang-com-ptr.h>
 #include <slang.h>
+
 using namespace Slang;
 namespace MEngine::Resource
 {
@@ -35,7 +38,7 @@ struct ShaderEntryPoint
     static constexpr const char *FragMain = "fragmentMain";
 };
 
-class ShaderManager final : public Manager<Shader>, public virtual IManager<Shader>
+class ShaderManager final : public Manager<Shader, ShaderResource>
 {
   private:
     static inline const std::unordered_map<std::string, Core::UUID> sDefaultShaders{
@@ -62,21 +65,20 @@ class ShaderManager final : public Manager<Shader>, public virtual IManager<Shad
 
   public:
     bool mAlwaysCompile{true};
+    ShaderManager(std::shared_ptr<Context> context);
 
-    ShaderManager() : Manager<Shader>()
+    std::shared_ptr<Asset> Load(const AssetURL &url) override
     {
-        InitializeSlang();
-        CreateDefault();
     }
-
-    ~ShaderManager() override = default;
-    void CreateDefault() override;
+    void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override
+    {
+    }
 
   private:
     void InitializeSlang();
     std::vector<uint32_t> CompileSlangToSPIRV(const AssetURL &url, const std::string &entryPointName);
     std::vector<uint32_t> ReadSpirvFile(const std::filesystem::path &path);
-    std::shared_ptr<Shader> CreateShader(const std::string &name, const AssetURL &path,
+    std::unique_ptr<Shader> CreateShader(const std::string &name, const AssetURL &path,
                                          const std::string &entryPointName, bool writeSpirvFile = true);
     vk::ShaderStageFlagBits GetShaderStageFromExtension(const std::string &extension);
     vk::ShaderStageFlagBits GetShaderStageFromEntryPoint(const std::string &entryPointName);

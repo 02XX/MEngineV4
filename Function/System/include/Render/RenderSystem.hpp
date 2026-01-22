@@ -12,7 +12,6 @@
 #include <taskflow/taskflow.hpp>
 #include <unordered_map>
 #include <vector>
-#include <vulkan/vulkan_handles.hpp>
 
 inline uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 using namespace MEngine::Resource;

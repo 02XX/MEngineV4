@@ -1,6 +1,7 @@
 #include "GraphicPipelineResource.hpp"
 #include "GraphicPipeline.hpp"
 #include "PipelineResource.hpp"
+#include <vulkan/vulkan_enums.hpp>
 namespace MEngine::Resource
 {
 GraphicPipelineResource::GraphicPipelineResource(GraphicPipeline *pipeline) : PipelineResource(pipeline)
@@ -24,23 +25,45 @@ void GraphicPipelineResource::InitRHI(std::shared_ptr<Context> context)
     vk::PipelineViewportStateCreateInfo viewportState{};
     vk::Viewport viewport{};
     vk::Rect2D scissor{};
-    viewportState.setViewports(viewport).setScissors(scissor);
+    viewportState.setViewports(viewport).setScissors(scissor).setViewportCount(0).setScissorCount(0);
     std::vector<vk::DynamicState> dynamicStates{
-        vk::DynamicState::eViewport,
-        vk::DynamicState::eScissor,
+        // =============顶点输入=========================
+        //==============================================
+        // =============光栅化=========================
+        vk::DynamicState::eCullMode,
+        vk::DynamicState::eFrontFace,
+        vk::DynamicState::eLineWidth,
+        vk::DynamicState::eDepthBiasEnable,
+        vk::DynamicState::eDepthBias,
+        // 深度模板状态
+        vk::DynamicState::eDepthTestEnable,
+        vk::DynamicState::eDepthWriteEnable,
+        vk::DynamicState::eDepthCompareOp,
+        vk::DynamicState::eStencilTestEnable,
+        vk::DynamicState::eStencilOp,
+        //==============================================
+        // =============多重采样=========================
+        //==============================================
+        //=============视口和剪裁====================
+        vk::DynamicState::eViewportWithCount,
+        vk::DynamicState::eScissorWithCount,
+        //==============================================
     };
 
-    vk::PipelineDynamicStateCreateInfo dynamicStateInfo{};
+    vk::PipelineDynamicStateCreateInfo dynamicStateInfo{
+
+    };
     dynamicStateInfo.setDynamicStates(dynamicStates);
 
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
     for (const auto &shader : pipeline->mShaders)
     {
         auto shaderResource = shader->GetResourceAs<ShaderResource>();
+        shaderResource->InitResource(context);
         shaderStages.push_back(vk::PipelineShaderStageCreateInfo{}
-                                   .setStage(shader->GetShaderStage())
+                                   .setStage(shader->mStage)
                                    .setModule(shaderResource->GetShaderModule())
-                                   .setPName("main"));
+                                   .setPName(shader->mEntryPoint.c_str()));
     }
 
     pipeline->mColorBlendState.setAttachments(pipeline->mColorBlendAttachments);

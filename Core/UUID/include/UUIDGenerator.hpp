@@ -12,7 +12,7 @@ class UUIDGenerator final : public IUUIDGenerator
 
   public:
     UUIDGenerator();
-    ~UUIDGenerator() override = default;
+
     static UUIDGenerator &Instance();
     UUID Create() override;
 };

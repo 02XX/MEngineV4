@@ -5,7 +5,6 @@
 #include <queue>
 #include <unordered_map>
 #include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_handles.hpp>
 
 namespace MEngine::Platform
 {

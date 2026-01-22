@@ -1,123 +1,58 @@
 #pragma once
 #include "Asset.hpp"
 #include "AssetURL.hpp"
+#include "Context.hpp"
 #include "IManager.hpp"
-#include "Logger.hpp"
-#include "UUID.hpp"
+#include "RenderResource.hpp"
+#include <any>
 #include <concepts>
-#include <fstream>
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <typeindex>
 #include <unordered_map>
 
-using JSON = nlohmann::json;
-using namespace MEngine::Resource;
 namespace MEngine::Resource
 {
-class AssetManager
+class AssetManager final : public virtual IManager, public virtual IPendingResourceManager
 {
   private:
-    std::shared_ptr<Context> mContext;
+    // Route map
+    std::unordered_map<std::type_index, std::shared_ptr<IManager>> mManagers{};
+    std::unordered_map<std::type_index, std::type_index> mResourceTypeToAssetTypeMap{};
 
   private:
-    std::unordered_map<std::type_index, std::any> mManagers;
+    AssetManager() = default;
+    bool mIsShutdown{false};
 
   public:
-    AssetManager(std::shared_ptr<Context> context);
-    template <std::derived_from<Asset> TAsset> void RegisterManager(std::shared_ptr<IManager<TAsset>> manager)
+    ~AssetManager();
+    static AssetManager &Instance();
+    void Init(std::shared_ptr<Context> context);
+    void Shutdown(std::shared_ptr<Context> context);
+    template <std::derived_from<Asset> TAsset, std::derived_from<RenderResource> TRenderResource>
+    void RegisterManager(std::shared_ptr<IManager> manager)
     {
+        assert(manager != nullptr && "Cannot register a null manager!");
         mManagers[std::type_index(typeid(TAsset))] = manager;
+        mResourceTypeToAssetTypeMap.insert_or_assign(std::type_index(typeid(TRenderResource)),
+                                                     std::type_index(typeid(TAsset)));
     }
-    template <std::derived_from<Asset> TAsset> void UnregisterManager()
-    {
-        auto typeIdx = std::type_index(typeid(TAsset));
-        if (mManagers.contains(typeIdx))
-        {
-            mManagers.erase(typeIdx);
-        }
-        else
-        {
-            LogWarn("Manager for asset type {} not found", typeid(TAsset).name());
-        }
-    }
-    template <std::derived_from<Asset> TAsset, std::derived_from<IManager<TAsset>> TManager = IManager<TAsset>>
-    std::shared_ptr<TManager> GetManager()
-    {
-        auto type = std::type_index(typeid(TAsset));
-        if (!mManagers.contains(type))
-        {
-            LogError("Manager for asset type {} not found", typeid(TAsset).name());
-            return nullptr;
-        }
-        auto manager = std::any_cast<std::shared_ptr<IManager<TAsset>>>(mManagers.at(type));
-        return std::dynamic_pointer_cast<TManager>(manager);
-    }
-    
-    virtual ~AssetManager()
-    {
-        mManagers.clear();
-    }
-    template <std::derived_from<Asset> TAsset> void AddAsset(std::shared_ptr<TAsset> asset)
-    {
-        if (!asset)
-        {
-            LogError("Cannot add null asset");
-            return;
-        }
-        auto manager = GetManager<TAsset>();
-        manager->Add(asset);
-    }
-    template <std::derived_from<Asset> TAsset> std::unique_ptr<TAsset> LoadAsset(const AssetURL &url)
-    {
-        auto path = url.GetPath();
-        if (!std::filesystem::exists(path))
-        {
-            LogError("Asset file {} does not exist", path.string());
-            return nullptr;
-        }
-        std::ifstream file(path, std::ios::binary);
-        if (!file.is_open())
-        {
-            LogError("Failed to open asset file {}", path.string());
-            return nullptr;
-        }
-        // JSON j = JSON::from_msgpack(file);
-        JSON j = JSON::parse(file);
-        file.close();
-        auto asset = std::unique_ptr<TAsset>(new TAsset());
-        j.get_to(*asset);
-        return asset;
-    }
-    template <std::derived_from<Asset> TAsset> void SaveAsset(std::shared_ptr<TAsset> asset, const AssetURL &url)
-    {
-        auto path = url.GetPath();
-        auto dir = path.parent_path();
-        if (!std::filesystem::exists(dir))
-        {
-            std::filesystem::create_directories(dir);
-        }
-        std::ofstream file(path, std::ios::binary);
-        if (!file.is_open())
-        {
-            LogError("Failed to open asset file {} for writing", path.string());
-            return;
-        }
-        JSON j = *asset;
-        // auto msgpackData = JSON::to_msgpack(j);
-        // file.write(reinterpret_cast<const char *>(msgpackData.data()), msgpackData.size());
-        file << j;
-        file.close();
-    }
-    template <std::derived_from<Asset> TAsset> std::shared_ptr<TAsset> GetByName(const std::string &name)
-    {
-        auto manager = GetManager<TAsset>();
-        return manager->GetByName(name);
-    }
-    template <std::derived_from<Asset> TAsset> std::shared_ptr<TAsset> GetByID(const Core::UUID &id)
-    {
-        auto manager = GetManager<TAsset>();
-        return manager->Get(id);
-    }
+    std::shared_ptr<Asset> Load(const AssetURL &url) override;
+    void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override;
+    void Add(std::shared_ptr<Asset> asset) override;
+    std::shared_ptr<Asset> Get(const Core::UUID &id) const override;
+    std::shared_ptr<Asset> GetByName(const std::string &name) const override;
+    std::vector<std::shared_ptr<Asset>> GetAll() const override;
+    void Remove(const Core::UUID &id) override;
+    // TODO: More Perfect Type Identification
+    std::type_index GetAssetType(Asset *asset) const;
+    std::type_index GetAssetTypeFromRenderResource(RenderResource *resource) const;
+    std::type_index GetAssetTypeFromURL(const AssetURL &url) const;
+    void ProcessPendingInitResources(RenderContext renderContext) override;
+    void ProcessPendingUpdateResources(RenderContext renderContext) override;
+    void ProcessPendingDeletionResources(RenderContext renderContext) override;
+    void PendingInit(RenderResource *resource) override;
+    void PendingUpdate(RenderResource *resource) override;
+    void PendingDelete(std::unique_ptr<RenderResource> resource) override;
+    void DestroyAll() override;
 };
 } // namespace MEngine::Resource

@@ -4,8 +4,10 @@
 #include "Pipeline.hpp"
 #include "Shader.hpp"
 #include "ShaderResource.hpp"
+#include "Vertex.hpp"
 #include <memory>
 #include <string>
+#include <vulkan/vulkan_enums.hpp>
 
 namespace MEngine::Resource
 {
@@ -14,38 +16,34 @@ class GraphicPipeline final : public Pipeline
     friend class GraphicPipelineResource;
 
   private:
-    std::vector<std::shared_ptr<Shader>>
-        mShaders{}; // RenderResource 不应该持有其他RenderResource的所有权，而是由上层的Asset来管理所有权
-    vk::VertexInputBindingDescription mVertexBindings{};
-    std::vector<vk::VertexInputAttributeDescription> mVertexAttributes{};
-    vk::PipelineInputAssemblyStateCreateInfo mInputAssemblyState{};
-    vk::PipelineRasterizationStateCreateInfo mRasterizationState{};
-    vk::PipelineMultisampleStateCreateInfo mMultisampleState{};
-    vk::PipelineDepthStencilStateCreateInfo mDepthStencilState{};
-    vk::PipelineColorBlendStateCreateInfo mColorBlendState{};
-    std::vector<vk::PipelineColorBlendAttachmentState> mColorBlendAttachments{};
+    std::vector<Shader *> mShaders{};
     std::vector<vk::Format> mColorAttachmentFormats{};
     vk::Format mDepthStencilAttachmentFormat{};
+    vk::PipelineColorBlendStateCreateInfo mColorBlendState{};
+    std::vector<vk::PipelineColorBlendAttachmentState> mColorBlendAttachments{};
+    vk::PipelineMultisampleStateCreateInfo mMultisampleState{};
+    std::vector<vk::VertexInputAttributeDescription> mVertexAttributes{};
+    vk::PipelineInputAssemblyStateCreateInfo mInputAssemblyState{};
+    // Dynamic
+  public:
+    vk::VertexInputBindingDescription mVertexBindings{};
+    vk::PipelineRasterizationStateCreateInfo mRasterizationState{};
+    vk::PipelineDepthStencilStateCreateInfo mDepthStencilState{};
 
   public:
     GraphicPipeline(const std::string &name, std::vector<vk::DescriptorSetLayout> descriptorSetLayouts,
-                    std::vector<vk::PushConstantRange> pushConstantRanges, std::vector<std::shared_ptr<Shader>> shaders,
-                    vk::VertexInputBindingDescription vertexBindings,
+                    std::vector<vk::PushConstantRange> pushConstantRanges,
                     std::vector<vk::VertexInputAttributeDescription> vertexAttributes,
-                    vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState,
-                    vk::PipelineRasterizationStateCreateInfo rasterizationState,
+                    vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState, std::vector<Shader *> shaders,
+                    std::vector<vk::Format> colorAttachmentFormats, vk::Format depthStencilAttachmentFormat,
                     vk::PipelineMultisampleStateCreateInfo multisampleState,
-                    vk::PipelineDepthStencilStateCreateInfo depthStencilState,
-                    vk::PipelineColorBlendStateCreateInfo colorBlendState,
-                    std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments,
-                    std::vector<vk::Format> colorAttachmentFormats, vk::Format depthStencilAttachmentFormat)
-        : Pipeline(name, descriptorSetLayouts, pushConstantRanges), mVertexBindings(vertexBindings),
-          mVertexAttributes(vertexAttributes), mInputAssemblyState(inputAssemblyState),
-          mRasterizationState(rasterizationState), mMultisampleState(multisampleState),
-          mDepthStencilState(depthStencilState), mColorBlendState(colorBlendState), mShaders(shaders),
-          mColorBlendAttachments(colorBlendAttachments), mColorAttachmentFormats(colorAttachmentFormats),
-          mDepthStencilAttachmentFormat(depthStencilAttachmentFormat)
+                    std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments)
+        : Pipeline(name, descriptorSetLayouts, pushConstantRanges), mVertexAttributes(vertexAttributes),
+          mInputAssemblyState(inputAssemblyState), mShaders(shaders), mColorAttachmentFormats(colorAttachmentFormats),
+          mDepthStencilAttachmentFormat(depthStencilAttachmentFormat), mMultisampleState(multisampleState),
+          mColorBlendAttachments(colorBlendAttachments)
     {
+
         std::vector<ShaderResource *> shaderResources;
         for (const auto &shader : mShaders)
         {
@@ -53,6 +51,5 @@ class GraphicPipeline final : public Pipeline
         }
         mResource = std::make_unique<GraphicPipelineResource>(this);
     }
-    ~GraphicPipeline() override = default;
 };
 } // namespace MEngine::Resource

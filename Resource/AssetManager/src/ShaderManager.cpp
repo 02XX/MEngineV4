@@ -1,48 +1,28 @@
 #include "ShaderManager.hpp"
 #include "AssetURL.hpp"
 #include "Logger.hpp"
+#include "ShaderResource.hpp"
 #include <fstream>
+#include <slang-com-ptr.h>
 #include <slang.h>
-#include <vulkan/vulkan_enums.hpp>
 
 using namespace MEngine::Core;
 namespace MEngine::Resource
 {
-void ShaderManager::CreateDefault()
+ShaderManager::ShaderManager(std::shared_ptr<Context> context) : Manager<Shader, ShaderResource>(context)
 {
+    InitializeSlang();
     auto frowardOpaquePhongVertShader =
         CreateShader(DefaultShaderType::ForwardOpaquePhongVert, AssetURL("shader://ForwardOpaquePhong.slang"),
                      ShaderEntryPoint::VertMain);
     auto frowardOpaquePhongFragShader =
         CreateShader(DefaultShaderType::ForwardOpaquePhongFrag, AssetURL("shader://ForwardOpaquePhong.slang"),
                      ShaderEntryPoint::FragMain);
-    // auto gBufferVertShader = CreateShader(DefaultShaderType::GBufferOpaquePBRVert,
-    //                                       AssetURL("shader://GBufferOpaquePBR.slang"), ShaderEntryPoint::VertMain);
-    // auto gBufferFragShader = CreateShader(DefaultShaderType::GBufferOpaquePBRFrag,
-    //                                       AssetURL("shader://GBufferOpaquePBR.slang"), ShaderEntryPoint::FragMain);
-    // auto lightingVertShader = CreateShader(DefaultShaderType::LightingOpaquePBRVert,
-    //                                        AssetURL("shader://LightingOpaquePBR.slang"), ShaderEntryPoint::VertMain);
-    // auto lightingFragShader = CreateShader(DefaultShaderType::LightingOpaquePBRFrag,
-    //                                        AssetURL("shader://LightingOpaquePBR.slang"), ShaderEntryPoint::FragMain);
 
     frowardOpaquePhongVertShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePhongVert));
     frowardOpaquePhongFragShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePhongFrag));
-    // gBufferVertShader->SetID(sDefaultShaders.at(DefaultShaderType::GBufferOpaquePBRVert));
-    // gBufferFragShader->SetID(sDefaultShaders.at(DefaultShaderType::GBufferOpaquePBRFrag));
-    // lightingVertShader->SetID(sDefaultShaders.at(DefaultShaderType::LightingOpaquePBRVert));
-    // lightingFragShader->SetID(sDefaultShaders.at(DefaultShaderType::LightingOpaquePBRFrag));
-    Add(frowardOpaquePhongVertShader);
-    Add(frowardOpaquePhongFragShader);
-    // Add(gBufferVertShader);
-    // Add(gBufferFragShader);
-    // Add(lightingVertShader);
-    // Add(lightingFragShader);
-    // Add(skyboxVertShader);
-    // Add(skyboxFragShader);
-    // Add(postprocessVertShader);
-    // Add(postprocessFragShader);
-    // Add(uiVertShader);
-    // Add(uiFragShader);
+    Add(std::move(frowardOpaquePhongVertShader));
+    Add(std::move(frowardOpaquePhongFragShader));
 }
 void ShaderManager::InitializeSlang()
 {
@@ -142,7 +122,7 @@ std::vector<uint32_t> ShaderManager::ReadSpirvFile(const std::filesystem::path &
     std::memcpy(spirv.data(), buffer.data(), buffer.size());
     return spirv;
 }
-std::shared_ptr<Shader> ShaderManager::CreateShader(const std::string &name, const AssetURL &path,
+std::unique_ptr<Shader> ShaderManager::CreateShader(const std::string &name, const AssetURL &path,
                                                     const std::string &entryPointName, bool writeSpirvFile)
 {
     if (!std::filesystem::exists(path.GetPath()))
@@ -164,7 +144,8 @@ std::shared_ptr<Shader> ShaderManager::CreateShader(const std::string &name, con
         LogDebug("Compiling shader: {}", path.GetPath().string());
         spirvCode = CompileSlangToSPIRV(path, entryPointName); // 编译并写入.spv文件
     }
-    auto shader = std::make_shared<Shader>(name, spirvCode, GetShaderStageFromEntryPoint(entryPointName));
+    auto shader =
+        std::make_unique<Shader>(name, spirvCode, GetShaderStageFromEntryPoint(entryPointName), entryPointName);
     if (writeSpirvFile)
     {
         std::ofstream spirvFile(spirvPath, std::ios::binary);

@@ -7,8 +7,7 @@ namespace MEngine::Resource
 class MaterialComponent : public Component
 {
   public:
-    ~MaterialComponent() override = default;
     std::shared_ptr<Resource::Material> Material{nullptr};
 };
 
-} // namespace MEngine::Function
+} // namespace MEngine::Resource

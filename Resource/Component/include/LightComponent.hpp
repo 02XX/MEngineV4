@@ -13,7 +13,6 @@ enum class LightType : uint32_t
 class LightComponent final : public Component
 {
   public:
-    ~LightComponent() override = default;
     LightType LightType = LightType::Directional;
     float Intensity = 1.0f;
     Vector3 Color = Vector3(1.0f);

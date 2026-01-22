@@ -1,27 +1,208 @@
 #include "AssetManager.hpp"
-#include "GraphicPipelineManager.hpp"
-#include "MeshManager.hpp"
-#include "PhongMaterialManager.hpp"
-#include "SceneManager.hpp"
+#include "Asset.hpp"
+#include "Context.hpp"
+#include "Logger.hpp"
+#include "Shader.hpp"
 #include "ShaderManager.hpp"
-#include "Texture2DManager.hpp"
-#include <memory>
+#include "ShaderResource.hpp"
 
 namespace MEngine::Resource
 {
-AssetManager::AssetManager(std::shared_ptr<Context> context) : mContext(context)
+AssetManager::~AssetManager()
 {
-    auto shaderManager = std::make_shared<ShaderManager>();
-    auto textureManager = std::make_shared<Texture2DManager>();
-    auto graphicPipelineManager = std::make_shared<GraphicPipelineManager>(mContext, shaderManager);
-    auto meshManager = std::make_shared<MeshManager>();
-    auto phongMaterialManager = std::make_shared<PhongMaterialManager>(textureManager, graphicPipelineManager);
-    auto sceneManager = std::make_shared<SceneManager>(phongMaterialManager, meshManager);
-    RegisterManager<Shader>(shaderManager);
-    RegisterManager<Texture2D>(textureManager);
-    RegisterManager<GraphicPipeline>(graphicPipelineManager);
-    RegisterManager<StaticMesh>(meshManager);
-    RegisterManager<PhongMaterial>(phongMaterialManager);
-    RegisterManager<Scene>(sceneManager);
+    if (!mIsShutdown)
+    {
+        LogError("AssetManager was not shutdown before destruction. Calling Shutdown() before destruction.");
+    }
+}
+void AssetManager::Init(std::shared_ptr<Context> context)
+{
+    auto shaderManager = std::make_shared<ShaderManager>(context);
+    RegisterManager<Shader, ShaderResource>(shaderManager);
+}
+void AssetManager::Shutdown(std::shared_ptr<Context> context)
+{
+    DestroyAll();
+    ProcessPendingDeletionResources(RenderContext{context, vk::CommandBuffer{}});
+    mIsShutdown = true;
+}
+AssetManager &AssetManager::Instance()
+{
+    static AssetManager instance;
+    return instance;
+}
+void AssetManager::DestroyAll()
+{
+    for (auto &[type, manager] : mManagers)
+    {
+        manager->DestroyAll();
+    }
+}
+std::shared_ptr<Asset> AssetManager::Load(const AssetURL &url)
+{
+    auto assetType = GetAssetTypeFromURL(url);
+    if (mManagers.contains(assetType))
+    {
+        auto manager = mManagers.at(assetType);
+        return manager->Load(url);
+    }
+    else
+    {
+        LogError("No manager found for asset type {}", assetType.name());
+        return nullptr;
+    }
+}
+void AssetManager::Save(std::shared_ptr<Asset> asset, const AssetURL &url)
+{
+    auto assetType = GetAssetType(asset.get());
+    if (mManagers.contains(assetType))
+    {
+        auto manager = mManagers.at(assetType);
+        manager->Save(asset, url);
+    }
+    else
+    {
+        LogError("No manager found for asset type {}", assetType.name());
+    }
+}
+void AssetManager::Add(std::shared_ptr<Asset> asset)
+{
+    auto assetType = GetAssetType(asset.get());
+    if (mManagers.contains(assetType))
+    {
+        auto manager = mManagers.at(assetType);
+        manager->Add(asset);
+    }
+    else
+    {
+        LogError("No manager found for asset type {}", assetType.name());
+    }
+}
+std::shared_ptr<Asset> AssetManager::Get(const Core::UUID &id) const
+{
+    for (const auto &[type, manager] : mManagers)
+    {
+        auto asset = manager->Get(id);
+        if (asset)
+        {
+            return asset;
+        }
+    }
+    LogError("Asset with ID {} not found", id.ToString());
+    return nullptr;
+}
+std::shared_ptr<Asset> AssetManager::GetByName(const std::string &name) const
+{
+    for (const auto &[type, manager] : mManagers)
+    {
+        auto asset = manager->GetByName(name);
+        if (asset)
+        {
+            return asset;
+        }
+    }
+    LogError("Asset with name {} not found", name);
+    return nullptr;
+}
+std::vector<std::shared_ptr<Asset>> AssetManager::GetAll() const
+{
+    std::vector<std::shared_ptr<Asset>> allAssets;
+    for (const auto &[type, manager] : mManagers)
+    {
+        auto assets = manager->GetAll();
+        allAssets.insert(allAssets.end(), assets.begin(), assets.end());
+    }
+    return allAssets;
+}
+void AssetManager::Remove(const Core::UUID &id)
+{
+    for (const auto &[type, manager] : mManagers)
+    {
+        manager->Remove(id);
+    }
+}
+std::type_index AssetManager::GetAssetType(Asset *asset) const
+{
+    return std::type_index(typeid(*asset));
+}
+std::type_index AssetManager::GetAssetTypeFromRenderResource(RenderResource *resource) const
+{
+    auto renderResourceType = std::type_index(typeid(*resource));
+    if (mResourceTypeToAssetTypeMap.contains(renderResourceType))
+    {
+        return mResourceTypeToAssetTypeMap.at(renderResourceType);
+    }
+    else
+    {
+        LogError("No asset type found for render resource type {}", renderResourceType.name());
+        return std::type_index(typeid(void));
+    }
+}
+std::type_index AssetManager::GetAssetTypeFromURL(const AssetURL &url) const
+{
+}
+
+void AssetManager::ProcessPendingInitResources(RenderContext renderContext)
+{
+    for (const auto &[type, manager] : mManagers)
+    {
+        manager->ProcessPendingInitResources(renderContext);
+    }
+}
+
+void AssetManager::ProcessPendingUpdateResources(RenderContext renderContext)
+{
+    for (const auto &[type, manager] : mManagers)
+    {
+        manager->ProcessPendingUpdateResources(renderContext);
+    }
+}
+
+void AssetManager::ProcessPendingDeletionResources(RenderContext renderContext)
+{
+    for (const auto &[type, manager] : mManagers)
+    {
+        manager->ProcessPendingDeletionResources(renderContext);
+    }
+}
+
+void AssetManager::PendingInit(RenderResource *resource)
+{
+    auto assetType = GetAssetTypeFromRenderResource(resource);
+    if (mManagers.contains(assetType))
+    {
+        auto manager = mManagers.at(assetType);
+        manager->PendingInit(resource);
+    }
+    else
+    {
+        LogError("No manager found for asset type {}", assetType.name());
+    }
+}
+void AssetManager::PendingUpdate(RenderResource *resource)
+{
+    auto assetType = GetAssetTypeFromRenderResource(resource);
+    if (mManagers.contains(assetType))
+    {
+        auto manager = mManagers.at(assetType);
+        manager->PendingUpdate(resource);
+    }
+    else
+    {
+        LogError("No manager found for asset type {}", assetType.name());
+    }
+}
+void AssetManager::PendingDelete(std::unique_ptr<RenderResource> resource)
+{
+    auto assetType = GetAssetTypeFromRenderResource(resource.get());
+    if (mManagers.contains(assetType))
+    {
+        auto manager = mManagers.at(assetType);
+        manager->PendingDelete(std::move(resource));
+    }
+    else
+    {
+        LogError("No manager found for asset type {}", assetType.name());
+    }
 }
 } // namespace MEngine::Resource

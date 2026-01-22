@@ -2,6 +2,9 @@
 #include "Logger.hpp"
 #include "RenderResource.hpp"
 #include "Texture.hpp"
+#include <vulkan/vulkan_enums.hpp>
+
+#include <vulkan/vulkan_structs.hpp>
 namespace MEngine::Resource
 {
 TextureResource::TextureResource(Texture *texture) : RenderResource(texture)
@@ -10,15 +13,92 @@ TextureResource::TextureResource(Texture *texture) : RenderResource(texture)
 TextureResource::~TextureResource()
 {
 }
+void TextureResource::InitRHI(std::shared_ptr<Context> context)
+{
+    auto texture = static_cast<Texture *>(mOwnerAsset);
+    auto instance = context->Instance.get();
+    auto device = context->Device.get();
+
+    texture->mTextureSettings.usage |=
+        vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc;
+
+    VmaAllocationCreateInfo imageAllocationCreateInfo{};
+    imageAllocationCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    imageAllocationCreateInfo.flags =
+        VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+    auto result =
+        vmaCreateImage(context->VmaAllocator, reinterpret_cast<VkImageCreateInfo *>(&texture->mTextureSettings),
+                       &imageAllocationCreateInfo, reinterpret_cast<VkImage *>(&mImage), &mImageAllocation,
+                       reinterpret_cast<VmaAllocationInfo *>(&mImageAllocationInfo));
+    if (result != VK_SUCCESS)
+    {
+        LogError("Failed to create image with VMA");
+        return;
+    }
+    mSampler = device.createSampler(static_cast<vk::SamplerCreateInfo>(texture->mTextureSettings));
+
+    vk::ImageViewCreateInfo imageviewCreateInfo{};
+    imageviewCreateInfo.setImage(mImage)
+        .setComponents({})
+        .setFormat(texture->mTextureSettings.format)
+        .setSubresourceRange(vk::ImageSubresourceRange()
+                                 .setAspectMask(texture->IsDepthStencil() ? vk::ImageAspectFlagBits::eDepth |
+                                                                                vk::ImageAspectFlagBits::eStencil
+                                                                          : vk::ImageAspectFlagBits::eColor)
+                                 .setBaseMipLevel(0)
+                                 .setLevelCount(texture->mTextureSettings.mipLevels)
+                                 .setBaseArrayLayer(0)
+                                 .setLayerCount(texture->mTextureSettings.arrayLayers));
+    switch (texture->mTextureSettings.imageType)
+    {
+    case vk::ImageType::e1D: {
+        imageviewCreateInfo.viewType =
+            texture->mTextureSettings.arrayLayers > 1 ? vk::ImageViewType::e1DArray : vk::ImageViewType::e1D;
+        break;
+    }
+    case vk::ImageType::e2D: {
+        if (static_cast<vk::ImageCreateInfo &>(texture->mTextureSettings).flags &
+            vk::ImageCreateFlagBits::eCubeCompatible)
+        {
+            imageviewCreateInfo.viewType =
+                texture->mTextureSettings.arrayLayers > 6 ? vk::ImageViewType::eCubeArray : vk::ImageViewType::eCube;
+        }
+        else
+        {
+            imageviewCreateInfo.viewType =
+                texture->mTextureSettings.arrayLayers > 1 ? vk::ImageViewType::e2DArray : vk::ImageViewType::e2D;
+        }
+        break;
+    }
+    case vk::ImageType::e3D: {
+        imageviewCreateInfo.viewType = vk::ImageViewType::e3D;
+        break;
+    }
+    break;
+    }
+    mImageView = device.createImageView(imageviewCreateInfo);
+}
 void TextureResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
     auto device = context->Device.get();
     if (mSampler)
+    {
         device.destroySampler(mSampler);
+        mSampler = nullptr;
+    }
     if (mImageView)
+    {
         device.destroyImageView(mImageView);
+        mImageView = nullptr;
+    }
     if (mImage && mImageAllocation)
+    {
         vmaDestroyImage(context->VmaAllocator, mImage, mImageAllocation);
+        mImage = nullptr;
+        mImageAllocation = nullptr;
+        mImageAllocationInfo = {};
+    }
 }
 
 std::pair<uint32_t, uint32_t> TextureResource::GetPixelSize(vk::Format format) const

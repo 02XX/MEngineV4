@@ -1,10 +1,12 @@
 #pragma once
 #include "Material.hpp"
+#include "MaterialResource.hpp"
 #include "Math.hpp"
-#include "PhongMaterialResource.hpp"
 #include "Texture2D.hpp"
 #include <cstdint>
 #include <memory>
+#include <vulkan/vulkan.hpp>
+
 namespace MEngine::Resource
 {
 struct PhongParam
@@ -16,27 +18,19 @@ struct PhongParam
     uint32_t DiffuseBindlessIndex = 0;
     uint32_t SpecularBindlessIndex = 0;
 };
-struct PhongTextures
-{
-    std::shared_ptr<Texture2D> mDiffuseTexture{};
-    std::shared_ptr<Texture2D> mSpecularTexture{};
-};
 class PhongMaterial : public Material
 {
-    friend class PhongMaterialResource;
-    friend class PhongMaterialManager;
-
   public:
     PhongParam mParam{};
-    PhongTextures mTextures{};
 
   public:
-    PhongMaterial(const std::string &name, std::shared_ptr<GraphicPipeline> pipeline, PhongParam param,
-                  PhongTextures textures)
-        : Material(name, pipeline), mParam(param), mTextures(textures)
+    PhongMaterial(const std::string &name, GraphicPipeline *pipeline) : Material(name, pipeline, sizeof(PhongParam))
     {
-        mResource = std::make_unique<PhongMaterialResource>(this);
     }
-    virtual ~PhongMaterial() = default;
+    virtual void UpdateMaterialData(uint8_t *target)
+    {
+        size_t offset = 0;
+        std::memcpy(target + offset, &mParam, sizeof(PhongParam));
+    };
 };
 } // namespace MEngine::Resource
