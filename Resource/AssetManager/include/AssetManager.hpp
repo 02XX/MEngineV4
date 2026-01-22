@@ -45,6 +45,20 @@ class AssetManager final : public virtual IManager, public virtual IPendingResou
     {
         return std::static_pointer_cast<TAsset>(GetByName(name));
     }
+    template <std::derived_from<Asset> TAsset> std::shared_ptr<IManager> GetManager() const
+    {
+        auto it = mManagers.find(std::type_index(typeid(TAsset)));
+        if (it != mManagers.end())
+        {
+            return it->second;
+        }
+        return nullptr;
+    }
+    template <std::derived_from<IManager> TManager>
+    friend std::shared_ptr<TManager> To(std::shared_ptr<IManager> manager)
+    {
+        return std::static_pointer_cast<TManager>(manager);
+    }
     std::shared_ptr<Asset> Load(const AssetURL &url) override;
     void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override;
     void Add(std::shared_ptr<Asset> asset) override;

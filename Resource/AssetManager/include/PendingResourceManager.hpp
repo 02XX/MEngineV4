@@ -2,8 +2,11 @@
 #include "ConcurrentQueue.hpp"
 #include "IPendingResourceManager.hpp"
 #include "RenderResource.hpp"
+#include <algorithm>
 #include <concepts>
 #include <memory>
+#include <ranges>
+#include <unordered_set>
 #include <vector>
 
 namespace MEngine::Resource
@@ -21,13 +24,13 @@ class PendingResourceManager : public virtual IPendingResourceManager
   public:
     std::vector<TRenderResource *> ToVector(Core::ConcurrentQueue<TRenderResource *> &queue)
     {
-        std::vector<TRenderResource *> resources;
+        std::unordered_set<TRenderResource *> resources;
         TRenderResource *resource;
         while (queue.TryPop(resource))
         {
-            resources.push_back(resource);
+            resources.insert(resource);
         }
-        return resources;
+        return resources | std::ranges::to<std::vector<TRenderResource *>>();
     }
     void ProcessPendingInitResources(RenderContext renderContext) override
     {

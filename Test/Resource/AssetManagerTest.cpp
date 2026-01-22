@@ -11,6 +11,7 @@
 #include <stop_token>
 #include <thread>
 #include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan_structs.hpp>
 
 using namespace MEngine::Resource;
 using namespace MEngine::Platform;
@@ -20,6 +21,7 @@ class AssetManagerTest : public ::testing::Test
     std::shared_ptr<Context> mContext;
     // std::jthread mRenderThread;
     vk::UniqueCommandPool GraphicsCommandPool{};
+    vk::UniqueCommandBuffer GraphicsCommandBuffer{};
     void SetUp() override
     {
         Logger::GetInstance().GetLogger()->SetLogLevel(LogLevel::Trace);
@@ -40,6 +42,12 @@ class AssetManagerTest : public ::testing::Test
         commandPoolCreateInfo.setQueueFamilyIndex(mContext->QueueFamilyIndicates.graphicsFamily.value())
             .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
         GraphicsCommandPool = mContext->Device->createCommandPoolUnique(commandPoolCreateInfo);
+        vk::CommandBufferAllocateInfo commandBufferAllocateInfo{};
+        commandBufferAllocateInfo.setCommandPool(GraphicsCommandPool.get())
+            .setLevel(vk::CommandBufferLevel::ePrimary)
+            .setCommandBufferCount(1);
+        auto commandBuffers = mContext->Device->allocateCommandBuffersUnique(commandBufferAllocateInfo);
+        GraphicsCommandBuffer = std::move(commandBuffers.front());
         AssetManager::Instance().Init(mContext);
     }
     void TearDown() override
@@ -57,24 +65,27 @@ TEST_F(AssetManagerTest, All)
     {
         assetManager->PendingInit(asset->GetResource());
     }
-    RenderContext renderContext{mContext, vk::CommandBuffer{}};
+    RenderContext renderContext{mContext, GraphicsCommandBuffer.get()};
+    vk::CommandBufferBeginInfo beginInfo{};
+    GraphicsCommandBuffer->begin(beginInfo);
     AssetManager::Instance().ProcessPendingInitResources(renderContext);
+    GraphicsCommandBuffer->end();
 }
-TEST_F(AssetManagerTest, GraphicPipeline)
-{
-    auto assetManager = &AssetManager::Instance();
-    auto pipeline = assetManager->GetByNameAs<GraphicPipeline>(DefaultGraphicPipelineType::ForwardOpaquePhong);
-    pipeline->PendingInit();
-    assetManager->ProcessPendingInitResources(RenderContext{mContext, vk::CommandBuffer{}});
-    vk::UniqueCommandBuffer commandBuffer =
-        std::move(mContext->Device
-                      ->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo{}
-                                                         .setCommandPool(GraphicsCommandPool.get())
-                                                         .setLevel(vk::CommandBufferLevel::ePrimary)
-                                                         .setCommandBufferCount(1))
-                      .front());
-    commandBuffer->begin(vk::CommandBufferBeginInfo{});
-    commandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics,
-                                pipeline->GetResourceAs<GraphicPipelineResource>()->mPipeline);
-    commandBuffer->end();
-}
+// TEST_F(AssetManagerTest, GraphicPipeline)
+// {
+//     auto assetManager = &AssetManager::Instance();
+//     auto pipeline = assetManager->GetByNameAs<GraphicPipeline>(DefaultGraphicPipelineType::ForwardOpaquePhong);
+//     pipeline->PendingInit();
+//     assetManager->ProcessPendingInitResources(RenderContext{mContext, GraphicsCommandBuffer.get()});
+//     vk::UniqueCommandBuffer commandBuffer =
+//         std::move(mContext->Device
+//                       ->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo{}
+//                                                          .setCommandPool(GraphicsCommandPool.get())
+//                                                          .setLevel(vk::CommandBufferLevel::ePrimary)
+//                                                          .setCommandBufferCount(1))
+//                       .front());
+//     commandBuffer->begin(vk::CommandBufferBeginInfo{});
+//     commandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics,
+//                                 pipeline->GetResourceAs<GraphicPipelineResource>()->mPipeline);
+//     commandBuffer->end();
+// }

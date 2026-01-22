@@ -8,6 +8,10 @@
 #include "Shader.hpp"
 #include "ShaderManager.hpp"
 #include "ShaderResource.hpp"
+#include "TextureManager.hpp"
+#include "TextureRenderTargetResource.hpp"
+#include "UploadableTexture.hpp"
+#include "UploadableTextureResource.hpp"
 
 namespace MEngine::Resource
 {
@@ -22,8 +26,10 @@ void AssetManager::Init(std::shared_ptr<Context> context)
 {
     auto shaderManager = std::make_shared<ShaderManager>(context);
     auto pipelineManager = std::make_shared<PipelineManager>(context, shaderManager);
+    auto textureManager = std::make_shared<TextureManager>(context, pipelineManager);
     RegisterManager<Shader, ShaderResource>(shaderManager);
     RegisterManager<Pipeline, PipelineResource, GraphicPipelineResource>(pipelineManager);
+    RegisterManager<Texture, TextureResource, UploadableTextureResource, TextureRenderTargetResource>(textureManager);
 }
 void AssetManager::Shutdown(std::shared_ptr<Context> context)
 {

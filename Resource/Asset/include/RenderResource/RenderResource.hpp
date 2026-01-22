@@ -10,7 +10,7 @@ class RenderResource : public std::enable_shared_from_this<RenderResource>
 {
     friend class AssetManager;
 
-  protected:
+  public:
     Asset *mOwnerAsset{};
 
   public:
