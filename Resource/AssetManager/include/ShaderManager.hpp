@@ -34,8 +34,8 @@ struct DefaultShaderType
 struct ShaderEntryPoint
 {
     static constexpr const char *Main = "main";
-    static constexpr const char *VertMain = "vertexMain";
-    static constexpr const char *FragMain = "fragmentMain";
+    static constexpr const char *Vertex = "vertex";
+    static constexpr const char *Fragment = "fragment";
 };
 
 class ShaderManager final : public Manager<Shader, ShaderResource>

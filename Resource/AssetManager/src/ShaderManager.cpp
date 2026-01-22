@@ -14,10 +14,10 @@ ShaderManager::ShaderManager(std::shared_ptr<Context> context) : Manager<Shader,
     InitializeSlang();
     auto frowardOpaquePhongVertShader =
         CreateShader(DefaultShaderType::ForwardOpaquePhongVert, AssetURL("shader://ForwardOpaquePhong.slang"),
-                     ShaderEntryPoint::VertMain);
+                     ShaderEntryPoint::Vertex);
     auto frowardOpaquePhongFragShader =
         CreateShader(DefaultShaderType::ForwardOpaquePhongFrag, AssetURL("shader://ForwardOpaquePhong.slang"),
-                     ShaderEntryPoint::FragMain);
+                     ShaderEntryPoint::Fragment);
 
     frowardOpaquePhongVertShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePhongVert));
     frowardOpaquePhongFragShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePhongFrag));
@@ -144,8 +144,7 @@ std::unique_ptr<Shader> ShaderManager::CreateShader(const std::string &name, con
         LogDebug("Compiling shader: {}", path.GetPath().string());
         spirvCode = CompileSlangToSPIRV(path, entryPointName); // 编译并写入.spv文件
     }
-    auto shader =
-        std::make_unique<Shader>(name, spirvCode, GetShaderStageFromEntryPoint(entryPointName), entryPointName);
+    auto shader = std::make_unique<Shader>(name, spirvCode, GetShaderStageFromEntryPoint(entryPointName));
     if (writeSpirvFile)
     {
         std::ofstream spirvFile(spirvPath, std::ios::binary);
@@ -190,11 +189,11 @@ vk::ShaderStageFlagBits ShaderManager::GetShaderStageFromExtension(const std::st
 }
 vk::ShaderStageFlagBits ShaderManager::GetShaderStageFromEntryPoint(const std::string &entryPointName)
 {
-    if (entryPointName == ShaderEntryPoint::VertMain)
+    if (entryPointName == ShaderEntryPoint::Vertex)
     {
         return vk::ShaderStageFlagBits::eVertex;
     }
-    else if (entryPointName == ShaderEntryPoint::FragMain)
+    else if (entryPointName == ShaderEntryPoint::Fragment)
     {
         return vk::ShaderStageFlagBits::eFragment;
     }

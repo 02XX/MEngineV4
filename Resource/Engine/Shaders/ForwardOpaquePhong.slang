@@ -36,13 +36,13 @@ struct PushConstants
 ConstantBuffer<PushConstants> pc;
 // (binding, set)
 [vk_binding(0, 0)]
-Sampler2D textures[];
-[vk_binding(0, 1)]
 ConstantBuffer<SceneParam> sceneParam;
-[vk_binding(1, 1)]
+[vk_binding(1, 0)]
 StructuredBuffer<LightParam> lights;
-[vk_binding(0, 2)]
+[vk_binding(0, 1)]
 ConstantBuffer<PhongParam> phongParam;
+[vk_binding(0, 2)]
+Sampler2D textures[];
 
 struct VSInput
 {
@@ -70,7 +70,7 @@ struct FSOutput
 };
 
 [shader("vertex")]
-FSInput vertexMain(VSInput input)
+FSInput vertex(VSInput input)
 {
     FSInput output;
     float4x4 modelMatrix = pc.modelMatrix;
@@ -87,7 +87,7 @@ FSInput vertexMain(VSInput input)
 }
 
 [shader("fragment")]
-FSOutput fragmentMain(FSInput input)
+FSOutput fragment(FSInput input)
 {
     FSOutput output;
     float3 N = input.fragNormal; // world space normal

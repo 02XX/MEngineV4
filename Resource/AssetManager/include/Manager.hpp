@@ -24,6 +24,15 @@ class Manager : public virtual IManager, public PendingResourceManager<TRenderRe
     Manager(std::shared_ptr<Context> context) : mContext(context)
     {
     }
+    std::shared_ptr<TAsset> GetAsset(const Core::UUID &id) const
+    {
+        return std::static_pointer_cast<TAsset>(Get(id));
+    }
+    std::shared_ptr<TAsset> GetAssetByName(const std::string &name) const
+    {
+        return std::static_pointer_cast<TAsset>(GetByName(name));
+    }
+
     void Add(std::shared_ptr<Asset> asset) override
     {
         if (!asset)
@@ -44,7 +53,6 @@ class Manager : public virtual IManager, public PendingResourceManager<TRenderRe
         {
             return mAssets.at(id);
         }
-        LogError("Asset with ID {} not found", id.ToString());
         return nullptr;
     }
     std::shared_ptr<Asset> GetByName(const std::string &name) const override
@@ -53,7 +61,6 @@ class Manager : public virtual IManager, public PendingResourceManager<TRenderRe
         {
             return Get(mNameToIDMap.at(name));
         }
-        LogError("Asset with name {} not found", name);
         return nullptr;
     }
     std::vector<std::shared_ptr<Asset>> GetAll() const override

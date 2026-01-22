@@ -46,6 +46,7 @@ PipelineManager::PipelineManager(std::shared_ptr<Context> context, std::shared_p
 
         mDefaultDescriptorSetLayouts.insert({layoutName, descriptorSetLayout});
     }
+    // Create Default Pipelines
     std::vector<vk::DescriptorSetLayout> genericDescriptorSetLayouts{
         mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Global),
         mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Material),
@@ -120,15 +121,16 @@ PipelineManager::PipelineManager(std::shared_ptr<Context> context, std::shared_p
     mVertexAttributes = Vertex::GetVertexInputAttributeDescription();
     vk::PipelineInputAssemblyStateCreateInfo mInputAssemblyState{};
     mInputAssemblyState.setPrimitiveRestartEnable(vk::False).setTopology(vk::PrimitiveTopology::eTriangleList);
+    std::vector<std::shared_ptr<Shader>> shaders{
+        mShaderManager->GetAssetByName(DefaultShaderType::ForwardOpaquePhongVert),
+        mShaderManager->GetAssetByName(DefaultShaderType::ForwardOpaquePhongFrag)};
     // Graphic Pipelines
-    // auto graphicForwardOpaquePhong = std::make_unique<GraphicPipeline>(
-    //     DefaultGraphicPipelineType::ForwardOpaquePhong, genericDescriptorSetLayouts, genericPushConstantRanges,
-    //     mVertexAttributes, mInputAssemblyState,
-    //     std::vector<Shader *>{mShaderManager->GetByName(DefaultShaderType::ForwardOpaquePhongVert),
-    //                           mShaderManager->GetByName(DefaultShaderType::ForwardOpaquePhongFrag)},
-    //     sMRTFormats, sDepthStencilFormat, mMultisampleState, mColorBlendAttachments);
-    // graphicForwardOpaquePhong->SetID(sDefaultPipelines.at(DefaultGraphicPipelineType::ForwardOpaquePhong));
-    // Add(std::move(graphicForwardOpaquePhong));
+    auto graphicForwardOpaquePhong =
+        std::make_shared<GraphicPipeline>(DefaultGraphicPipelineType::ForwardOpaquePhong, genericDescriptorSetLayouts,
+                                          genericPushConstantRanges, mVertexAttributes, mInputAssemblyState, shaders,
+                                          sMRTFormats, sDepthStencilFormat, mColorBlendAttachments, mMultisampleState);
+    graphicForwardOpaquePhong->SetID(sDefaultPipelines.at(DefaultGraphicPipelineType::ForwardOpaquePhong));
+    Add(graphicForwardOpaquePhong);
 }
 PipelineManager::~PipelineManager()
 {

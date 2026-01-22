@@ -63,7 +63,7 @@ void GraphicPipelineResource::InitRHI(std::shared_ptr<Context> context)
         shaderStages.push_back(vk::PipelineShaderStageCreateInfo{}
                                    .setStage(shader->mStage)
                                    .setModule(shaderResource->GetShaderModule())
-                                   .setPName(shader->mEntryPoint.c_str()));
+                                   .setPName("main"));
     }
 
     pipeline->mColorBlendState.setAttachments(pipeline->mColorBlendAttachments);

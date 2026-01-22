@@ -1,7 +1,10 @@
 #include "AssetManager.hpp"
 #include "Asset.hpp"
 #include "Context.hpp"
+#include "GraphicPipeline.hpp"
+#include "GraphicPipelineResource.hpp"
 #include "Logger.hpp"
+#include "PipelineManager.hpp"
 #include "Shader.hpp"
 #include "ShaderManager.hpp"
 #include "ShaderResource.hpp"
@@ -18,7 +21,9 @@ AssetManager::~AssetManager()
 void AssetManager::Init(std::shared_ptr<Context> context)
 {
     auto shaderManager = std::make_shared<ShaderManager>(context);
+    auto pipelineManager = std::make_shared<PipelineManager>(context, shaderManager);
     RegisterManager<Shader, ShaderResource>(shaderManager);
+    RegisterManager<Pipeline, PipelineResource, GraphicPipelineResource>(pipelineManager);
 }
 void AssetManager::Shutdown(std::shared_ptr<Context> context)
 {

@@ -28,13 +28,22 @@ class AssetManager final : public virtual IManager, public virtual IPendingResou
     static AssetManager &Instance();
     void Init(std::shared_ptr<Context> context);
     void Shutdown(std::shared_ptr<Context> context);
-    template <std::derived_from<Asset> TAsset, std::derived_from<RenderResource> TRenderResource>
+    template <std::derived_from<Asset> TAsset, std::derived_from<RenderResource>... TRenderResource>
     void RegisterManager(std::shared_ptr<IManager> manager)
     {
         assert(manager != nullptr && "Cannot register a null manager!");
         mManagers[std::type_index(typeid(TAsset))] = manager;
-        mResourceTypeToAssetTypeMap.insert_or_assign(std::type_index(typeid(TRenderResource)),
-                                                     std::type_index(typeid(TAsset)));
+        (mResourceTypeToAssetTypeMap.insert_or_assign(std::type_index(typeid(TRenderResource)),
+                                                      std::type_index(typeid(TAsset))),
+         ...);
+    }
+    template <std::derived_from<Asset> TAsset> std::shared_ptr<TAsset> GetAs(const Core::UUID &id) const
+    {
+        return std::static_pointer_cast<TAsset>(Get(id));
+    }
+    template <std::derived_from<Asset> TAsset> std::shared_ptr<TAsset> GetByNameAs(const std::string &name) const
+    {
+        return std::static_pointer_cast<TAsset>(GetByName(name));
     }
     std::shared_ptr<Asset> Load(const AssetURL &url) override;
     void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override;
