@@ -112,6 +112,8 @@ class PipelineManager final : public Manager<Pipeline, PipelineResource>
     void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override
     {
     }
+    std::shared_ptr<GraphicPipeline> GetGraphicPipeline(const Core::UUID &id);
+    std::shared_ptr<GraphicPipeline> GetGraphicPipelineByName(const std::string &name);
     PipelineManager(std::shared_ptr<Context> context, std::shared_ptr<ShaderManager> shaderManager);
     ~PipelineManager() override;
 };

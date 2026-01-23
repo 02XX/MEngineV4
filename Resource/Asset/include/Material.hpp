@@ -14,7 +14,7 @@ class Material : public Asset
     friend class MaterialResource;
 
   public:
-    GraphicPipeline *mPipeline{};
+    std::shared_ptr<GraphicPipeline> mPipeline{};
     vk::DeviceSize mBufferSize{};
     bool mDynamic{false};
 
@@ -25,7 +25,8 @@ class Material : public Asset
     }
 
   public:
-    Material(const std::string &name, GraphicPipeline *pipeline, vk::DeviceSize bufferSize, bool dynamic = true)
+    Material(const std::string &name, std::shared_ptr<GraphicPipeline> pipeline, vk::DeviceSize bufferSize,
+             bool dynamic = true)
         : Asset(name), mPipeline(pipeline), mDynamic(dynamic), mBufferSize(bufferSize)
     {
         mResource = std::make_unique<MaterialResource>(this);

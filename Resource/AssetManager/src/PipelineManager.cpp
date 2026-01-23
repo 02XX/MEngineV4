@@ -145,4 +145,12 @@ PipelineManager::~PipelineManager()
         mDescriptorPool = nullptr;
     }
 }
+std::shared_ptr<GraphicPipeline> PipelineManager::GetGraphicPipeline(const Core::UUID &id)
+{
+    return std::dynamic_pointer_cast<GraphicPipeline>(Get(id));
+}
+std::shared_ptr<GraphicPipeline> PipelineManager::GetGraphicPipelineByName(const std::string &name)
+{
+    return std::dynamic_pointer_cast<GraphicPipeline>(GetByName(name));
+}
 } // namespace MEngine::Resource

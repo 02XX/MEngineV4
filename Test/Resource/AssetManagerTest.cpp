@@ -69,6 +69,7 @@ TEST_F(AssetManagerTest, All)
     vk::CommandBufferBeginInfo beginInfo{};
     GraphicsCommandBuffer->begin(beginInfo);
     AssetManager::Instance().ProcessPendingInitResources(renderContext);
+    AssetManager::Instance().ProcessPendingUpdateResources(renderContext);
     GraphicsCommandBuffer->end();
 }
 // TEST_F(AssetManagerTest, GraphicPipeline)

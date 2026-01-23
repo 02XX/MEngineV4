@@ -117,23 +117,6 @@ void TextureManager::ProcessPendingInitResources(RenderContext renderContext)
     for (auto textureResource : resourcesToInitialize)
     {
         textureResource->InitResource(renderContext.Context);
-        if (auto uploadableTexture = dynamic_cast<UploadableTexture *>(textureResource->mOwnerAsset);
-            uploadableTexture->mDynamic)
-        {
-            auto &datas = uploadableTexture->mTextureDatas;
-            auto uploadableTextureResource = uploadableTexture->GetResourceAs<UploadableTextureResource>();
-            vk::DeviceSize totalSize = 0;
-            for (size_t mipLevel = 0; mipLevel < datas.size(); ++mipLevel)
-            {
-                const auto &mipData = datas[mipLevel];
-                for (size_t arrayLayer = 0; arrayLayer < mipData.Datas.size(); ++arrayLayer)
-                {
-                    const auto &layerData = mipData.Datas[arrayLayer];
-                    totalSize += layerData.size();
-                }
-            }
-            uploadableTextureResource->InitStaging(renderContext.Context, totalSize);
-        }
         if (auto uploadableTextureResource = dynamic_cast<UploadableTextureResource *>(textureResource))
         {
             uploadableResourcesToInitialized.push_back(uploadableTextureResource);
@@ -268,7 +251,7 @@ void TextureManager::ProcessPendingUpdateResources(RenderContext renderContext)
         preBarriers.push_back(preBarrier);
         postBarriers.push_back(postBarrier);
 
-        if (!uploadableTexture->mDynamic)
+        if (!uploadableTextureResource->mStagingBuffer)
         {
             auto &datas = uploadableTexture->mTextureDatas;
             vk::DeviceSize totalSize = 0;

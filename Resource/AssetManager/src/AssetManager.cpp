@@ -4,6 +4,9 @@
 #include "GraphicPipeline.hpp"
 #include "GraphicPipelineResource.hpp"
 #include "Logger.hpp"
+#include "MaterialManager.hpp"
+#include "MeshManager.hpp"
+#include "MeshResource.hpp"
 #include "PipelineManager.hpp"
 #include "Shader.hpp"
 #include "ShaderManager.hpp"
@@ -25,11 +28,15 @@ AssetManager::~AssetManager()
 void AssetManager::Init(std::shared_ptr<Context> context)
 {
     auto shaderManager = std::make_shared<ShaderManager>(context);
+    auto meshManager = std::make_shared<MeshManager>(context);
     auto pipelineManager = std::make_shared<PipelineManager>(context, shaderManager);
     auto textureManager = std::make_shared<TextureManager>(context, pipelineManager);
+    auto materialManager = std::make_shared<MaterialManager>(context, pipelineManager, textureManager);
     RegisterManager<Shader, ShaderResource>(shaderManager);
+    RegisterManager<Mesh, MeshResource>(meshManager);
     RegisterManager<Pipeline, PipelineResource, GraphicPipelineResource>(pipelineManager);
     RegisterManager<Texture, TextureResource, UploadableTextureResource, TextureRenderTargetResource>(textureManager);
+    RegisterManager<Material, MaterialResource>(materialManager);
 }
 void AssetManager::Shutdown(std::shared_ptr<Context> context)
 {

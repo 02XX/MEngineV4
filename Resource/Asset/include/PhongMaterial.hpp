@@ -24,7 +24,8 @@ class PhongMaterial : public Material
     PhongParam mParam{};
 
   public:
-    PhongMaterial(const std::string &name, GraphicPipeline *pipeline) : Material(name, pipeline, sizeof(PhongParam))
+    PhongMaterial(const std::string &name, std::shared_ptr<GraphicPipeline> pipeline)
+        : Material(name, pipeline, sizeof(PhongParam))
     {
     }
     virtual void UpdateMaterialData(uint8_t *target)

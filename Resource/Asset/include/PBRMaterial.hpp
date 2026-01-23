@@ -27,7 +27,8 @@ class PBRMaterial : public Material
     PBRParm mParam{};
 
   public:
-    PBRMaterial(const std::string &name, GraphicPipeline *pipeline) : Material(name, pipeline, sizeof(PBRParm))
+    PBRMaterial(const std::string &name, std::shared_ptr<GraphicPipeline> pipeline)
+        : Material(name, pipeline, sizeof(PBRParm))
     {
     }
     virtual void UpdateMaterialData(uint8_t *target)
