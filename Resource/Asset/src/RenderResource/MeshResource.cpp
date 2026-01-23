@@ -1,4 +1,5 @@
 #include "MeshResource.hpp"
+#include "IBind.hpp"
 #include "Mesh.hpp"
 
 namespace MEngine::Resource
@@ -100,7 +101,7 @@ void MeshResource::ReleaseStaging(std::shared_ptr<Context> context)
         vmaDestroyBuffer(context->VmaAllocator, mStagingIndexBuffer, mStagingIndexBufferAllocation);
     }
 }
-void MeshResource::UploadData()
+void MeshResource::Upload()
 {
     auto staticMesh = static_cast<Mesh *>(mOwnerAsset);
     size_t vertexBufferOffset = 0, indexBufferOffset = 0;
@@ -115,10 +116,11 @@ void MeshResource::UploadData()
     std::memcpy(indexBufferTarget + indexBufferOffset, staticMesh->mIndices.data(), indexDataSize);
     indexBufferOffset += indexDataSize;
 }
-void MeshResource::Bind(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout, vk::Pipeline pipeline)
+void MeshResource::Bind(BindContext bindContext)
 {
-    commandBuffer.bindVertexBuffers(0, mVertexBuffer, {0});
-    commandBuffer.bindIndexBuffer(mIndexBuffer, 0, vk::IndexType::eUint32);
-    commandBuffer.drawIndexed(static_cast<uint32_t>(static_cast<Mesh *>(mOwnerAsset)->mIndices.size()), 1, 0, 0, 0);
+    bindContext.CommandBuffer.bindVertexBuffers(0, mVertexBuffer, {0});
+    bindContext.CommandBuffer.bindIndexBuffer(mIndexBuffer, 0, vk::IndexType::eUint32);
+    bindContext.CommandBuffer.drawIndexed(static_cast<uint32_t>(static_cast<Mesh *>(mOwnerAsset)->mIndices.size()), 1,
+                                          0, 0, 0);
 }
 } // namespace MEngine::Resource

@@ -41,7 +41,7 @@ void UploadableTextureResource::ReleaseRHI(std::shared_ptr<Context> context)
     TextureResource::ReleaseRHI(context);
     ReleaseStaging(context);
 }
-void UploadableTextureResource::UploadData()
+void UploadableTextureResource::Upload()
 {
     auto texture = static_cast<UploadableTexture *>(mOwnerAsset);
     size_t offset = 0;

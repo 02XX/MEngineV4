@@ -11,7 +11,9 @@
 #include "UUID.hpp"
 #include <cstdint>
 #include <memory>
+#include <queue>
 #include <set>
+#include <typeindex>
 #include <unordered_map>
 
 namespace MEngine::Resource
@@ -35,6 +37,7 @@ class TextureManager final : public virtual Manager<Texture, TextureResource>, p
 {
   private:
     std::shared_ptr<PipelineManager> mPipelineManager{};
+    vk::BindDescriptorSetsInfo mBindInfo{};
 
   private:
     static inline const std::unordered_map<std::string, Core::UUID> sDefaultTextures{
@@ -71,9 +74,7 @@ class TextureManager final : public virtual Manager<Texture, TextureResource>, p
     }
     uint32_t AllocateDescriptorIndex();
     void FreeDescriptorIndex(uint32_t index);
-    void Bind(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout = {},
-              vk::Pipeline pipeline = {}) override;
-    void ProcessPendingInitResources(RenderContext renderContext) override;
+    void Bind(BindContext bindContext) override;
     void ProcessPendingUpdateResources(RenderContext renderContext) override;
     void ProcessPendingDeletionResources(RenderContext renderContext) override;
 };

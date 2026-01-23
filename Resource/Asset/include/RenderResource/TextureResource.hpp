@@ -15,6 +15,8 @@ class TextureResource : public RenderResource
     VmaAllocation mImageAllocation{};
     VmaAllocationInfo mImageAllocationInfo{};
 
+    vk::ImageLayout mCurrentLayout{vk::ImageLayout::eUndefined};
+
   public:
     TextureResource(Texture *texture);
     ~TextureResource() override;

@@ -43,7 +43,7 @@ void MeshManager::ProcessPendingUpdateResources(RenderContext renderContext)
         {
             meshResource->InitStaging(renderContext.Context, 0); // bufferSize will be calculated inside InitStaging
         }
-        meshResource->UploadData();
+        meshResource->Upload();
         if (!mesh->mDynamic)
         {
             // mPendingTasks.Push([meshResource](std::shared_ptr<Context> context, vk::CommandBuffer commandBuffer) {

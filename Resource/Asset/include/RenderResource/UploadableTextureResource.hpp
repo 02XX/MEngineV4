@@ -27,6 +27,6 @@ class UploadableTextureResource : public TextureResource, IUpload
     void ReleaseRHI(std::shared_ptr<Context> context) override;
     void InitStaging(std::shared_ptr<Context> context, vk::DeviceSize bufferSize) override;
     void ReleaseStaging(std::shared_ptr<Context> context) override;
-    void UploadData() override;
+    void Upload() override;
 };
 } // namespace MEngine::Resource

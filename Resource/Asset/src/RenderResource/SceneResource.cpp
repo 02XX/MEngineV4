@@ -150,7 +150,7 @@ void SceneResource::ReleaseStaging(std::shared_ptr<Context> context)
         vmaDestroyBuffer(context->VmaAllocator, mSSBOStagingBuffer, mSSBOStagingBufferAllocation);
     }
 }
-void SceneResource::UploadData()
+void SceneResource::Upload()
 {
     // UBO
     auto uboTarget = static_cast<uint8_t *>(mUBOStagingBufferAllocationInfo.pMappedData);
@@ -164,8 +164,9 @@ void SceneResource::UploadData()
         std::memcpy(ssboTarget + i * sizeof(LightParam), &mScene->mLightParams[i], sizeof(LightParam));
     }
 }
-void SceneResource::Bind(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout, vk::Pipeline pipeline)
+void SceneResource::Bind(BindContext bindContext)
 {
-    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, {mGlobalDescriptorSet}, {});
+    mBindInfo.setDescriptorSets(mGlobalDescriptorSet).setFirstSet(mSetIndex).setLayout(bindContext.PipelineLayout);
+    bindContext.CommandBuffer.bindDescriptorSets2(mBindInfo);
 }
 } // namespace MEngine::Resource

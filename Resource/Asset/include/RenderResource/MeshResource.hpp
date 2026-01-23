@@ -30,8 +30,7 @@ class MeshResource final : public RenderResource, public virtual IUpload, public
     void ReleaseRHI(std::shared_ptr<Context> context) override;
     void InitStaging(std::shared_ptr<Context> context, vk::DeviceSize bufferSize) override;
     void ReleaseStaging(std::shared_ptr<Context> context) override;
-    void UploadData() override;
-    void Bind(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout = {},
-              vk::Pipeline pipeline = {}) override;
+    void Upload() override;
+    void Bind(BindContext bindContext) override;
 };
 } // namespace MEngine::Resource

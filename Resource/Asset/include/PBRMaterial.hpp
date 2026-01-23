@@ -7,7 +7,7 @@
 #include <memory>
 namespace MEngine::Resource
 {
-struct PBRParm
+struct PBRParms
 {
     Vector4 Albedo = Vector4(1.0f, 1.0f, 0.0f, 1.0f);
     Vector4 Normal = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -21,20 +21,32 @@ struct PBRParm
     uint32_t ARMBindlessIndex = 0;
     uint32_t EmissiveBindlessIndex = 0;
 };
+struct PBRTextures
+{
+    std::shared_ptr<Texture2D> AlbedoTexture{};
+    std::shared_ptr<Texture2D> NormalTexture{};
+    std::shared_ptr<Texture2D> ARMTexture{};
+    std::shared_ptr<Texture2D> EmissiveTexture{};
+};
 class PBRMaterial : public Material
 {
   public:
-    PBRParm mParam{};
+    PBRParms mParam{};
+    PBRTextures mTextures{};
 
   public:
-    PBRMaterial(const std::string &name, std::shared_ptr<GraphicPipeline> pipeline)
-        : Material(name, pipeline, sizeof(PBRParm))
+    PBRMaterial(const std::string &name, std::shared_ptr<GraphicPipeline> pipeline, PBRParms parms,
+                PBRTextures textures, bool dynamic = false)
+        : Material(name, pipeline, dynamic), mParam(parms), mTextures(textures)
     {
     }
-    virtual void UpdateMaterialData(uint8_t *target)
+    void PendingUpdate() override
     {
-        size_t offset = 0;
-        std::memcpy(target + offset, &mParam, sizeof(PBRParm));
-    };
+        Material::PendingUpdate();
+        mTextures.AlbedoTexture->PendingUpdate();
+        mTextures.NormalTexture->PendingUpdate();
+        mTextures.ARMTexture->PendingUpdate();
+        mTextures.EmissiveTexture->PendingUpdate();
+    }
 };
 } // namespace MEngine::Resource

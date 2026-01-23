@@ -4,6 +4,7 @@
 #include "Math.hpp"
 #include "Pipeline.hpp"
 #include "PipelineResource.hpp"
+#include "Shader.hpp"
 #include "ShaderManager.hpp"
 #include "Vertex.hpp"
 #include <memory>
@@ -123,8 +124,8 @@ PipelineManager::PipelineManager(std::shared_ptr<Context> context, std::shared_p
     vk::PipelineInputAssemblyStateCreateInfo mInputAssemblyState{};
     mInputAssemblyState.setPrimitiveRestartEnable(vk::False).setTopology(vk::PrimitiveTopology::eTriangleList);
     std::vector<std::shared_ptr<Shader>> shaders{
-        mShaderManager->GetAssetByName(DefaultShaderType::ForwardOpaquePhongVert),
-        mShaderManager->GetAssetByName(DefaultShaderType::ForwardOpaquePhongFrag)};
+        mShaderManager->GetByNameAs<Shader>(DefaultShaderType::ForwardOpaquePhongVert),
+        mShaderManager->GetByNameAs<Shader>(DefaultShaderType::ForwardOpaquePhongFrag)};
     // Graphic Pipelines
     auto graphicForwardOpaquePhong = std::make_shared<GraphicPipeline>(
         DefaultGraphicPipelineType::ForwardOpaquePhong, genericDescriptorSetLayouts, genericPushConstantRanges,

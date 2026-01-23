@@ -20,6 +20,7 @@ class PendingResourceManager : public virtual IPendingResourceManager
     Core::ConcurrentQueue<TRenderResource *> mPendingInitResources{};
     Core::ConcurrentQueue<TRenderResource *> mPendingUpdateResources{};
     Core::ConcurrentQueue<std::unique_ptr<TRenderResource>> mPendingDeletion{};
+    Core::ConcurrentQueue<Task> mPendingTasks{};
 
   public:
     std::vector<TRenderResource *> ToVector(Core::ConcurrentQueue<TRenderResource *> &queue)
@@ -51,6 +52,14 @@ class PendingResourceManager : public virtual IPendingResourceManager
             resource->ReleaseResource(renderContext.Context);
         }
     }
+    void ProcessPendingTasks(RenderContext renderContext) override
+    {
+        Task task;
+        while (mPendingTasks.TryPop(task))
+        {
+            task(renderContext);
+        }
+    }
     void PendingInit(RenderResource *resource) override
     {
         mPendingInitResources.Push(static_cast<TRenderResource *>(resource));
@@ -62,6 +71,10 @@ class PendingResourceManager : public virtual IPendingResourceManager
     void PendingDelete(std::unique_ptr<RenderResource> resource) override
     {
         mPendingDeletion.Push(std::unique_ptr<TRenderResource>(static_cast<TRenderResource *>(resource.release())));
+    }
+    void PendingTask(Task task) override
+    {
+        mPendingTasks.Push(task);
     }
 };
 } // namespace MEngine::Resource

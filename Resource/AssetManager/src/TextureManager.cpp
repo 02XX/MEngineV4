@@ -1,5 +1,6 @@
 #include "TextureManager.hpp"
 #include "Context.hpp"
+#include "IPendingResourceManager.hpp"
 #include "PendingResourceManager.hpp"
 #include "Texture.hpp"
 #include "Texture2D.hpp"
@@ -74,12 +75,6 @@ TextureManager::TextureManager(std::shared_ptr<Context> context, std::shared_ptr
     // TODO: Default TextureCube
     // TextureCubeArray
     // TODO: Default TextureCubeArray
-    PendingInit(white2D->GetResource());
-    PendingInit(black2D->GetResource());
-    PendingInit(magenta2D->GetResource());
-    PendingUpdate(white2D->GetResource());
-    PendingUpdate(black2D->GetResource());
-    PendingUpdate(magenta2D->GetResource());
 }
 TextureManager::~TextureManager()
 {
@@ -113,77 +108,6 @@ void TextureManager::FreeDescriptorIndex(uint32_t index)
     mFreeDescriptorIndices.push(index);
     // TODO: 销毁index对应的描述符资源
 }
-void TextureManager::ProcessPendingInitResources(RenderContext renderContext)
-{
-    auto resourcesToInitialize = ToVector(mPendingInitResources);
-    std::vector<UploadableTextureResource *> uploadableResourcesToInitialized{};
-    std::vector<TextureRenderTargetResource *> texturesRenderTargetResourcesToInitialized{};
-    uploadableResourcesToInitialized.reserve(resourcesToInitialize.size());
-    texturesRenderTargetResourcesToInitialized.reserve(resourcesToInitialize.size());
-    for (auto textureResource : resourcesToInitialize)
-    {
-        textureResource->InitResource(renderContext.Context);
-        if (auto uploadableTextureResource = dynamic_cast<UploadableTextureResource *>(textureResource))
-        {
-            uploadableResourcesToInitialized.push_back(uploadableTextureResource);
-        }
-        else if (auto textureRenderTargetResource = dynamic_cast<TextureRenderTargetResource *>(textureResource))
-        {
-            texturesRenderTargetResourcesToInitialized.push_back(textureRenderTargetResource);
-        }
-        else
-        {
-            LogError("Unsupported texture type for initialization");
-        }
-    }
-    std::vector<vk::ImageMemoryBarrier2> barriers{};
-    barriers.reserve(uploadableResourcesToInitialized.size() + texturesRenderTargetResourcesToInitialized.size());
-    vk::ImageSubresourceRange subresourceRange{};
-    subresourceRange.setBaseMipLevel(0).setBaseArrayLayer(0);
-    vk::ImageMemoryBarrier2 barrier{};
-    barrier.setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
-        .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
-        .setOldLayout(vk::ImageLayout::eUndefined)
-        .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-        .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe)
-        .setDstStageMask(vk::PipelineStageFlagBits2::eFragmentShader)
-        .setSrcAccessMask(vk::AccessFlagBits2::eNone)
-        .setDstAccessMask(vk::AccessFlagBits2::eShaderRead);
-    // uploadable Texture
-    for (auto uploadableTextureResource : uploadableResourcesToInitialized)
-    {
-        auto uploadableTexture = static_cast<UploadableTexture *>(uploadableTextureResource->mOwnerAsset);
-        subresourceRange.setLevelCount(uploadableTexture->mTextureSettings.mipLevels)
-            .setLayerCount(uploadableTexture->mTextureSettings.arrayLayers)
-            .setAspectMask(uploadableTexture->IsDepthStencil()
-                               ? (vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil)
-                               : vk::ImageAspectFlagBits::eColor);
-        barrier.setImage(uploadableTextureResource->mImage).setSubresourceRange(subresourceRange);
-        barriers.push_back(barrier);
-    }
-    // TextureRenderTarget
-    for (auto textureRenderTargetResource : texturesRenderTargetResourcesToInitialized)
-    {
-        auto textureRenderTarget = static_cast<TextureRenderTarget *>(textureRenderTargetResource->mOwnerAsset);
-        subresourceRange.setLevelCount(textureRenderTarget->mTextureSettings.mipLevels)
-            .setLayerCount(textureRenderTarget->mTextureSettings.arrayLayers)
-            .setAspectMask(textureRenderTarget->IsDepthStencil()
-                               ? (vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil)
-                               : vk::ImageAspectFlagBits::eColor);
-        barrier.setImage(textureRenderTargetResource->mImage).setSubresourceRange(subresourceRange);
-        if (textureRenderTarget->IsDepthStencil())
-        {
-            barrier
-                .setDstAccessMask(vk::AccessFlagBits2::eDepthStencilAttachmentRead |
-                                  vk::AccessFlagBits2::eDepthStencilAttachmentWrite)
-                .setNewLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
-        }
-        barriers.push_back(barrier);
-    }
-    vk::DependencyInfo dependencyInfo{};
-    dependencyInfo.setImageMemoryBarriers(barriers);
-    renderContext.CommandBuffer.pipelineBarrier2(dependencyInfo);
-}
 void TextureManager::ProcessPendingUpdateResources(RenderContext renderContext)
 {
     // https://vkguide.dev/docs/ascendant/ascendant_light/
@@ -193,6 +117,7 @@ void TextureManager::ProcessPendingUpdateResources(RenderContext renderContext)
     //  indirect command buffers, we often see cases like encoding 8 barriers at a time into the commands. The GPU
     //  driver doesn’t really like to handle barriers like this, and it performs better if it does a single
     //  VkCmdPipelineBarrier that does multiple barriers at a time, instead of multiple vkCmdPipelineBarrier calls.
+#pragma region 收集待更新/能更新的TextureResource
     auto textureResourcesToUpdate = ToVector(mPendingUpdateResources);
     std::vector<UploadableTextureResource *> uploadableTextureResourcesToUpdate{};
     uploadableTextureResourcesToUpdate.reserve(textureResourcesToUpdate.size());
@@ -207,6 +132,8 @@ void TextureManager::ProcessPendingUpdateResources(RenderContext renderContext)
             LogError("Unsupported texture type for update");
         }
     }
+#pragma endregion
+#pragma region 屏障创建
     std::vector<vk::ImageMemoryBarrier2> preBarriers{}, postBarriers{};
     preBarriers.reserve(uploadableTextureResourcesToUpdate.size());
     postBarriers.reserve(uploadableTextureResourcesToUpdate.size());
@@ -234,16 +161,37 @@ void TextureManager::ProcessPendingUpdateResources(RenderContext renderContext)
     for (auto uploadableTextureResource : uploadableTextureResourcesToUpdate)
     {
         auto uploadableTexture = static_cast<UploadableTexture *>(uploadableTextureResource->mOwnerAsset);
+        if (uploadableTextureResource->mCurrentLayout == vk::ImageLayout::eUndefined)
+        {
+            preBarrier.setOldLayout(vk::ImageLayout::eUndefined)
+                .setSrcAccessMask(vk::AccessFlagBits2::eNone)
+                .setSrcStageMask(vk::PipelineStageFlagBits2::eTopOfPipe);
+        }
         subresourceRange.setLevelCount(uploadableTexture->mTextureSettings.mipLevels)
             .setLayerCount(uploadableTexture->mTextureSettings.arrayLayers)
-            .setAspectMask(uploadableTexture->IsDepthStencil()
-                               ? (vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil)
-                               : vk::ImageAspectFlagBits::eColor);
+            .setAspectMask(uploadableTexture->IsDepthStencil() ? (vk::ImageAspectFlagBits::eDepth)
+                                                               : vk::ImageAspectFlagBits::eColor);
         preBarrier.setImage(uploadableTextureResource->mImage).setSubresourceRange(subresourceRange);
         postBarrier.setImage(uploadableTextureResource->mImage).setSubresourceRange(subresourceRange);
         preBarriers.push_back(preBarrier);
         postBarriers.push_back(postBarrier);
-
+    }
+#pragma endregion 屏障创建
+#pragma region Pre屏障
+    vk::DependencyInfo preDependencyInfo{};
+    preDependencyInfo.setImageMemoryBarriers(preBarriers);
+    renderContext.CommandBuffer.pipelineBarrier2(preDependencyInfo);
+#pragma endregion
+#pragma region 纹理数据上传
+    for (auto uploadableTextureResource : uploadableTextureResourcesToUpdate)
+    {
+        auto uploadableTexture = static_cast<UploadableTexture *>(uploadableTextureResource->mOwnerAsset);
+        if (uploadableTexture->mTextureSettings.mipLevels != uploadableTexture->mTextureDatas.size())
+        {
+            LogError("Mismatch between texture mip levels and provided mip data size for texture: ID {}, Name {}",
+                     uploadableTexture->GetID().ToString(), uploadableTexture->GetName());
+            continue;
+        }
         if (!uploadableTextureResource->mStagingBuffer)
         {
             auto &datas = uploadableTexture->mTextureDatas;
@@ -259,26 +207,12 @@ void TextureManager::ProcessPendingUpdateResources(RenderContext renderContext)
             }
             uploadableTextureResource->InitStaging(renderContext.Context, totalSize);
         }
-        uploadableTextureResource->UploadData();
-        // if (!uploadableTexture->mDynamic)
-        // {
-        //     mPendingTasks.Push([uploadableTextureResource](std::shared_ptr<Platform::Context> context,
-        //                                                    vk::CommandBuffer commandBuffer) mutable {
-        //         uploadableTextureResource->ReleaseStaging(context);
-        //     });
-        // }
-    }
-    vk::DependencyInfo preDependencyInfo{};
-    preDependencyInfo.setImageMemoryBarriers(preBarriers);
-    renderContext.CommandBuffer.pipelineBarrier2(preDependencyInfo);
-    for (auto uploadableTextureResource : uploadableTextureResourcesToUpdate)
-    {
-        auto uploadableTexture = static_cast<UploadableTexture *>(uploadableTextureResource->mOwnerAsset);
-        if (uploadableTexture->mTextureSettings.mipLevels != uploadableTexture->mTextureDatas.size())
+        uploadableTextureResource->Upload();
+        if (!uploadableTexture->mDynamic)
         {
-            LogError("Mismatch between texture mip levels and provided mip data size for texture: ID {}, Name {}",
-                     uploadableTexture->GetID().ToString(), uploadableTexture->GetName());
-            continue;
+            mPendingTasks.Push([uploadableTextureResource](RenderContext renderContext) mutable {
+                uploadableTextureResource->ReleaseStaging(renderContext.Context);
+            });
         }
         vk::DeviceSize bufferOffset = 0;
         for (size_t mipLevel = 0; mipLevel < uploadableTexture->mTextureSettings.mipLevels; ++mipLevel)
@@ -287,17 +221,15 @@ void TextureManager::ProcessPendingUpdateResources(RenderContext renderContext)
             auto &mipData = uploadableTexture->mTextureDatas[mipLevel];
             if (mipData.Datas.size() != uploadableTexture->mTextureSettings.arrayLayers)
             {
-                LogError("Mismatch between mipData Datas size and texture array layers for texture: ID {}, Name {}",
-                         uploadableTexture->GetID().ToString(), uploadableTexture->GetName());
+                LogError("Mismatch between mipData Datas size and texture array layers.");
                 continue;
             }
             vk::ImageSubresourceLayers imageSubresourceLayers{};
             imageSubresourceLayers.setMipLevel(mipLevel)
                 .setBaseArrayLayer(0)
                 .setLayerCount(mipData.Datas.size())
-                .setAspectMask(uploadableTexture->IsDepthStencil()
-                                   ? (vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil)
-                                   : vk::ImageAspectFlagBits::eColor);
+                .setAspectMask(uploadableTexture->IsDepthStencil() ? (vk::ImageAspectFlagBits::eDepth)
+                                                                   : vk::ImageAspectFlagBits::eColor);
             copyRegion.setBufferOffset(bufferOffset)
                 .setBufferRowLength(0)
                 .setBufferImageHeight(0)
@@ -311,9 +243,12 @@ void TextureManager::ProcessPendingUpdateResources(RenderContext renderContext)
             renderContext.CommandBuffer.copyBufferToImage2(copyInfo);
         }
     }
+#pragma endregion
+#pragma region Post屏障
     vk::DependencyInfo postDependencyInfo{};
     postDependencyInfo.setImageMemoryBarriers(postBarriers);
     renderContext.CommandBuffer.pipelineBarrier2(postDependencyInfo);
+#pragma endregion
 }
 void TextureManager::ProcessPendingDeletionResources(RenderContext renderContext)
 {
@@ -327,10 +262,9 @@ void TextureManager::ProcessPendingDeletionResources(RenderContext renderContext
         resource->ReleaseResource(renderContext.Context);
     }
 }
-void TextureManager::Bind(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout, vk::Pipeline pipeline)
+void TextureManager::Bind(BindContext bindContext)
 {
-    vk::BindDescriptorSetsInfo bindInfo{};
-    bindInfo.setDescriptorSets(mTextureBindlessDescriptorSet).setFirstSet(0).setLayout(pipelineLayout);
-    commandBuffer.bindDescriptorSets2(bindInfo);
+    mBindInfo.setDescriptorSets(mTextureBindlessDescriptorSet).setFirstSet(0).setLayout(bindContext.PipelineLayout);
+    bindContext.CommandBuffer.bindDescriptorSets2(mBindInfo);
 }
 } // namespace MEngine::Resource

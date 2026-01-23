@@ -5,6 +5,8 @@
 #include "PipelineManager.hpp"
 #include "TextureManager.hpp"
 #include <memory>
+#include <typeindex>
+#include <unordered_map>
 
 namespace MEngine::Resource
 {
@@ -43,7 +45,6 @@ class MaterialManager final : public Manager<Material, MaterialResource>
     void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override
     {
     }
-    void ProcessPendingInitResources(RenderContext renderContext) override;
     void ProcessPendingUpdateResources(RenderContext renderContext) override;
 };
 } // namespace MEngine::Resource

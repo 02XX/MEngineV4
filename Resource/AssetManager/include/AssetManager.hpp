@@ -40,14 +40,6 @@ class AssetManager final : public virtual IManager,
                                                       std::type_index(typeid(TAsset))),
          ...);
     }
-    template <std::derived_from<Asset> TAsset> std::shared_ptr<TAsset> GetAs(const Core::UUID &id) const
-    {
-        return std::static_pointer_cast<TAsset>(Get(id));
-    }
-    template <std::derived_from<Asset> TAsset> std::shared_ptr<TAsset> GetByNameAs(const std::string &name) const
-    {
-        return std::static_pointer_cast<TAsset>(GetByName(name));
-    }
     template <std::derived_from<Asset> TAsset> std::shared_ptr<IManager> GetManager() const
     {
         auto it = mManagers.find(std::type_index(typeid(TAsset)));
@@ -76,9 +68,11 @@ class AssetManager final : public virtual IManager,
     void ProcessPendingInitResources(RenderContext renderContext) override;
     void ProcessPendingUpdateResources(RenderContext renderContext) override;
     void ProcessPendingDeletionResources(RenderContext renderContext) override;
+    void ProcessPendingTasks(RenderContext renderContext) override;
     void PendingInit(RenderResource *resource) override;
     void PendingUpdate(RenderResource *resource) override;
     void PendingDelete(std::unique_ptr<RenderResource> resource) override;
+    void PendingTask(Task task) override;
     void DestroyAll() override;
 };
 } // namespace MEngine::Resource

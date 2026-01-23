@@ -24,13 +24,13 @@ class Manager : public virtual IManager, public PendingResourceManager<TRenderRe
     Manager(std::shared_ptr<Context> context) : mContext(context)
     {
     }
-    std::shared_ptr<TAsset> GetAsset(const Core::UUID &id) const
+    template <std::derived_from<TAsset> TTAsset> std::shared_ptr<TTAsset> GetAs(const Core::UUID &id) const
     {
-        return std::static_pointer_cast<TAsset>(Get(id));
+        return std::static_pointer_cast<TTAsset>(Get(id));
     }
-    std::shared_ptr<TAsset> GetAssetByName(const std::string &name) const
+    template <std::derived_from<TAsset> TTAsset> std::shared_ptr<TTAsset> GetByNameAs(const std::string &name) const
     {
-        return std::static_pointer_cast<TAsset>(GetByName(name));
+        return std::static_pointer_cast<TTAsset>(GetByName(name));
     }
 
     void Add(std::shared_ptr<Asset> asset) override

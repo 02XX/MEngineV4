@@ -29,7 +29,7 @@ void SceneManager::ProcessPendingUpdateResources(RenderContext renderContext)
     bufferBarriers.reserve(sceneResourcesToUpdate.size() * 2);
     for (auto sceneResource : sceneResourcesToUpdate)
     {
-        sceneResource->UploadData();
+        sceneResource->Upload();
         vk::BufferCopy2 uboCopyRegion{}, ssboCopyRegion{};
         uboCopyRegion.setSize(sizeof(SceneParam)).setSrcOffset(0).setDstOffset(0);
         vk::CopyBufferInfo2 uboCopyBufferInfo{}, ssboCopyBufferInfo{};

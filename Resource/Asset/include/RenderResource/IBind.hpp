@@ -4,11 +4,16 @@
 using namespace MEngine::Platform;
 namespace MEngine::Resource
 {
+struct BindContext
+{
+    vk::CommandBuffer CommandBuffer;
+    vk::PipelineLayout PipelineLayout;
+    vk::Pipeline Pipeline;
+};
 class IBind
 {
   public:
     virtual ~IBind() = default;
-    virtual void Bind(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout = {},
-                      vk::Pipeline pipeline = {}) = 0;
+    virtual void Bind(BindContext bindContext) = 0;
 };
 } // namespace MEngine::Resource

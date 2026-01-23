@@ -10,6 +10,6 @@ class IUpload
     virtual ~IUpload() = default;
     virtual void InitStaging(std::shared_ptr<Context> context, vk::DeviceSize bufferSize) = 0;
     virtual void ReleaseStaging(std::shared_ptr<Context> context) = 0;
-    virtual void UploadData() = 0;
+    virtual void Upload() = 0;
 };
 } // namespace MEngine::Resource

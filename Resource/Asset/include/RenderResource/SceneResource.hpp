@@ -5,6 +5,7 @@
 #include "Math.hpp"
 #include "RenderResource.hpp"
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -27,7 +28,11 @@ class SceneResource final : public RenderResource, public virtual IUpload, publi
     VmaAllocationInfo mSSBOBufferAllocationInfo{}, mSSBOStagingBufferAllocationInfo{};
 
     vk::DeviceAddress mSSBOBufferAddress{};
+    uint32_t mSetIndex{2};
     vk::DescriptorSet mGlobalDescriptorSet{};
+
+  private:
+    vk::BindDescriptorSetsInfo mBindInfo{};
 
   protected:
     Scene *mScene{nullptr};
@@ -40,8 +45,7 @@ class SceneResource final : public RenderResource, public virtual IUpload, publi
 
     void InitStaging(std::shared_ptr<Context> context, vk::DeviceSize bufferSize) override;
     void ReleaseStaging(std::shared_ptr<Context> context) override;
-    void UploadData() override;
-    void Bind(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout = {},
-              vk::Pipeline pipeline = {}) override;
+    void Upload() override;
+    void Bind(BindContext bindContext) override;
 };
 } // namespace MEngine::Resource

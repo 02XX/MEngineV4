@@ -186,7 +186,13 @@ void AssetManager::ProcessPendingDeletionResources(RenderContext renderContext)
         manager->ProcessPendingDeletionResources(renderContext);
     }
 }
-
+void AssetManager::ProcessPendingTasks(RenderContext renderContext)
+{
+    for (const auto &[type, manager] : mManagers)
+    {
+        manager->ProcessPendingTasks(renderContext);
+    }
+}
 void AssetManager::PendingInit(RenderResource *resource)
 {
     auto assetType = GetAssetTypeFromRenderResource(resource);
@@ -225,5 +231,13 @@ void AssetManager::PendingDelete(std::unique_ptr<RenderResource> resource)
     {
         LogError("No manager found for asset type {}", assetType.name());
     }
+}
+void AssetManager::PendingTask(Task task)
+{
+    // for (const auto &[type, manager] : mManagers)
+    // {
+    //     manager->PendingTask(task);
+    // }
+    throw std::runtime_error("Not Implemented");
 }
 } // namespace MEngine::Resource

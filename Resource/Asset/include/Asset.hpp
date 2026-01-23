@@ -81,9 +81,9 @@ class Asset
         LogError("Failed to cast resource of asset {} to {}", mName, typeid(T).name());
         return nullptr;
     }
-    void PendingInit();
-    void PendingUpdate();
-    void PendingDeletion();
+    virtual void PendingInit();
+    virtual void PendingUpdate();
+    virtual void PendingDeletion();
     void AddRef()
     {
         mRefCount.fetch_add(1, std::memory_order_acq_rel);

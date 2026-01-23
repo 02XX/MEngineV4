@@ -15,7 +15,6 @@ class Material : public Asset
 
   public:
     std::shared_ptr<GraphicPipeline> mPipeline{};
-    vk::DeviceSize mBufferSize{};
     bool mDynamic{false};
 
   protected:
@@ -25,12 +24,9 @@ class Material : public Asset
     }
 
   public:
-    Material(const std::string &name, std::shared_ptr<GraphicPipeline> pipeline, vk::DeviceSize bufferSize,
-             bool dynamic = true)
-        : Asset(name), mPipeline(pipeline), mDynamic(dynamic), mBufferSize(bufferSize)
+    Material(const std::string &name, std::shared_ptr<GraphicPipeline> pipeline, bool dynamic = false)
+        : Asset(name), mPipeline(pipeline), mDynamic(dynamic)
     {
-        mResource = std::make_unique<MaterialResource>(this);
     }
-    virtual void UpdateMaterialData(uint8_t *target) = 0;
 };
 } // namespace MEngine::Resource

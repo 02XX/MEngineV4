@@ -11,7 +11,7 @@ struct LightParam
     float innerCone;
     float outerCone;
 };
-struct PhongParam
+struct PhongParams
 {
     float4 diffuse;
     float4 specular;
@@ -42,7 +42,7 @@ StructuredBuffer<LightParam> lights;
 [vk_binding(0, 1)]
 Sampler2D textures[];
 [vk_binding(0, 2)]
-ConstantBuffer<PhongParam> phongParam;
+ConstantBuffer<PhongParams> phongParam;
 
 struct VSInput
 {
