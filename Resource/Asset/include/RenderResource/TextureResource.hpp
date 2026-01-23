@@ -1,5 +1,7 @@
 #pragma once
 #include "RenderResource.hpp"
+#include <cstdint>
+#include <vulkan/vulkan_handles.hpp>
 
 namespace MEngine::Resource
 {

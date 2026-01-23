@@ -1,10 +1,10 @@
 #include "TextureResource.hpp"
+#include "AssetManager.hpp"
 #include "Logger.hpp"
 #include "RenderResource.hpp"
 #include "Texture.hpp"
-#include <vulkan/vulkan_enums.hpp>
-
-#include <vulkan/vulkan_structs.hpp>
+#include "TextureManager.hpp"
+#include <memory>
 namespace MEngine::Resource
 {
 TextureResource::TextureResource(Texture *texture) : RenderResource(texture)
@@ -43,8 +43,7 @@ void TextureResource::InitRHI(std::shared_ptr<Context> context)
         .setComponents({})
         .setFormat(texture->mTextureSettings.format)
         .setSubresourceRange(vk::ImageSubresourceRange()
-                                 .setAspectMask(texture->IsDepthStencil() ? vk::ImageAspectFlagBits::eDepth |
-                                                                                vk::ImageAspectFlagBits::eStencil
+                                 .setAspectMask(texture->IsDepthStencil() ? vk::ImageAspectFlagBits::eDepth
                                                                           : vk::ImageAspectFlagBits::eColor)
                                  .setBaseMipLevel(0)
                                  .setLevelCount(texture->mTextureSettings.mipLevels)
@@ -100,7 +99,6 @@ void TextureResource::ReleaseRHI(std::shared_ptr<Context> context)
         mImageAllocationInfo = {};
     }
 }
-
 std::pair<uint32_t, uint32_t> TextureResource::GetPixelSize(vk::Format format) const
 {
     switch (format)

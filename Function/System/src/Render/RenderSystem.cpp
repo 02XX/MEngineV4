@@ -1,6 +1,10 @@
 #include "RenderSystem.hpp"
+#include "AssetManager.hpp"
 #include "CameraComponent.hpp"
-#include "GraphicPipelineManager.hpp"
+#include "Context.hpp"
+#include "GraphicPipeline.hpp"
+#include "IBind.hpp"
+#include "IPendingResourceManager.hpp"
 #include "LightComponent.hpp"
 #include "Logger.hpp"
 #include "Material.hpp"
@@ -10,23 +14,22 @@
 #include "MeshComponent.hpp"
 #include "OffscreenFrameResource.hpp"
 #include "PBRMaterial.hpp"
-#include "PBRMaterialResource.hpp"
 #include "PhongMaterial.hpp"
-#include "PhongMaterialManager.hpp"
-#include "PhongMaterialResource.hpp"
+#include "PipelineManager.hpp"
 #include "RenderResource.hpp"
 #include "Scene.hpp"
 #include "SceneManager.hpp"
 #include "SceneResource.hpp"
-#include "Texture2DManager.hpp"
+#include "TextureManager.hpp"
 #include "TransformComponent.hpp"
+#include <limits>
+#include <memory>
 #include <vector>
 
 namespace MEngine::Function
 {
-RenderSystem::RenderSystem(std::shared_ptr<Context> context, std::shared_ptr<Scene> scene,
-                           std::shared_ptr<AssetManager> assetManager)
-    : System(scene, assetManager), mContext(context)
+RenderSystem::RenderSystem(std::shared_ptr<Context> context, std::shared_ptr<Scene> scene)
+    : System(scene), mContext(context)
 {
 }
 RenderSystem::~RenderSystem()
@@ -43,6 +46,7 @@ void RenderSystem::Init()
 void RenderSystem::Update(double deltaTime)
 {
     PrepareRenderQueues();
+    Transfer();
     Render();
 }
 void RenderSystem::PrepareRenderQueues()
@@ -52,27 +56,22 @@ void RenderSystem::PrepareRenderQueues()
     for (const auto &entity : entities)
     {
         auto &materialComponent = entities.get<MaterialComponent>(entity);
+        auto &meshComponent = entities.get<MeshComponent>(entity);
+        auto pipeline = materialComponent.Material->mPipeline;
+        materialComponent.Material->GetResource()->InitResource(mContext);
+        meshComponent.Mesh->GetResource()->InitResource(mContext);
         if (materialComponent.Dirty)
         {
             auto materialAsset = materialComponent.Material;
-            if (auto phongMaterial = std::dynamic_pointer_cast<PhongMaterial>(materialAsset))
-            {
-                auto phongMaterialManager = mAssetManager->GetManager<PhongMaterial, PhongMaterialManager>();
-                phongMaterialManager->PushPendingUpdateAsset(
-                    std::static_pointer_cast<PhongMaterial>(materialComponent.Material));
-            }
-            else
-            {
-                LogError("Unsupported material type for rendering");
-                continue;
-            }
+            materialAsset->PendingUpdate();
             materialComponent.Dirty = false;
         }
-        auto pipeline = materialComponent.Material->GetPipeline();
-        pipeline->GetResource()->InitResource(mContext);
-        materialComponent.Material->GetResource()->InitResource(mContext);
-        auto &meshComponent = entities.get<MeshComponent>(entity);
-        meshComponent.Mesh->GetResource()->InitResource(mContext);
+        if (meshComponent.Dirty)
+        {
+            auto meshAsset = meshComponent.Mesh;
+            meshAsset->PendingUpdate();
+            meshComponent.Dirty = false;
+        }
         auto &transformComponent = entities.get<TransformComponent>(entity);
         mRenderQueues[pipeline->GetName()].push_back(entity);
     }
@@ -119,17 +118,52 @@ void RenderSystem::PrepareRenderQueues()
     }
     if (mScene->mSceneParamsDirty || mScene->mLightParamsDirty)
     {
-        auto sceneManager = mAssetManager->GetManager<Scene, SceneManager>();
-        sceneManager->PushPendingUpdateAsset(std::static_pointer_cast<Scene>(mScene));
+        mScene->PendingUpdate();
         mScene->mSceneParamsDirty = false;
         mScene->mLightParamsDirty = false;
     }
+}
+void RenderSystem::Transfer()
+{
+    RenderContext renderContext{mContext, mOffscreenFrameResource->TransferCommandBuffer};
+    vk::CommandBufferBeginInfo beginInfo{};
+    beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+    mOffscreenFrameResource->TransferCommandBuffer.begin(beginInfo);
+    // TODO: interval in in-flight frame
+    AssetManager::Instance().ProcessPendingDeletionResources(
+        renderContext); // TODO: After MAX_INFLIGHT_FRAME Count to delete
+    AssetManager::Instance().ProcessPendingInitResources(renderContext);
+    mOffscreenFrameResource->TransferCommandBuffer.end();
+    vk::SubmitInfo2 initInfo{};
+    initInfo.setCommandBufferInfos(
+        {vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->TransferCommandBuffer)});
+    mContext->TransferQueue.submit2({initInfo}, mOffscreenFrameResource->TransferFence.get());
+    auto result = mContext->Device->waitForFences(mOffscreenFrameResource->TransferFence.get(), vk::True,
+                                                  std::numeric_limits<uint64_t>::max());
+    if (result != vk::Result::eSuccess)
+    {
+        LogError("Failed to wait for transfer fence: {}", vk::to_string(result));
+        return;
+    }
+    mContext->Device->resetFences(mOffscreenFrameResource->TransferFence.get());
+
+    mOffscreenFrameResource->TransferCommandBuffer.reset();
+    mOffscreenFrameResource->TransferCommandBuffer.begin(beginInfo);
+    AssetManager::Instance().ProcessPendingUpdateResources(renderContext);
+    mOffscreenFrameResource->TransferCommandBuffer.end();
+    vk::SubmitInfo2 submitInfo{};
+    submitInfo.setCommandBufferInfos(
+        {vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->TransferCommandBuffer)});
+    submitInfo.setSignalSemaphoreInfos({vk::SemaphoreSubmitInfo()
+                                            .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
+                                            .setStageMask(vk::PipelineStageFlagBits2::eTransfer)});
+    mContext->TransferQueue.submit2({submitInfo}, {});
 }
 void RenderSystem::Render()
 {
     auto device = mContext->Device.get();
     auto result = device.waitForFences(mOffscreenFrameResource->InFlightFence.get(), vk::True,
-                                       1000000000); // 1 second timeout
+                                       std::numeric_limits<uint64_t>::max());
     if (result != vk::Result::eSuccess)
     {
         LogError("Failed to wait for fence: {}", vk::to_string(result));
@@ -137,68 +171,6 @@ void RenderSystem::Render()
     }
     device.resetFences(mOffscreenFrameResource->InFlightFence.get());
     device.resetCommandPool(mOffscreenFrameResource->GraphicsCommandPool);
-    device.resetCommandPool(mOffscreenFrameResource->TransferCommandPool);
-
-    //=========================准备渲染资源=========================
-    auto transferCommandBuffer = mOffscreenFrameResource->TransferCommandBuffer;
-    for (auto subCommandBuffer : mOffscreenFrameResource->SecondaryTransferCommandBuffers)
-    {
-        device.freeCommandBuffers(mOffscreenFrameResource->TransferCommandPool, subCommandBuffer);
-    }
-    mOffscreenFrameResource->SecondaryTransferCommandBuffers.clear();
-    vk::CommandBufferInheritanceInfo inheritanceInfo{};
-    // PhongMaterialResource
-    auto phongMaterialManager = mAssetManager->GetManager<PhongMaterial, PhongMaterialManager>();
-    if (phongMaterialManager->GetPendingUpdateAssetCount() != 0)
-    {
-        vk::CommandBufferAllocateInfo materialCommandAllocateInfo{};
-        materialCommandAllocateInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
-            .setLevel(vk::CommandBufferLevel::eSecondary)
-            .setCommandBufferCount(1);
-        auto secondaryMaterialCommandBuffers = device.allocateCommandBuffers(materialCommandAllocateInfo).front();
-        phongMaterialManager->UpdateAssetRenderResource(mContext, secondaryMaterialCommandBuffers, &inheritanceInfo);
-        mOffscreenFrameResource->SecondaryTransferCommandBuffers.push_back(secondaryMaterialCommandBuffers);
-    }
-    //   Texture2DResource
-    auto texture2DManager = mAssetManager->GetManager<Texture2D, Texture2DManager>();
-    if (texture2DManager->GetPendingUpdateAssetCount() != 0)
-    {
-        vk::CommandBufferAllocateInfo textureCommandAllocateInfo{};
-        textureCommandAllocateInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
-            .setLevel(vk::CommandBufferLevel::eSecondary)
-            .setCommandBufferCount(1);
-        auto secondaryTextureCommandBuffers = device.allocateCommandBuffers(textureCommandAllocateInfo).front();
-        texture2DManager->UpdateAssetRenderResource(mContext, secondaryTextureCommandBuffers, &inheritanceInfo);
-        mOffscreenFrameResource->SecondaryTransferCommandBuffers.push_back(std::move(secondaryTextureCommandBuffers));
-    }
-    // Scene
-    auto sceneManager = mAssetManager->GetManager<Scene, SceneManager>();
-    if (sceneManager->GetPendingUpdateAssetCount() != 0)
-    {
-        vk::CommandBufferAllocateInfo sceneCommandAllocateInfo{};
-        sceneCommandAllocateInfo.setCommandPool(mOffscreenFrameResource->TransferCommandPool)
-            .setLevel(vk::CommandBufferLevel::eSecondary)
-            .setCommandBufferCount(1);
-        auto sceneSecondaryCommandBuffer = device.allocateCommandBuffers(sceneCommandAllocateInfo).front();
-
-        sceneManager->UpdateAssetRenderResource(mContext, sceneSecondaryCommandBuffer, &inheritanceInfo);
-        mOffscreenFrameResource->SecondaryTransferCommandBuffers.push_back(sceneSecondaryCommandBuffer);
-    }
-    vk::CommandBufferBeginInfo transferBeginInfo{};
-    transferCommandBuffer.begin(transferBeginInfo);
-    std::vector<vk::CommandBuffer> secondaryBuffers{};
-    if (!mOffscreenFrameResource->SecondaryTransferCommandBuffers.empty())
-        transferCommandBuffer.executeCommands(mOffscreenFrameResource->SecondaryTransferCommandBuffers);
-    transferCommandBuffer.end();
-    vk::SubmitInfo2 transferSubmitInfo{};
-    transferSubmitInfo.setCommandBufferInfos(
-        {vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->TransferCommandBuffer)});
-    transferSubmitInfo.setSignalSemaphoreInfos(
-        {vk::SemaphoreSubmitInfo()
-             .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
-             .setStageMask(vk::PipelineStageFlagBits2::eTransfer)});
-    mContext->TransferQueue.submit2({transferSubmitInfo}, {});
-    //=========================开始渲染=========================
     for (const auto &preRecord : mPreRecord)
     {
         preRecord(mOffscreenFrameResource);
@@ -252,21 +224,46 @@ void RenderSystem::Shutdown()
 void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
 {
     auto currentGraphicCommandBuffer = frameResource->GraphicsCommandBuffer;
-    auto colorAttachment = frameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
-    auto depthStencilAttachment = frameResource->DepthStencilTexture->GetResourceAs<TextureRenderTarget2DResource>();
+    auto depthStencilAttachment = frameResource->DepthStencilTexture->GetResourceAs<TextureResource>();
     std::vector<vk::RenderingAttachmentInfo> colorAttachmentInfos{
         vk::RenderingAttachmentInfo()
-            .setClearValue(frameResource->ColorClearValue)
-            .setImageView(colorAttachment->GetImageView())
+            .setClearValue(mOffscreenFrameResource->AlbedoTexture->mClearValue)
+            .setImageView(frameResource->AlbedoTexture->GetResourceAs<TextureResource>()->mImageView)
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
-            .setStoreOp(vk::AttachmentStoreOp::eStore)};
+            .setStoreOp(vk::AttachmentStoreOp::eStore),
+        vk::RenderingAttachmentInfo()
+            .setClearValue(mOffscreenFrameResource->NormalTexture->mClearValue)
+            .setImageView(frameResource->NormalTexture->GetResourceAs<TextureResource>()->mImageView)
+            .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
+            .setLoadOp(vk::AttachmentLoadOp::eClear)
+            .setStoreOp(vk::AttachmentStoreOp::eStore),
+        vk::RenderingAttachmentInfo()
+            .setClearValue(mOffscreenFrameResource->ARMTexture->mClearValue)
+            .setImageView(frameResource->ARMTexture->GetResourceAs<TextureResource>()->mImageView)
+            .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
+            .setLoadOp(vk::AttachmentLoadOp::eClear)
+            .setStoreOp(vk::AttachmentStoreOp::eStore),
+        vk::RenderingAttachmentInfo()
+            .setClearValue(mOffscreenFrameResource->PositionTexture->mClearValue)
+            .setImageView(frameResource->PositionTexture->GetResourceAs<TextureResource>()->mImageView)
+            .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
+            .setLoadOp(vk::AttachmentLoadOp::eClear)
+            .setStoreOp(vk::AttachmentStoreOp::eStore),
+        vk::RenderingAttachmentInfo()
+            .setClearValue(mOffscreenFrameResource->EmissiveTexture->mClearValue)
+            .setImageView(frameResource->EmissiveTexture->GetResourceAs<TextureResource>()->mImageView)
+            .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
+            .setLoadOp(vk::AttachmentLoadOp::eClear)
+            .setStoreOp(vk::AttachmentStoreOp::eStore),
+
+    };
     vk::RenderingAttachmentInfo depthStencilAttachmentInfo{};
-    depthStencilAttachmentInfo.setClearValue(frameResource->DepthClearValue)
+    depthStencilAttachmentInfo.setClearValue(mOffscreenFrameResource->DepthStencilTexture->mClearValue)
         .setImageLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal)
         .setLoadOp(vk::AttachmentLoadOp::eClear)
         .setStoreOp(vk::AttachmentStoreOp::eDontCare)
-        .setImageView(depthStencilAttachment->GetImageView());
+        .setImageView(depthStencilAttachment->mImageView);
     vk::RenderingInfo renderingInfo{};
     renderingInfo.setRenderArea(vk::Rect2D{{0, 0}, {frameResource->Extent.width, frameResource->Extent.height}})
         .setLayerCount(1)
@@ -281,46 +278,64 @@ void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
         .setMinDepth(0.0f)
         .setMaxDepth(1.0f);
     currentGraphicCommandBuffer.setViewport(0, {viewport});
+    currentGraphicCommandBuffer.setViewportWithCount({viewport});
     vk::Rect2D scissor;
     scissor.setOffset({0, 0}).setExtent({frameResource->Extent.width, frameResource->Extent.height});
+    currentGraphicCommandBuffer.setScissorWithCount({scissor});
     currentGraphicCommandBuffer.setScissor(0, {scissor});
     if (mRenderQueues.contains(DefaultGraphicPipelineType::ForwardOpaquePhong))
     {
         auto &entities = mRenderQueues.at(DefaultGraphicPipelineType::ForwardOpaquePhong);
-        auto pipelineAsset = mAssetManager->GetByName<GraphicPipeline>(DefaultGraphicPipelineType::ForwardOpaquePhong);
-        auto graphicPipelineGBufferPipeline = pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipeline();
-        auto graphicPipelineGBufferPipelineLayout =
-            pipelineAsset->GetResourceAs<GraphicPipelineResource>()->GetPipelineLayout();
-        currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelineGBufferPipeline);
-        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                                       graphicPipelineGBufferPipelineLayout, 0,
-                                                       mContext->TextureBindlessDescriptorSet.get(), {});
-        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                                       graphicPipelineGBufferPipelineLayout, 1,
-                                                       mScene->GetResourceAs<SceneResource>()->mDescriptorSet, {});
+        auto &assetManager = AssetManager::Instance();
+        auto graphicPipelineAsset =
+            assetManager.GetByNameAs<GraphicPipeline>(DefaultGraphicPipelineType::ForwardOpaquePhong);
+        auto graphicPipelinePipelineResource =
+            graphicPipelineAsset->GetResourceAs<GraphicPipelineResource>()->mPipeline;
+        auto graphicPipelinePipelineLayout =
+            graphicPipelineAsset->GetResourceAs<GraphicPipelineResource>()->mPipelineLayout;
+
+        auto textureManager = assetManager.GetManager<Texture>();
+        auto textureBindlessDescriptorSet =
+            std::dynamic_pointer_cast<TextureManager>(textureManager)->mTextureBindlessDescriptorSet;
+
+        currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelinePipelineResource);
+        currentGraphicCommandBuffer.setPrimitiveTopology(vk::PrimitiveTopology::eTriangleList);
+        // 深度
+        currentGraphicCommandBuffer.setDepthTestEnable(vk::True);
+        currentGraphicCommandBuffer.setDepthWriteEnable(vk::True);
+        currentGraphicCommandBuffer.setDepthCompareOp(vk::CompareOp::eLess);
+        currentGraphicCommandBuffer.setStencilTestEnable(vk::False);
+        // 光栅化
+        currentGraphicCommandBuffer.setCullMode(vk::CullModeFlagBits::eNone);
+        currentGraphicCommandBuffer.setFrontFace(vk::FrontFace::eCounterClockwise);
+        currentGraphicCommandBuffer.setLineWidth(10.0f);
+        currentGraphicCommandBuffer.setDepthBiasEnable(vk::False);
+        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicPipelinePipelineLayout,
+                                                       0, mScene->GetResourceAs<SceneResource>()->mGlobalDescriptorSet,
+                                                       {});
+        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicPipelinePipelineLayout,
+                                                       1, textureBindlessDescriptorSet, {});
         for (const auto &entity : entities)
         {
             auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);
             auto &meshComponent = mScene->mRegistry->get<MeshComponent>(entity);
             auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
-
-            auto phongMaterial = static_cast<PhongMaterial *>(materialComponent.Material.get());
-            auto phongMaterialResource = materialComponent.Material->GetResourceAs<PhongMaterialResource>();
+            auto material = static_cast<PhongMaterial *>(materialComponent.Material.get());
+            auto materialResource = materialComponent.Material->GetResourceAs<MaterialResource>();
 
             auto modelMatrix = transformComponent.modelMatrix;
-            currentGraphicCommandBuffer.pushConstants(graphicPipelineGBufferPipelineLayout,
-                                                      vk::ShaderStageFlagBits::eVertex |
-                                                          vk::ShaderStageFlagBits::eFragment,
-                                                      0, sizeof(Matrix4), &modelMatrix);
+            currentGraphicCommandBuffer.pushConstants(
+                graphicPipelinePipelineLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0,
+                sizeof(Matrix4), &modelMatrix);
             currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                                           graphicPipelineGBufferPipelineLayout, 2,
-                                                           phongMaterialResource->mDescriptorSet, {});
-            auto staticMeshResource = meshComponent.Mesh->GetResourceAs<StaticMeshResource>();
-            auto vertexBuffer = staticMeshResource->GetVertexBuffer();
-            auto indexBuffer = staticMeshResource->GetIndexBuffer();
+                                                           graphicPipelinePipelineLayout, 2,
+                                                           materialResource->mDescriptorSet, {});
+            auto meshResource = meshComponent.Mesh->GetResourceAs<MeshResource>();
+            auto vertexBuffer = meshResource->mVertexBuffer;
+            auto indexBuffer = meshResource->mIndexBuffer;
             currentGraphicCommandBuffer.bindVertexBuffers(0, vertexBuffer, {0});
             currentGraphicCommandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
-            currentGraphicCommandBuffer.drawIndexed(staticMeshResource->GetIndexCount(), 1, 0, 0, 0);
+            currentGraphicCommandBuffer.drawIndexed(meshComponent.Mesh->mIndices.size(), 1, 0, 0, 0);
         }
     }
     currentGraphicCommandBuffer.endRendering();

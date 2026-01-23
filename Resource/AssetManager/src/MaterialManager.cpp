@@ -32,20 +32,6 @@ void MaterialManager::ProcessPendingInitResources(RenderContext renderContext)
         {
             materialResource->InitStaging(renderContext.Context, material->mBufferSize);
         }
-        vk::DescriptorSetAllocateInfo allocateInfo{};
-        allocateInfo.setDescriptorPool(mPipelineManager->mDescriptorPool)
-            .setSetLayouts(mPipelineManager->mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Material))
-            .setDescriptorSetCount(1);
-        materialResource->mDescriptorSet = renderContext.Context->Device->allocateDescriptorSets(allocateInfo).front();
-        vk::WriteDescriptorSet descriptorWrite{};
-        vk::DescriptorBufferInfo bufferInfo{};
-        bufferInfo.setBuffer(materialResource->mBuffer).setOffset(0).setRange(material->mBufferSize);
-        descriptorWrite.setDstSet(materialResource->mDescriptorSet)
-            .setDstBinding(0)
-            .setDstArrayElement(0)
-            .setDescriptorType(vk::DescriptorType::eUniformBuffer)
-            .setBufferInfo(bufferInfo);
-        renderContext.Context->Device->updateDescriptorSets({descriptorWrite}, {});
     }
 }
 void MaterialManager::ProcessPendingUpdateResources(RenderContext renderContext)

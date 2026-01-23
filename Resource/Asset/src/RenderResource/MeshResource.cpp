@@ -49,6 +49,7 @@ void MeshResource::ReleaseRHI(std::shared_ptr<Context> context)
     {
         vmaDestroyBuffer(context->VmaAllocator, mIndexBuffer, mIndexBufferAllocation);
     }
+    ReleaseStaging(context);
 }
 void MeshResource::InitStaging(std::shared_ptr<Context> context, vk::DeviceSize bufferSize)
 {
@@ -64,13 +65,10 @@ void MeshResource::InitStaging(std::shared_ptr<Context> context, vk::DeviceSize 
     vertexStagingAllocCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
     vertexStagingAllocCreateInfo.flags =
         VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-    vk::Buffer vertexStagingBuffer;
-    VmaAllocation vertexStagingBufferAllocation;
-    VmaAllocationInfo vertexStagingBufferAllocationInfo;
     if (vmaCreateBuffer(context->VmaAllocator,
                         reinterpret_cast<const VkBufferCreateInfo *>(&vertexStagingBufferCreateInfo),
-                        &vertexStagingAllocCreateInfo, reinterpret_cast<VkBuffer *>(&vertexStagingBuffer),
-                        &vertexStagingBufferAllocation, &vertexStagingBufferAllocationInfo) != VK_SUCCESS)
+                        &vertexStagingAllocCreateInfo, reinterpret_cast<VkBuffer *>(&mStagingVertexBuffer),
+                        &mStagingVertexBufferAllocation, &mStagingVertexBufferAllocationInfo) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create vertex staging buffer");
     }
@@ -83,13 +81,10 @@ void MeshResource::InitStaging(std::shared_ptr<Context> context, vk::DeviceSize 
     indexStagingAllocCreateInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
     indexStagingAllocCreateInfo.flags =
         VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-    vk::Buffer indexStagingBuffer;
-    VmaAllocation indexStagingBufferAllocation;
-    VmaAllocationInfo indexStagingBufferAllocationInfo;
     if (vmaCreateBuffer(context->VmaAllocator,
                         reinterpret_cast<const VkBufferCreateInfo *>(&indexStagingBufferCreateInfo),
-                        &indexStagingAllocCreateInfo, reinterpret_cast<VkBuffer *>(&indexStagingBuffer),
-                        &indexStagingBufferAllocation, &indexStagingBufferAllocationInfo) != VK_SUCCESS)
+                        &indexStagingAllocCreateInfo, reinterpret_cast<VkBuffer *>(&mStagingIndexBuffer),
+                        &mStagingIndexBufferAllocation, &mStagingIndexBufferAllocationInfo) != VK_SUCCESS)
     {
         throw std::runtime_error("Failed to create index staging buffer");
     }

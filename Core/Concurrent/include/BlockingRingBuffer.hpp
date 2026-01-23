@@ -7,13 +7,13 @@
 
 namespace MEngine::Core
 {
-template <typename T> class ConcurrentRingBuffer final : public IBlockingRingBuffer<T>
+template <typename T> class BlockingRingBuffer final : public IBlockingRingBuffer<T>
 {
   private:
     moodycamel::BlockingReaderWriterCircularBuffer<T> mRingBuffer{};
 
   public:
-    ConcurrentRingBuffer(size_t capacity) : mRingBuffer(capacity)
+    BlockingRingBuffer(size_t capacity) : mRingBuffer(capacity)
     {
     }
     void Push(T item) override

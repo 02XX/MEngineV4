@@ -8,7 +8,7 @@ class CameraSystem final : public System
 {
   private:
   public:
-    CameraSystem(std::shared_ptr<Scene> scene, std::shared_ptr<AssetManager> assetManager) : System(scene, assetManager)
+    CameraSystem(std::shared_ptr<Scene> scene) : System(scene)
     {
     }
     void Init() override;

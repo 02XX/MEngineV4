@@ -18,6 +18,7 @@ struct PhongParam
     uint32_t DiffuseBindlessIndex = 0;
     uint32_t SpecularBindlessIndex = 0;
 };
+
 class PhongMaterial : public Material
 {
   public:

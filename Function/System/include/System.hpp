@@ -10,11 +10,9 @@ class System : public ISystem
 {
   protected:
     std::shared_ptr<Scene> mScene;
-    std::shared_ptr<AssetManager> mAssetManager;
 
   public:
-    System(std::shared_ptr<Scene> scene, std::shared_ptr<AssetManager> assetManager)
-        : mScene(scene), mAssetManager(assetManager)
+    System(std::shared_ptr<Scene> scene) : mScene(scene)
     {
     }
     virtual ~System() = default;

@@ -3,6 +3,7 @@
 #include "AssetURL.hpp"
 #include "Context.hpp"
 #include "IManager.hpp"
+#include "MemberInfo.hpp"
 #include "RenderResource.hpp"
 #include <any>
 #include <concepts>
@@ -12,7 +13,9 @@
 
 namespace MEngine::Resource
 {
-class AssetManager final : public virtual IManager, public virtual IPendingResourceManager
+class AssetManager final : public virtual IManager,
+                           public virtual IPendingResourceManager,
+                           public MReflection::NonCopyable
 {
   private:
     // Route map

@@ -51,7 +51,7 @@ void RenderResource::InitResource(std::shared_ptr<Context> context)
     {
         InitRHI(context);
         mState = State::Initialized;
-        LogDebug("Initialized RenderResource {}:{}", mOwnerAsset->GetID().ToString(), mOwnerAsset->GetName());
+        LogDebug("Initialized RenderResource");
     }
 }
 void RenderResource::InitResourceAsync()

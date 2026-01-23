@@ -1,5 +1,7 @@
 #include "MaterialResource.hpp"
+#include "AssetManager.hpp"
 #include "Material.hpp"
+#include "PipelineManager.hpp"
 namespace MEngine::Resource
 {
 MaterialResource::MaterialResource(Material *material) : RenderResource(material)
@@ -8,6 +10,7 @@ MaterialResource::MaterialResource(Material *material) : RenderResource(material
 void MaterialResource::InitRHI(std::shared_ptr<Context> context)
 {
     auto material = static_cast<Material *>(mOwnerAsset);
+    material->mPipeline->GetResource()->InitResource(context);
     vk::BufferCreateInfo bufferCreateInfo{};
     bufferCreateInfo.setSize(material->mBufferSize)
         .setUsage(vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
@@ -25,6 +28,21 @@ void MaterialResource::InitRHI(std::shared_ptr<Context> context)
     vk::BufferDeviceAddressInfo bufferDeviceAddressInfo{};
     bufferDeviceAddressInfo.setBuffer(mBuffer);
     mBufferAddress = context->Device->getBufferAddress(bufferDeviceAddressInfo);
+    auto pipelineManager = std::dynamic_pointer_cast<PipelineManager>(AssetManager::Instance().GetManager<Pipeline>());
+    vk::DescriptorSetAllocateInfo allocateInfo{};
+    allocateInfo.setDescriptorPool(pipelineManager->mDescriptorPool)
+        .setSetLayouts(pipelineManager->mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Material))
+        .setDescriptorSetCount(1);
+    mDescriptorSet = context->Device->allocateDescriptorSets(allocateInfo).front();
+    vk::WriteDescriptorSet descriptorWrite{};
+    vk::DescriptorBufferInfo bufferInfo{};
+    bufferInfo.setBuffer(mBuffer).setOffset(0).setRange(material->mBufferSize);
+    descriptorWrite.setDstSet(mDescriptorSet)
+        .setDstBinding(0)
+        .setDstArrayElement(0)
+        .setDescriptorType(vk::DescriptorType::eUniformBuffer)
+        .setBufferInfo(bufferInfo);
+    context->Device->updateDescriptorSets({descriptorWrite}, {});
 }
 void MaterialResource::ReleaseRHI(std::shared_ptr<Context> context)
 {

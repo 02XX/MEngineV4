@@ -36,17 +36,19 @@ class GraphicPipeline final : public Pipeline
   public:
     GraphicPipeline(const std::string &name, std::vector<vk::DescriptorSetLayout> descriptorSetLayouts,
                     std::vector<vk::PushConstantRange> pushConstantRanges,
+                    vk::VertexInputBindingDescription vertexBindings,
                     std::vector<vk::VertexInputAttributeDescription> vertexAttributes,
                     vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState,
                     std::vector<std::shared_ptr<Shader>> shaders, std::vector<vk::Format> colorAttachmentFormats,
                     vk::Format depthStencilAttachmentFormat,
                     std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments,
                     vk::PipelineMultisampleStateCreateInfo multisampleState)
-        : Pipeline(name, descriptorSetLayouts, pushConstantRanges), mVertexAttributes(vertexAttributes),
-          mInputAssemblyState(inputAssemblyState), mShaders(shaders), mColorAttachmentFormats(colorAttachmentFormats),
-          mDepthStencilAttachmentFormat(depthStencilAttachmentFormat), mMultisampleState(multisampleState),
-          mColorBlendAttachments(colorBlendAttachments)
+        : Pipeline(name, descriptorSetLayouts, pushConstantRanges), mVertexBindings(vertexBindings),
+          mVertexAttributes(vertexAttributes), mInputAssemblyState(inputAssemblyState), mShaders(shaders),
+          mColorAttachmentFormats(colorAttachmentFormats), mDepthStencilAttachmentFormat(depthStencilAttachmentFormat),
+          mMultisampleState(multisampleState), mColorBlendAttachments(colorBlendAttachments)
     {
+        mRasterizationState.setPolygonMode(vk::PolygonMode::eFill);
         std::vector<ShaderResource *> shaderResources;
         for (const auto &shader : mShaders)
         {

@@ -11,6 +11,10 @@ void GraphicPipelineResource::InitRHI(std::shared_ptr<Context> context)
 {
     PipelineResource::InitRHI(context);
     auto pipeline = static_cast<GraphicPipeline *>(mOwnerAsset);
+    for (auto shader : pipeline->mShaders)
+    {
+        shader->GetResource()->InitResource(context);
+    }
     auto device = context->Device.get();
     vk::PipelineRenderingCreateInfo pipelineRenderingInfo{};
     pipelineRenderingInfo.setColorAttachmentCount(static_cast<uint32_t>(pipeline->mColorBlendAttachments.size()))
@@ -29,6 +33,7 @@ void GraphicPipelineResource::InitRHI(std::shared_ptr<Context> context)
     std::vector<vk::DynamicState> dynamicStates{
         // =============顶点输入=========================
         //==============================================
+        vk::DynamicState::ePrimitiveTopology,
         // =============光栅化=========================
         vk::DynamicState::eCullMode,
         vk::DynamicState::eFrontFace,

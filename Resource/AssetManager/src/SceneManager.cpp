@@ -20,33 +20,6 @@ void SceneManager::ProcessPendingInitResources(RenderContext renderContext)
     for (auto &sceneResource : sceneResourcesToInit)
     {
         sceneResource->InitResource(renderContext.Context);
-        vk::DescriptorSetAllocateInfo allocateInfo{};
-        allocateInfo.setDescriptorPool(mPipelineManager->mDescriptorPool)
-            .setSetLayouts(mPipelineManager->mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Global))
-            .setDescriptorSetCount(1);
-        sceneResource->mDescriptorSet = renderContext.Context->Device->allocateDescriptorSets(allocateInfo).front();
-        std::vector<vk::WriteDescriptorSet> descriptorWrites{};
-        // UBO
-        vk::DescriptorBufferInfo uboBufferInfo{};
-        uboBufferInfo.setBuffer(sceneResource->mUBOBuffer).setOffset(0).setRange(sizeof(SceneParam));
-        vk::WriteDescriptorSet uboDescriptorWrite{};
-        uboDescriptorWrite.setDstSet(sceneResource->mDescriptorSet)
-            .setDstBinding(0)
-            .setDstArrayElement(0)
-            .setDescriptorType(vk::DescriptorType::eUniformBuffer)
-            .setBufferInfo(uboBufferInfo);
-        descriptorWrites.push_back(uboDescriptorWrite);
-        // SSBO
-        vk::DescriptorBufferInfo ssboBufferInfo{};
-        ssboBufferInfo.setBuffer(sceneResource->mSSBOBuffer).setOffset(0).setRange(sizeof(LightParam) * MAX_LIGHTS);
-        vk::WriteDescriptorSet ssboDescriptorWrite{};
-        ssboDescriptorWrite.setDstSet(sceneResource->mDescriptorSet)
-            .setDstBinding(1)
-            .setDstArrayElement(0)
-            .setDescriptorType(vk::DescriptorType::eStorageBuffer)
-            .setBufferInfo(ssboBufferInfo);
-        descriptorWrites.push_back(ssboDescriptorWrite);
-        renderContext.Context->Device->updateDescriptorSets(descriptorWrites, {});
     }
 }
 void SceneManager::ProcessPendingUpdateResources(RenderContext renderContext)
@@ -77,20 +50,22 @@ void SceneManager::ProcessPendingUpdateResources(RenderContext renderContext)
             .setSrcStageMask(vk::PipelineStageFlagBits2::eTransfer)
             .setDstStageMask(vk::PipelineStageFlagBits2::eVertexShader | vk::PipelineStageFlagBits2::eFragmentShader)
             .setSrcAccessMask(vk::AccessFlagBits2::eTransferWrite)
-            .setDstAccessMask(vk::AccessFlagBits2::eShaderRead | vk::AccessFlagBits2::eShaderWrite)
+            .setDstAccessMask(vk::AccessFlagBits2::eShaderRead)
             .setBuffer(sceneResource->mUBOBuffer)
             .setOffset(0)
             .setSize(sizeof(SceneParam));
         ssboBufferBarrier.setSrcQueueFamilyIndex(vk::QueueFamilyIgnored)
             .setDstQueueFamilyIndex(vk::QueueFamilyIgnored)
             .setSrcStageMask(vk::PipelineStageFlagBits2::eTransfer)
-            .setDstStageMask(vk::PipelineStageFlagBits2::eFragmentShader | vk::PipelineStageFlagBits2::eVertexShader)
+            .setDstStageMask(vk::PipelineStageFlagBits2::eFragmentShader)
             .setSrcAccessMask(vk::AccessFlagBits2::eTransferWrite)
-            .setDstAccessMask(vk::AccessFlagBits2::eShaderRead | vk::AccessFlagBits2::eShaderWrite)
+            .setDstAccessMask(vk::AccessFlagBits2::eShaderRead)
             .setBuffer(sceneResource->mSSBOBuffer)
             .setOffset(0)
             .setSize(sizeof(LightParam) * MAX_LIGHTS);
+
         bufferBarriers.push_back(uboBufferBarrier);
+        bufferBarriers.push_back(ssboBufferBarrier);
     }
     vk::DependencyInfo dependencyInfo{};
     dependencyInfo.setBufferMemoryBarriers(bufferBarriers);

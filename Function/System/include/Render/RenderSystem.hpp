@@ -37,8 +37,7 @@ class RenderSystem : public System
     std::vector<std::function<void(OffscreenFrameResource *frameResource)>> mPostSubmit{};
 
   public:
-    RenderSystem(std::shared_ptr<Context> context, std::shared_ptr<Scene> scene,
-                 std::shared_ptr<AssetManager> assetManager);
+    RenderSystem(std::shared_ptr<Context> context, std::shared_ptr<Scene> scene);
     ~RenderSystem() override;
     inline void SetOffscreenFrameResource(OffscreenFrameResource *frameResource)
     {
@@ -69,6 +68,7 @@ class RenderSystem : public System
     }
 
   private:
+    void Transfer();
     void Render();
 
     void UpdateMaterial();

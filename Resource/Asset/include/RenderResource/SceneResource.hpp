@@ -25,9 +25,9 @@ class SceneResource final : public RenderResource, public virtual IUpload, publi
     vk::Buffer mSSBOBuffer{}, mSSBOStagingBuffer{};
     VmaAllocation mSSBOBufferAllocation{}, mSSBOStagingBufferAllocation{};
     VmaAllocationInfo mSSBOBufferAllocationInfo{}, mSSBOStagingBufferAllocationInfo{};
-    vk::DeviceAddress mSSBOBufferAddress{};
 
-    vk::DescriptorSet mDescriptorSet{};
+    vk::DeviceAddress mSSBOBufferAddress{};
+    vk::DescriptorSet mGlobalDescriptorSet{};
 
   protected:
     Scene *mScene{nullptr};

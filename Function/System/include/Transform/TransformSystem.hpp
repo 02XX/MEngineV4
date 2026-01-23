@@ -10,8 +10,7 @@ class TransformSystem final : public System
 {
   private:
   public:
-    TransformSystem(std::shared_ptr<Scene> scene, std::shared_ptr<AssetManager> assetManager)
-        : System(scene, assetManager)
+    TransformSystem(std::shared_ptr<Scene> scene) : System(scene)
     {
     }
     void Init() override;

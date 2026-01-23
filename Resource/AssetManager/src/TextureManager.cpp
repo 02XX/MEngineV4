@@ -38,9 +38,9 @@ TextureManager::TextureManager(std::shared_ptr<Context> context, std::shared_ptr
     texture2DSetting.usage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst;
     texture2DSetting.samples = vk::SampleCountFlagBits::e1;
 
-    auto magenta2D = std::make_unique<Texture2D>(DefaultTextureType::Magenta2D, texture2DSetting);
-    auto white2D = std::make_unique<Texture2D>(DefaultTextureType::White2D, texture2DSetting);
-    auto black2D = std::make_unique<Texture2D>(DefaultTextureType::Black2D, texture2DSetting);
+    auto magenta2D = std::make_shared<Texture2D>(DefaultTextureType::Magenta2D, texture2DSetting);
+    auto white2D = std::make_shared<Texture2D>(DefaultTextureType::White2D, texture2DSetting);
+    auto black2D = std::make_shared<Texture2D>(DefaultTextureType::Black2D, texture2DSetting);
 
     magenta2D->mTextureDatas = {
         MipMap{
@@ -65,15 +65,21 @@ TextureManager::TextureManager(std::shared_ptr<Context> context, std::shared_ptr
     white2D->SetID(sDefaultTextures.at(DefaultTextureType::White2D));
     black2D->SetID(sDefaultTextures.at(DefaultTextureType::Black2D));
 
-    Add(std::move(white2D));
-    Add(std::move(black2D));
-    Add(std::move(magenta2D));
+    Add(white2D);
+    Add(black2D);
+    Add(magenta2D);
     // Texture2DArray
     // TODO: Default Texture2DArray
     // TextureCube
     // TODO: Default TextureCube
     // TextureCubeArray
     // TODO: Default TextureCubeArray
+    PendingInit(white2D->GetResource());
+    PendingInit(black2D->GetResource());
+    PendingInit(magenta2D->GetResource());
+    PendingUpdate(white2D->GetResource());
+    PendingUpdate(black2D->GetResource());
+    PendingUpdate(magenta2D->GetResource());
 }
 TextureManager::~TextureManager()
 {
@@ -147,19 +153,6 @@ void TextureManager::ProcessPendingInitResources(RenderContext renderContext)
     for (auto uploadableTextureResource : uploadableResourcesToInitialized)
     {
         auto uploadableTexture = static_cast<UploadableTexture *>(uploadableTextureResource->mOwnerAsset);
-        uploadableTextureResource->AllocateBindlessIndex(AllocateDescriptorIndex());
-        vk::DescriptorImageInfo descriptorImageInfo{};
-        descriptorImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-            .setImageView(uploadableTextureResource->mImageView)
-            .setSampler(uploadableTextureResource->mSampler);
-        vk::WriteDescriptorSet writeDescriptorSet{};
-        writeDescriptorSet.setDstSet(mTextureBindlessDescriptorSet)
-            .setDstBinding(0)
-            .setDstArrayElement(uploadableTextureResource->mBindlessDescriptorIndex)
-            .setDescriptorCount(1)
-            .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
-            .setImageInfo(descriptorImageInfo);
-        renderContext.Context->Device->updateDescriptorSets(writeDescriptorSet, nullptr);
         subresourceRange.setLevelCount(uploadableTexture->mTextureSettings.mipLevels)
             .setLayerCount(uploadableTexture->mTextureSettings.arrayLayers)
             .setAspectMask(uploadableTexture->IsDepthStencil()

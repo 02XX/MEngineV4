@@ -1,7 +1,7 @@
 #pragma once
+#include "BlockingRingBuffer.hpp"
 #include "CameraSystem.hpp"
 #include "ConcurrentQueue.hpp"
-#include "ConcurrentRingBuffer.hpp"
 #include "Context.hpp"
 #include "ECS.hpp"
 #include "OffscreenFrameResource.hpp"
@@ -56,7 +56,6 @@ class Editor
   private:
     std::shared_ptr<Context> mContext;
     std::shared_ptr<Scene> mScene;
-    std::shared_ptr<AssetManager> mAssetManager;
     std::shared_ptr<TransformSystem> mTransformSystem;
     std::shared_ptr<CameraSystem> mCameraSystem;
     std::shared_ptr<RenderSystem> mRenderSystem;
@@ -87,7 +86,7 @@ class Editor
   private:
     uint32_t mImageIndex = 0;
     uint32_t mCurrentFrameIndex = 0;
-    ConcurrentRingBuffer<ImDrawDataSnapshot *> mFrameDrawDataSnapshots{3};
+    BlockingRingBuffer<ImDrawDataSnapshot *> mFrameDrawDataSnapshots{3};
 
     tf::Taskflow mTaskflow{};
     tf::Executor mExecutor{};

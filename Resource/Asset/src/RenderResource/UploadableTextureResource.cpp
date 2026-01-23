@@ -1,6 +1,8 @@
 #include "UploadableTextureResource.hpp"
+#include "AssetManager.hpp"
 #include "Logger.hpp"
 #include "Texture.hpp"
+#include "TextureManager.hpp"
 #include "TextureResource.hpp"
 #include "UploadableTexture.hpp"
 #include "VMA.hpp"
@@ -18,6 +20,21 @@ void UploadableTextureResource::InitRHI(std::shared_ptr<Context> context)
     auto instance = context->Instance.get();
     auto device = context->Device.get();
     auto texture = static_cast<Texture *>(mOwnerAsset);
+    auto textureManager = std::dynamic_pointer_cast<TextureManager>(AssetManager::Instance().GetManager<Texture>());
+    mBindlessDescriptorIndex = textureManager->AllocateDescriptorIndex();
+    mBindlessTextureDescriptorSet = textureManager->mTextureBindlessDescriptorSet;
+    vk::DescriptorImageInfo descriptorImageInfo{};
+    descriptorImageInfo.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
+        .setImageView(mImageView)
+        .setSampler(mSampler);
+    vk::WriteDescriptorSet writeDescriptorSet{};
+    writeDescriptorSet.setDstSet(mBindlessTextureDescriptorSet)
+        .setDstBinding(0)
+        .setDstArrayElement(mBindlessDescriptorIndex)
+        .setDescriptorCount(1)
+        .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
+        .setImageInfo(descriptorImageInfo);
+    context->Device->updateDescriptorSets(writeDescriptorSet, nullptr);
 }
 void UploadableTextureResource::ReleaseRHI(std::shared_ptr<Context> context)
 {

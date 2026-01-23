@@ -40,9 +40,9 @@ ConstantBuffer<SceneParam> sceneParam;
 [vk_binding(1, 0)]
 StructuredBuffer<LightParam> lights;
 [vk_binding(0, 1)]
-ConstantBuffer<PhongParam> phongParam;
-[vk_binding(0, 2)]
 Sampler2D textures[];
+[vk_binding(0, 2)]
+ConstantBuffer<PhongParam> phongParam;
 
 struct VSInput
 {

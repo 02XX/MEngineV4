@@ -1,8 +1,11 @@
 #include "SceneResource.hpp"
+#include "AssetManager.hpp"
 #include "Logger.hpp"
+#include "PipelineManager.hpp"
 #include "Scene.hpp"
 #include "VMA.hpp"
 #include <cstddef>
+#include <memory>
 #include <vulkan/vulkan.hpp>
 namespace MEngine::Resource
 {
@@ -53,33 +56,34 @@ void SceneResource::InitRHI(std::shared_ptr<Context> context)
     ssboBufferAddressInfo.setBuffer(mSSBOBuffer);
     mSSBOBufferAddress = context->Device->getBufferAddress(ssboBufferAddressInfo);
     InitStaging(context, {});
-    // vk::DescriptorSetAllocateInfo sceneDescriptorSetAllocInfo{};
-    // sceneDescriptorSetAllocInfo.setDescriptorPool(context->DescriptorPool.get())
-    //     .setSetLayouts(
-    //         context->DefaultDescriptorSetLayouts[Context::DefaultDescriptorSetLayoutType::GlobalStorage].get())
-    //     .setDescriptorSetCount(1);
-    // auto descriptorSets = context->Device->allocateDescriptorSets(sceneDescriptorSetAllocInfo);
-    // if (descriptorSets.empty())
-    // {
-    //     LogError("Failed to allocate Scene descriptor set");
-    //     return;
-    // }
-    // mDescriptorSet = descriptorSets[0];
-    // vk::WriteDescriptorSet uboDescriptorWrite{}, ssboDescriptorWrite{};
-    // vk::DescriptorBufferInfo uboBufferInfo{}, ssboBufferInfo{};
-    // uboBufferInfo.setBuffer(mUBOBuffer).setOffset(0).setRange(bufferSize);
-    // uboDescriptorWrite.setDstSet(mDescriptorSet)
-    //     .setDstBinding(0)
-    //     .setDstArrayElement(0)
-    //     .setDescriptorType(vk::DescriptorType::eUniformBuffer)
-    //     .setBufferInfo({uboBufferInfo});
-    // ssboBufferInfo.setBuffer(mSSBOBuffer).setOffset(0).setRange(ssboBufferSize);
-    // ssboDescriptorWrite.setDstSet(mDescriptorSet)
-    //     .setDstBinding(1)
-    //     .setDstArrayElement(0)
-    //     .setDescriptorType(vk::DescriptorType::eStorageBuffer)
-    //     .setBufferInfo({ssboBufferInfo});
-    // context->Device->updateDescriptorSets({uboDescriptorWrite, ssboDescriptorWrite}, {});
+
+    auto pipelineManager = std::dynamic_pointer_cast<PipelineManager>(AssetManager::Instance().GetManager<Pipeline>());
+    vk::DescriptorSetAllocateInfo sceneDescriptorSetAllocInfo{};
+    sceneDescriptorSetAllocInfo.setDescriptorPool(pipelineManager->mDescriptorPool)
+        .setSetLayouts(pipelineManager->mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Global))
+        .setDescriptorSetCount(1);
+    auto descriptorSets = context->Device->allocateDescriptorSets(sceneDescriptorSetAllocInfo);
+    if (descriptorSets.empty())
+    {
+        LogError("Failed to allocate Scene descriptor set");
+        return;
+    }
+    mGlobalDescriptorSet = descriptorSets[0];
+    vk::WriteDescriptorSet uboDescriptorWrite{}, ssboDescriptorWrite{};
+    vk::DescriptorBufferInfo uboBufferInfo{}, ssboBufferInfo{};
+    uboBufferInfo.setBuffer(mUBOBuffer).setOffset(0).setRange(bufferSize);
+    uboDescriptorWrite.setDstSet(mGlobalDescriptorSet)
+        .setDstBinding(0)
+        .setDstArrayElement(0)
+        .setDescriptorType(vk::DescriptorType::eUniformBuffer)
+        .setBufferInfo({uboBufferInfo});
+    ssboBufferInfo.setBuffer(mSSBOBuffer).setOffset(0).setRange(ssboBufferSize);
+    ssboDescriptorWrite.setDstSet(mGlobalDescriptorSet)
+        .setDstBinding(1)
+        .setDstArrayElement(0)
+        .setDescriptorType(vk::DescriptorType::eStorageBuffer)
+        .setBufferInfo({ssboBufferInfo});
+    context->Device->updateDescriptorSets({uboDescriptorWrite, ssboDescriptorWrite}, {});
 }
 void SceneResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
@@ -91,6 +95,13 @@ void SceneResource::ReleaseRHI(std::shared_ptr<Context> context)
     if (mSSBOBuffer && mSSBOBufferAllocation)
     {
         vmaDestroyBuffer(context->VmaAllocator, mSSBOBuffer, mSSBOBufferAllocation);
+    }
+    if (mGlobalDescriptorSet)
+    {
+        auto pipelineManager =
+            std::dynamic_pointer_cast<PipelineManager>(AssetManager::Instance().GetManager<Pipeline>());
+        context->Device->freeDescriptorSets(pipelineManager->mDescriptorPool, {mGlobalDescriptorSet});
+        mGlobalDescriptorSet = nullptr;
     }
 }
 void SceneResource::InitStaging(std::shared_ptr<Context> context, vk::DeviceSize bufferSize)
@@ -155,8 +166,6 @@ void SceneResource::UploadData()
 }
 void SceneResource::Bind(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout, vk::Pipeline pipeline)
 {
-    vk::BindDescriptorSetsInfo bindInfo{};
-    bindInfo.setDescriptorSets(mDescriptorSet).setFirstSet(1).setLayout(pipelineLayout);
-    commandBuffer.bindDescriptorSets2(bindInfo);
+    commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, {mGlobalDescriptorSet}, {});
 }
 } // namespace MEngine::Resource

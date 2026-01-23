@@ -16,16 +16,14 @@ class UploadableTextureResource : public TextureResource, IUpload
     vk::Buffer mStagingBuffer{};
     VmaAllocation mStagingBufferAllocation{};
     VmaAllocationInfo mStagingBufferAllocationInfo{};
+
     uint32_t mBindlessDescriptorIndex{0};
+    vk::DescriptorSet mBindlessTextureDescriptorSet{};
 
   public:
     UploadableTextureResource(UploadableTexture *texture);
 
     void InitRHI(std::shared_ptr<Context> context) override;
-    virtual void AllocateBindlessIndex(uint32_t index)
-    {
-        mBindlessDescriptorIndex = index;
-    }
     void ReleaseRHI(std::shared_ptr<Context> context) override;
     void InitStaging(std::shared_ptr<Context> context, vk::DeviceSize bufferSize) override;
     void ReleaseStaging(std::shared_ptr<Context> context) override;

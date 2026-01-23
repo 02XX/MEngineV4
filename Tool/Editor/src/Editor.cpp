@@ -1,4 +1,6 @@
 #include "Editor.hpp"
+#include "Asset.hpp"
+#include "AssetManager.hpp"
 #include "CameraComponent.hpp"
 #include "ECS.hpp"
 #include "LightComponent.hpp"
@@ -10,16 +12,16 @@
 #include "MeshComponent.hpp"
 #include "MeshManager.hpp"
 
+#include "MaterialManager.hpp"
+#include "MaterialResource.hpp"
+#include "Mesh.hpp"
 #include "PhongMaterial.hpp"
-#include "PhongMaterialManager.hpp"
-#include "PhongMaterialResource.hpp"
 #include "RenderSystem.hpp"
 #include "Scene.hpp"
 #include "SceneManager.hpp"
 #include "ShaderUtil.hpp"
-#include "StaticMesh.hpp"
 #include "TextureRenderTarget2D.hpp"
-#include "TextureRenderTarget2DResource.hpp"
+#include "TextureResource.hpp"
 #include "TransformComponent.hpp"
 #include <cstddef>
 #include <cstdint>
@@ -40,15 +42,14 @@ Editor::Editor()
     LogInfo("Welcome to MEngine Editor!");
     InitWindow();
     InitVulkan();
+    AssetManager::Instance().Init(mContext);
     InitImGui();
-
-    mAssetManager = std::make_shared<AssetManager>(mContext);
     mScene = DefaultScene();
-    mTransformSystem = std::make_shared<TransformSystem>(mScene, mAssetManager);
+    mTransformSystem = std::make_shared<TransformSystem>(mScene);
     mTransformSystem->Init();
-    mCameraSystem = std::make_shared<CameraSystem>(mScene, mAssetManager);
+    mCameraSystem = std::make_shared<CameraSystem>(mScene);
     mCameraSystem->Init();
-    mRenderSystem = std::make_shared<RenderSystem>(mContext, mScene, mAssetManager);
+    mRenderSystem = std::make_shared<RenderSystem>(mContext, mScene);
     mRenderSystem->Init();
     mRenderSystem->PushPreRecord(
         [this](OffscreenFrameResource *frameResource) { UIAcquireSwapChainImage(frameResource); });
@@ -78,10 +79,6 @@ Editor::~Editor()
         mTransformSystem->Shutdown();
         mTransformSystem.reset();
     }
-    if (mAssetManager)
-    {
-        mAssetManager.reset();
-    }
     if (mSwapChainResource)
     {
         mSwapChainResource->ReleaseResource(mContext);
@@ -89,12 +86,8 @@ Editor::~Editor()
     }
     mOffscreenFrameResources.clear();
     mScene.reset();
-    std::function<void(std::shared_ptr<Context> context)> item{};
-    while (PendingDeletions.TryPop(item))
-    {
-        item(mContext);
-    }
     mContext->Instance.get().destroySurfaceKHR(mSurface);
+    AssetManager::Instance().Shutdown(mContext);
     LogInfo("Goodbye!");
 }
 
@@ -153,13 +146,6 @@ void Editor::InitVulkan()
     config.InstanceRequiredLayers = {"VK_LAYER_KHRONOS_validation"};
     config.DeviceRequiredExtensions = {"VK_KHR_swapchain"};
     mContext = std::make_shared<Context>(config);
-
-    glfwCreateWindowSurface(mContext->Instance.get(), mWindow, nullptr, reinterpret_cast<VkSurfaceKHR *>(&mSurface));
-    mSwapChainResource = std::make_unique<SwapChainResource>(mSurface);
-    mSwapChainResource->InitResource(mContext);
-    MAX_FRAMES_IN_FLIGHT = mSwapChainResource->SwapChainImages.size();
-    mOffscreenFrameResources.resize(MAX_FRAMES_IN_FLIGHT);
-    mFrameDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
 }
 void Editor::InitImGui()
 {
@@ -193,6 +179,12 @@ void Editor::InitImGui()
         LogError("Failed to initialize ImGui Vulkan backend");
         throw std::runtime_error("ImGui Vulkan init failed");
     }
+    glfwCreateWindowSurface(mContext->Instance.get(), mWindow, nullptr, reinterpret_cast<VkSurfaceKHR *>(&mSurface));
+    mSwapChainResource = std::make_unique<SwapChainResource>(mSurface);
+    mSwapChainResource->InitResource(mContext);
+    MAX_FRAMES_IN_FLIGHT = mSwapChainResource->SwapChainImages.size();
+    mOffscreenFrameResources.resize(MAX_FRAMES_IN_FLIGHT);
+    mFrameDescriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
     // Fonts
     ImFontConfig fontConfig{};
     auto notoSansFont = io.Fonts->AddFontFromFileTTF("Assets/Fonts/MSYH.TTC", 18.0f, &fontConfig,
@@ -214,15 +206,15 @@ void Editor::InitImGui()
 }
 std::shared_ptr<Scene> Editor::DefaultScene()
 {
-    auto sceneManager = mAssetManager->GetManager<Scene, SceneManager>();
+    auto &assetManager = AssetManager::Instance();
     auto defaultScene = std::make_shared<Scene>("DefaultScene");
-    sceneManager->Add(defaultScene);
+    assetManager.Add(defaultScene);
 
     auto ecsRegister = defaultScene->mRegistry;
     auto cubeEntity = ecsRegister->create();
-    auto cubeMesh = mAssetManager->GetManager<StaticMesh, MeshManager>()->GetByName(DefaultMeshType::Cube);
-    auto phongMaterialManager = mAssetManager->GetManager<PhongMaterial, PhongMaterialManager>();
-    auto defaultMat = phongMaterialManager->GetByName(DefaultPhongMaterialType::ForwardOpaque);
+    auto cubeMesh = assetManager.GetByNameAs<Mesh>(DefaultMeshType::Cube);
+    auto defaultMat = assetManager.GetByNameAs<Material>(DefaultMaterialType::ForwardOpaquePhong);
+
     auto &cubeEntityTransformComponent = ecsRegister->emplace<TransformComponent>(cubeEntity);
     cubeEntityTransformComponent.name = "Cube";
     cubeEntityTransformComponent.Rotate(45, Vector3{1.0f, 0.0f, 0.0f});
@@ -272,7 +264,7 @@ void Editor::UIRenderPass(OffscreenFrameResource *frameResource)
     std::vector<vk::RenderingAttachmentInfo> colorAttachments{
         // Color
         vk::RenderingAttachmentInfo()
-            .setClearValue(frameResource->ColorClearValue)
+            .setClearValue(vk::ClearValue().setColor(vk::ClearColorValue(std::array<float, 4>{0.1f, 0.1f, 0.1f, 1.0f})))
             .setImageView(mSwapChainResource->SwapChainImageViews[mImageIndex])
             .setImageLayout(vk::ImageLayout::eColorAttachmentOptimal)
             .setLoadOp(vk::AttachmentLoadOp::eClear)
@@ -295,7 +287,7 @@ void Editor::UIRenderPass(OffscreenFrameResource *frameResource)
         .setSrcAccessMask(vk::AccessFlagBits2::eNone)
         .setDstAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
         .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-    preRenderBarrier.setImage(frameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>()->GetImage())
+    preRenderBarrier.setImage(frameResource->AlbedoTexture->GetResourceAs<TextureResource>()->mImage)
         .setOldLayout(vk::ImageLayout::eColorAttachmentOptimal)
         .setNewLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
         .setSrcStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)
@@ -319,7 +311,7 @@ void Editor::UIRenderPass(OffscreenFrameResource *frameResource)
         .setSrcAccessMask(vk::AccessFlagBits2::eColorAttachmentWrite)
         .setDstAccessMask(vk::AccessFlagBits2::eNone)
         .setSubresourceRange({vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-    postRenderBarrier.setImage(frameResource->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>()->GetImage())
+    postRenderBarrier.setImage(frameResource->AlbedoTexture->GetResourceAs<TextureResource>()->mImage)
         .setOldLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
         .setNewLayout(vk::ImageLayout::eColorAttachmentOptimal)
         .setSrcStageMask(vk::PipelineStageFlagBits2::eFragmentShader)
@@ -376,10 +368,10 @@ void Editor::Run()
                     mOffscreenFrameResources[i]->RecreateMRT(
                         vk::Extent3D{mCurrentResolution.width, mCurrentResolution.height, 1});
                     auto currentColorAttachment =
-                        mOffscreenFrameResources[i]->ColorTexture->GetResourceAs<TextureRenderTarget2DResource>();
+                        mOffscreenFrameResources[i]->AlbedoTexture->GetResourceAs<TextureResource>();
                     mFrameDescriptorSets[i] = ImGui_ImplVulkan_AddTexture(
-                        static_cast<VkSampler>(currentColorAttachment->GetSampler()),
-                        static_cast<VkImageView>(currentColorAttachment->GetImageView()),
+                        static_cast<VkSampler>(currentColorAttachment->mSampler),
+                        static_cast<VkImageView>(currentColorAttachment->mImageView),
                         static_cast<VkImageLayout>(vk::ImageLayout::eShaderReadOnlyOptimal));
                 }
                 for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT * 2; i++)
