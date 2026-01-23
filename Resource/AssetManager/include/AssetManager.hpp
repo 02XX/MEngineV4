@@ -49,11 +49,6 @@ class AssetManager final : public virtual IManager,
         }
         return nullptr;
     }
-    template <std::derived_from<IManager> TManager>
-    friend std::shared_ptr<TManager> To(std::shared_ptr<IManager> manager)
-    {
-        return std::static_pointer_cast<TManager>(manager);
-    }
     std::shared_ptr<Asset> Load(const AssetURL &url) override;
     void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override;
     void Add(std::shared_ptr<Asset> asset) override;

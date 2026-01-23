@@ -73,6 +73,7 @@ class RenderSystem : public System
 
     void UpdateMaterial();
     void PrepareRenderQueues();
+
     void ForwardOpaque(OffscreenFrameResource *frameResource);
     void ForwardTransparent(OffscreenFrameResource *frameResource);
     void GBuffer(OffscreenFrameResource *frameResource);

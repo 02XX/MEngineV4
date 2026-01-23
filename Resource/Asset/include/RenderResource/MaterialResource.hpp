@@ -19,5 +19,6 @@ class MaterialResource : public RenderResource, public virtual IBind
     MaterialResource(Material *material);
     void InitRHI(std::shared_ptr<Context> context) override;
     void ReleaseRHI(std::shared_ptr<Context> context) override;
+    void Bind(BindContext bindContext) override;
 };
 } // namespace MEngine::Resource

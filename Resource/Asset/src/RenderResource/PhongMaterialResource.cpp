@@ -98,7 +98,7 @@ void PhongMaterialResource::Upload()
 }
 void PhongMaterialResource::Bind(BindContext bindContext)
 {
-    mBindInfo.setDescriptorSets(mDescriptorSet).setFirstSet(2).setLayout(bindContext.PipelineLayout);
+    mBindInfo.setDescriptorSets(mDescriptorSet).setFirstSet(mSetIndex).setLayout(bindContext.PipelineLayout);
     bindContext.CommandBuffer.bindDescriptorSets2(mBindInfo);
 }
 } // namespace MEngine::Resource

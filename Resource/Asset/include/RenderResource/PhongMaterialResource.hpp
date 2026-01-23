@@ -22,6 +22,7 @@ class PhongMaterialResource : public MaterialResource, public virtual IUpload, p
     VmaAllocation mStagingBufferAllocation;
     VmaAllocationInfo mStagingBufferAllocationInfo;
 
+    uint32_t mSetIndex{2};
     vk::DescriptorSet mDescriptorSet{};
 
   private:

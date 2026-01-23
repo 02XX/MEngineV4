@@ -21,6 +21,7 @@
 #include "SceneManager.hpp"
 #include "SceneResource.hpp"
 #include "TextureManager.hpp"
+#include "TextureResource.hpp"
 #include "TransformComponent.hpp"
 #include <limits>
 #include <memory>
@@ -45,9 +46,91 @@ void RenderSystem::Init()
 }
 void RenderSystem::Update(double deltaTime)
 {
+#pragma region Prepare
     PrepareRenderQueues();
-    Transfer();
-    Render();
+#pragma endregion
+    auto device = mContext->Device.get();
+    auto result = device.waitForFences(mOffscreenFrameResource->InFlightFence.get(), vk::True,
+                                       std::numeric_limits<uint64_t>::max());
+    if (result != vk::Result::eSuccess)
+    {
+        LogError("Failed to wait for fence: {}", vk::to_string(result));
+        return;
+    }
+    device.resetFences(mOffscreenFrameResource->InFlightFence.get());
+#pragma region Transfer
+
+    RenderContext renderContext{mContext, mOffscreenFrameResource->TransferCommandBuffer};
+    vk::CommandBufferBeginInfo beginInfo{};
+    beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+    mOffscreenFrameResource->TransferCommandBuffer.begin(beginInfo);
+    //====================Last Frame 清理上一帧的资源=========================================
+    AssetManager::Instance().ProcessPendingDeletionResources(
+        renderContext); // TODO: After MAX_INFLIGHT_FRAME Count to delete
+    //=======================================================================
+    //====================This Frame 本帧资源初始化和更新=========================================
+    AssetManager::Instance().ProcessPendingInitResources(renderContext);
+    AssetManager::Instance().ProcessPendingUpdateResources(renderContext);
+    mOffscreenFrameResource->TransferCommandBuffer.reset();
+    mOffscreenFrameResource->TransferCommandBuffer.begin(beginInfo);
+    AssetManager::Instance().ProcessPendingUpdateResources(renderContext);
+    mOffscreenFrameResource->TransferCommandBuffer.end();
+    vk::SubmitInfo2 transferSubmitInfo{};
+    transferSubmitInfo.setCommandBufferInfos(
+        {vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->TransferCommandBuffer)});
+    transferSubmitInfo.setSignalSemaphoreInfos(
+        {vk::SemaphoreSubmitInfo()
+             .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
+             .setStageMask(vk::PipelineStageFlagBits2::eTransfer)});
+#pragma endregion
+#pragma region Graphics
+    for (const auto &preRecord : mPreRecord)
+    {
+        preRecord(mOffscreenFrameResource);
+    }
+    vk::CommandBufferBeginInfo graphicsBeginInfo{};
+    auto graphicCommandBuffer = mOffscreenFrameResource->GraphicsCommandBuffer;
+    graphicCommandBuffer.begin(graphicsBeginInfo);
+    for (const auto &preProcessPass : mPreProcessPasses)
+    {
+        preProcessPass(mOffscreenFrameResource);
+    }
+    for (const auto &renderPass : mRenderPasses)
+    {
+        renderPass(mOffscreenFrameResource);
+    }
+    for (const auto &postProcessPass : mPostProcessPasses)
+    {
+        postProcessPass(mOffscreenFrameResource);
+    }
+    graphicCommandBuffer.end();
+    vk::SubmitInfo2 graphicSubmitInfo{};
+    std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
+        vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->GraphicsCommandBuffer),
+    };
+    std::vector<vk::SemaphoreSubmitInfo> signalSemaphoreInfos = {
+        vk::SemaphoreSubmitInfo()
+            .setSemaphore(mOffscreenFrameResource->RenderFinishedSemaphore.get())
+            .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)};
+    std::vector<vk::SemaphoreSubmitInfo> waitSemaphoreInfos = {
+        vk::SemaphoreSubmitInfo()
+            .setSemaphore(mOffscreenFrameResource->ImageAvailableSemaphore.get())
+            .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
+        vk::SemaphoreSubmitInfo()
+            .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
+            .setStageMask(vk::PipelineStageFlagBits2::eTransfer)};
+
+    graphicSubmitInfo.setCommandBufferInfos(commandBufferInfos)
+        .setSignalSemaphoreInfos(signalSemaphoreInfos)
+        .setWaitSemaphoreInfos(waitSemaphoreInfos);
+
+    mContext->GraphicsQueue.submit2({transferSubmitInfo, graphicSubmitInfo},
+                                    mOffscreenFrameResource->InFlightFence.get());
+    for (const auto &postSubmitPass : mPostSubmit)
+    {
+        postSubmitPass(mOffscreenFrameResource);
+    }
+#pragma endregion
 }
 void RenderSystem::PrepareRenderQueues()
 {
@@ -123,101 +206,6 @@ void RenderSystem::PrepareRenderQueues()
         mScene->mLightParamsDirty = false;
     }
 }
-void RenderSystem::Transfer()
-{
-    RenderContext renderContext{mContext, mOffscreenFrameResource->TransferCommandBuffer};
-    vk::CommandBufferBeginInfo beginInfo{};
-    beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-    mOffscreenFrameResource->TransferCommandBuffer.begin(beginInfo);
-    // TODO: interval in in-flight frame
-    AssetManager::Instance().ProcessPendingDeletionResources(
-        renderContext); // TODO: After MAX_INFLIGHT_FRAME Count to delete
-    AssetManager::Instance().ProcessPendingInitResources(renderContext);
-    mOffscreenFrameResource->TransferCommandBuffer.end();
-    vk::SubmitInfo2 initInfo{};
-    initInfo.setCommandBufferInfos(
-        {vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->TransferCommandBuffer)});
-    mContext->TransferQueue.submit2({initInfo}, mOffscreenFrameResource->TransferFence.get());
-    auto result = mContext->Device->waitForFences(mOffscreenFrameResource->TransferFence.get(), vk::True,
-                                                  std::numeric_limits<uint64_t>::max());
-    if (result != vk::Result::eSuccess)
-    {
-        LogError("Failed to wait for transfer fence: {}", vk::to_string(result));
-        return;
-    }
-    mContext->Device->resetFences(mOffscreenFrameResource->TransferFence.get());
-
-    mOffscreenFrameResource->TransferCommandBuffer.reset();
-    mOffscreenFrameResource->TransferCommandBuffer.begin(beginInfo);
-    AssetManager::Instance().ProcessPendingUpdateResources(renderContext);
-    mOffscreenFrameResource->TransferCommandBuffer.end();
-    vk::SubmitInfo2 submitInfo{};
-    submitInfo.setCommandBufferInfos(
-        {vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->TransferCommandBuffer)});
-    submitInfo.setSignalSemaphoreInfos({vk::SemaphoreSubmitInfo()
-                                            .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
-                                            .setStageMask(vk::PipelineStageFlagBits2::eTransfer)});
-    mContext->TransferQueue.submit2({submitInfo}, {});
-}
-void RenderSystem::Render()
-{
-    auto device = mContext->Device.get();
-    auto result = device.waitForFences(mOffscreenFrameResource->InFlightFence.get(), vk::True,
-                                       std::numeric_limits<uint64_t>::max());
-    if (result != vk::Result::eSuccess)
-    {
-        LogError("Failed to wait for fence: {}", vk::to_string(result));
-        return;
-    }
-    device.resetFences(mOffscreenFrameResource->InFlightFence.get());
-    device.resetCommandPool(mOffscreenFrameResource->GraphicsCommandPool);
-    for (const auto &preRecord : mPreRecord)
-    {
-        preRecord(mOffscreenFrameResource);
-    }
-    vk::CommandBufferBeginInfo graphicsBeginInfo{};
-    auto graphicCommandBuffer = mOffscreenFrameResource->GraphicsCommandBuffer;
-    graphicCommandBuffer.begin(graphicsBeginInfo);
-    for (const auto &preProcessPass : mPreProcessPasses)
-    {
-        preProcessPass(mOffscreenFrameResource);
-    }
-    for (const auto &renderPass : mRenderPasses)
-    {
-        renderPass(mOffscreenFrameResource);
-    }
-    for (const auto &postProcessPass : mPostProcessPasses)
-    {
-        postProcessPass(mOffscreenFrameResource);
-    }
-    graphicCommandBuffer.end();
-
-    vk::SubmitInfo2 graphicSumbitInfo{};
-    std::vector<vk::CommandBufferSubmitInfo> commandBufferInfos = {
-        vk::CommandBufferSubmitInfo().setCommandBuffer(mOffscreenFrameResource->GraphicsCommandBuffer),
-    };
-    std::vector<vk::SemaphoreSubmitInfo> signalSemaphoreInfos = {
-        vk::SemaphoreSubmitInfo()
-            .setSemaphore(mOffscreenFrameResource->RenderFinishedSemaphore.get())
-            .setStageMask(vk::PipelineStageFlagBits2::eColorAttachmentOutput)};
-    std::vector<vk::SemaphoreSubmitInfo> waitSemaphoreInfos = {
-        vk::SemaphoreSubmitInfo()
-            .setSemaphore(mOffscreenFrameResource->ImageAvailableSemaphore.get())
-            .setStageMask(vk::PipelineStageFlagBits2::eTopOfPipe),
-        vk::SemaphoreSubmitInfo()
-            .setSemaphore(mOffscreenFrameResource->TransferFinishedSemaphore.get())
-            .setStageMask(vk::PipelineStageFlagBits2::eTransfer)};
-
-    graphicSumbitInfo.setCommandBufferInfos(commandBufferInfos)
-        .setSignalSemaphoreInfos(signalSemaphoreInfos)
-        .setWaitSemaphoreInfos(waitSemaphoreInfos);
-
-    mContext->GraphicsQueue.submit2({graphicSumbitInfo}, mOffscreenFrameResource->InFlightFence.get());
-    for (const auto &postSubmitPass : mPostSubmit)
-    {
-        postSubmitPass(mOffscreenFrameResource);
-    }
-}
 void RenderSystem::Shutdown()
 {
 }
@@ -289,32 +277,17 @@ void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
         auto &assetManager = AssetManager::Instance();
         auto graphicPipelineAsset =
             assetManager.GetByNameAs<GraphicPipeline>(DefaultGraphicPipelineType::ForwardOpaquePhong);
-        auto graphicPipelinePipelineResource =
-            graphicPipelineAsset->GetResourceAs<GraphicPipelineResource>()->mPipeline;
+        auto graphicPipelinePipeline = graphicPipelineAsset->GetResourceAs<GraphicPipelineResource>()->mPipeline;
         auto graphicPipelinePipelineLayout =
             graphicPipelineAsset->GetResourceAs<GraphicPipelineResource>()->mPipelineLayout;
-
-        auto textureManager = assetManager.GetManager<Texture>();
-        auto textureBindlessDescriptorSet =
-            std::dynamic_pointer_cast<TextureManager>(textureManager)->mTextureBindlessDescriptorSet;
-
-        currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelinePipelineResource);
-        currentGraphicCommandBuffer.setPrimitiveTopology(vk::PrimitiveTopology::eTriangleList);
-        // 深度
-        currentGraphicCommandBuffer.setDepthTestEnable(vk::True);
-        currentGraphicCommandBuffer.setDepthWriteEnable(vk::True);
-        currentGraphicCommandBuffer.setDepthCompareOp(vk::CompareOp::eLess);
-        currentGraphicCommandBuffer.setStencilTestEnable(vk::False);
-        // 光栅化
-        currentGraphicCommandBuffer.setCullMode(vk::CullModeFlagBits::eNone);
-        currentGraphicCommandBuffer.setFrontFace(vk::FrontFace::eCounterClockwise);
-        currentGraphicCommandBuffer.setLineWidth(10.0f);
-        currentGraphicCommandBuffer.setDepthBiasEnable(vk::False);
-        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicPipelinePipelineLayout,
-                                                       0, mScene->GetResourceAs<SceneResource>()->mGlobalDescriptorSet,
-                                                       {});
-        currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, graphicPipelinePipelineLayout,
-                                                       1, textureBindlessDescriptorSet, {});
+        BindContext bindContext{
+            .CommandBuffer = currentGraphicCommandBuffer,
+            .PipelineLayout = graphicPipelinePipelineLayout,
+            .Pipeline = graphicPipelinePipeline,
+        };
+        auto textureManager = assetManager.GetManager<Texture>()->As<TextureManager>();
+        textureManager->Bind(bindContext);
+        mScene->GetResourceAs<SceneResource>()->Bind(bindContext);
         for (const auto &entity : entities)
         {
             auto &materialComponent = mScene->mRegistry->get<MaterialComponent>(entity);
@@ -322,20 +295,14 @@ void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
             auto &transformComponent = mScene->mRegistry->get<TransformComponent>(entity);
             auto material = static_cast<PhongMaterial *>(materialComponent.Material.get());
             auto materialResource = materialComponent.Material->GetResourceAs<MaterialResource>();
+            auto meshResource = meshComponent.Mesh->GetResourceAs<MeshResource>();
 
             auto modelMatrix = transformComponent.modelMatrix;
             currentGraphicCommandBuffer.pushConstants(
                 graphicPipelinePipelineLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0,
                 sizeof(Matrix4), &modelMatrix);
-            currentGraphicCommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                                                           graphicPipelinePipelineLayout, 2,
-                                                           materialResource->mDescriptorSet, {});
-            auto meshResource = meshComponent.Mesh->GetResourceAs<MeshResource>();
-            auto vertexBuffer = meshResource->mVertexBuffer;
-            auto indexBuffer = meshResource->mIndexBuffer;
-            currentGraphicCommandBuffer.bindVertexBuffers(0, vertexBuffer, {0});
-            currentGraphicCommandBuffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
-            currentGraphicCommandBuffer.drawIndexed(meshComponent.Mesh->mIndices.size(), 1, 0, 0, 0);
+            materialResource->Bind(bindContext);
+            meshResource->Bind(bindContext);
         }
     }
     currentGraphicCommandBuffer.endRendering();

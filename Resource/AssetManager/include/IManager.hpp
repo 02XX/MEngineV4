@@ -9,7 +9,7 @@
 
 namespace MEngine::Resource
 {
-class IManager : public virtual IPendingResourceManager
+class IManager : public virtual IPendingResourceManager, public std::enable_shared_from_this<IManager>
 {
   public:
     virtual ~IManager() = default;
@@ -22,5 +22,18 @@ class IManager : public virtual IPendingResourceManager
     virtual void Remove(const Core::UUID &id) = 0;
 
     virtual void DestroyAll() = 0;
+
+    template <std::derived_from<Asset> TAsset> std::shared_ptr<TAsset> GetAs(const Core::UUID &id) const
+    {
+        return std::static_pointer_cast<TAsset>(Get(id));
+    }
+    template <std::derived_from<Asset> TAsset> std::shared_ptr<TAsset> GetByNameAs(const std::string &name) const
+    {
+        return std::static_pointer_cast<TAsset>(GetByName(name));
+    }
+    template <std::derived_from<IManager> TManager> std::shared_ptr<TManager> As()
+    {
+        return std::dynamic_pointer_cast<TManager>(shared_from_this());
+    }
 };
 } // namespace MEngine::Resource

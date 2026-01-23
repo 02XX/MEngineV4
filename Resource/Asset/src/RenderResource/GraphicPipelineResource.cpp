@@ -23,7 +23,7 @@ void GraphicPipelineResource::InitRHI(std::shared_ptr<Context> context)
         .setStencilAttachmentFormat(pipeline->mDepthStencilAttachmentFormat);
 
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.setVertexBindingDescriptions(pipeline->mVertexBindings)
+    vertexInputInfo.setVertexBindingDescriptions(pipeline->mVertexInputBinding)
         .setVertexAttributeDescriptions(pipeline->mVertexAttributes);
 
     vk::PipelineViewportStateCreateInfo viewportState{};
