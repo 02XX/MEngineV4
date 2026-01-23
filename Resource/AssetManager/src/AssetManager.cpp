@@ -7,6 +7,8 @@
 #include "MaterialManager.hpp"
 #include "MeshManager.hpp"
 #include "MeshResource.hpp"
+#include "PBRMaterialResource.hpp"
+#include "PhongMaterialResource.hpp"
 #include "PipelineManager.hpp"
 #include "SceneManager.hpp"
 #include "Shader.hpp"
@@ -38,7 +40,7 @@ void AssetManager::Init(std::shared_ptr<Context> context)
     RegisterManager<Mesh, MeshResource>(meshManager);
     RegisterManager<Pipeline, PipelineResource, GraphicPipelineResource>(pipelineManager);
     RegisterManager<Texture, TextureResource, UploadableTextureResource, TextureRenderTargetResource>(textureManager);
-    RegisterManager<Material, MaterialResource>(materialManager);
+    RegisterManager<Material, MaterialResource, PBRMaterialResource, PhongMaterialResource>(materialManager);
     RegisterManager<Scene, SceneResource>(sceneManager);
 }
 void AssetManager::Shutdown(std::shared_ptr<Context> context)

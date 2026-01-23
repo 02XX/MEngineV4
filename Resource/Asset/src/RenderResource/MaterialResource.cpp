@@ -27,9 +27,17 @@ void MaterialResource::Bind(BindContext bindContext)
     bindContext.CommandBuffer.setDepthBounds(material->mDepthSetting.minDepthBounds,
                                              material->mDepthSetting.maxDepthBounds);
     bindContext.CommandBuffer.setStencilTestEnable(material->mDepthSetting.stencilTestEnable);
+    bindContext.CommandBuffer.setStencilOp(
+        vk::StencilFaceFlagBits::eFront, material->mDepthSetting.front.failOp, material->mDepthSetting.front.passOp,
+        material->mDepthSetting.front.depthFailOp, material->mDepthSetting.front.compareOp);
+
     // 光栅化
     bindContext.CommandBuffer.setCullMode(material->mRasterizationSetting.cullMode);
     bindContext.CommandBuffer.setFrontFace(material->mRasterizationSetting.frontFace);
     bindContext.CommandBuffer.setLineWidth(material->mRasterizationSetting.lineWidth);
+    bindContext.CommandBuffer.setDepthBiasEnable(material->mRasterizationSetting.depthBiasEnable);
+    bindContext.CommandBuffer.setDepthBias(material->mRasterizationSetting.depthBiasConstantFactor,
+                                           material->mRasterizationSetting.depthBiasClamp,
+                                           material->mRasterizationSetting.depthBiasSlopeFactor);
 }
 } // namespace MEngine::Resource

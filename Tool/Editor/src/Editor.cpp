@@ -213,7 +213,7 @@ std::shared_ptr<Scene> Editor::DefaultScene()
     auto ecsRegister = defaultScene->mRegistry;
     auto cubeEntity = ecsRegister->create();
     auto cubeMesh = assetManager.GetByNameAs<Mesh>(DefaultMeshType::Cube);
-    auto defaultMat = assetManager.GetByNameAs<Material>(DefaultMaterialType::ForwardOpaquePhong);
+    auto defaultMat = assetManager.GetByNameAs<PhongMaterial>(DefaultMaterialType::ForwardOpaquePhong);
 
     auto &cubeEntityTransformComponent = ecsRegister->emplace<TransformComponent>(cubeEntity);
     cubeEntityTransformComponent.name = "Cube";

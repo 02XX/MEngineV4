@@ -28,12 +28,10 @@ class SceneResource final : public RenderResource, public virtual IUpload, publi
     VmaAllocationInfo mSSBOBufferAllocationInfo{}, mSSBOStagingBufferAllocationInfo{};
 
     vk::DeviceAddress mSSBOBufferAddress{};
-    uint32_t mSetIndex{2};
+    uint32_t mSetIndex{0};
     vk::DescriptorSet mGlobalDescriptorSet{};
 
   private:
-    vk::BindDescriptorSetsInfo mBindInfo{};
-
   protected:
     Scene *mScene{nullptr};
 

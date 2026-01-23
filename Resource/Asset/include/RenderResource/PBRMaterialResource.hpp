@@ -8,9 +8,9 @@
 using namespace MEngine::Platform;
 namespace MEngine::Resource
 {
-class PhongMaterial;
+class PBRMaterial;
 // Abstract class
-class PhongMaterialResource : public MaterialResource, public virtual IUpload, public virtual IBind
+class PBRMaterialResource : public MaterialResource, public virtual IUpload, public virtual IBind
 {
   public:
     vk::Buffer mBuffer;
@@ -27,7 +27,7 @@ class PhongMaterialResource : public MaterialResource, public virtual IUpload, p
 
   private:
   public:
-    PhongMaterialResource(PhongMaterial *material);
+    PBRMaterialResource(PBRMaterial *material);
 
     void InitRHI(std::shared_ptr<Context> context) override;
     void ReleaseRHI(std::shared_ptr<Context> context) override;

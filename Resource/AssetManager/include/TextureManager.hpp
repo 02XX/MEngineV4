@@ -37,7 +37,6 @@ class TextureManager final : public virtual Manager<Texture, TextureResource>, p
 {
   private:
     std::shared_ptr<PipelineManager> mPipelineManager{};
-    vk::BindDescriptorSetsInfo mBindInfo{};
 
   private:
     static inline const std::unordered_map<std::string, Core::UUID> sDefaultTextures{
@@ -56,6 +55,7 @@ class TextureManager final : public virtual Manager<Texture, TextureResource>, p
     };
 
   public:
+    uint32_t mSetIndex{1};
     vk::DescriptorSet mTextureBindlessDescriptorSet{};
 
   private:

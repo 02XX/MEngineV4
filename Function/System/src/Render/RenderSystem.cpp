@@ -71,9 +71,6 @@ void RenderSystem::Update(double deltaTime)
     //====================This Frame 本帧资源初始化和更新=========================================
     AssetManager::Instance().ProcessPendingInitResources(renderContext);
     AssetManager::Instance().ProcessPendingUpdateResources(renderContext);
-    mOffscreenFrameResource->TransferCommandBuffer.reset();
-    mOffscreenFrameResource->TransferCommandBuffer.begin(beginInfo);
-    AssetManager::Instance().ProcessPendingUpdateResources(renderContext);
     mOffscreenFrameResource->TransferCommandBuffer.end();
     vk::SubmitInfo2 transferSubmitInfo{};
     transferSubmitInfo.setCommandBufferInfos(
@@ -280,6 +277,7 @@ void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
         auto graphicPipelinePipeline = graphicPipelineAsset->GetResourceAs<GraphicPipelineResource>()->mPipeline;
         auto graphicPipelinePipelineLayout =
             graphicPipelineAsset->GetResourceAs<GraphicPipelineResource>()->mPipelineLayout;
+        currentGraphicCommandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicPipelinePipeline);
         BindContext bindContext{
             .CommandBuffer = currentGraphicCommandBuffer,
             .PipelineLayout = graphicPipelinePipelineLayout,
@@ -296,12 +294,11 @@ void RenderSystem::ForwardOpaque(OffscreenFrameResource *frameResource)
             auto material = static_cast<PhongMaterial *>(materialComponent.Material.get());
             auto materialResource = materialComponent.Material->GetResourceAs<MaterialResource>();
             auto meshResource = meshComponent.Mesh->GetResourceAs<MeshResource>();
-
+            materialResource->Bind(bindContext);
             auto modelMatrix = transformComponent.modelMatrix;
             currentGraphicCommandBuffer.pushConstants(
                 graphicPipelinePipelineLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0,
                 sizeof(Matrix4), &modelMatrix);
-            materialResource->Bind(bindContext);
             meshResource->Bind(bindContext);
         }
     }

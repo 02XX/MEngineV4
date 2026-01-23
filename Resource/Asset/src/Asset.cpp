@@ -10,7 +10,7 @@ void Asset::PendingInit()
         return;
     if (mResource->IsInitialized())
     {
-        LogWarn("Asset Resource for「{}」 is already initialized, cannot init again.", mName);
+        LogTrace("Asset Resource for「{}」 is already initialized, cannot init again.", mName);
         return;
     }
     AssetManager::Instance().PendingInit(mResource.get());
@@ -21,7 +21,7 @@ void Asset::PendingUpdate()
         return;
     if (!mResource->IsInitialized())
     {
-        LogWarn("Asset Resource for「{}」is not initialized, cannot update.", mName);
+        LogTrace("Asset Resource for「{}」is not initialized, cannot update.", mName);
         return;
     }
     AssetManager::Instance().PendingUpdate(mResource.get());
@@ -32,7 +32,7 @@ void Asset::PendingDeletion()
         return;
     if (!mResource->IsInitialized())
     {
-        LogWarn("Asset Resource for「{}」is not initialized, cannot deletion.", mName);
+        LogTrace("Asset Resource for「{}」is not initialized, cannot deletion.", mName);
         return;
     }
     AssetManager::Instance().PendingDelete(std::move(mResource));

@@ -264,7 +264,7 @@ void TextureManager::ProcessPendingDeletionResources(RenderContext renderContext
 }
 void TextureManager::Bind(BindContext bindContext)
 {
-    mBindInfo.setDescriptorSets(mTextureBindlessDescriptorSet).setFirstSet(0).setLayout(bindContext.PipelineLayout);
-    bindContext.CommandBuffer.bindDescriptorSets2(mBindInfo);
+    bindContext.CommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, bindContext.PipelineLayout,
+                                                 mSetIndex, mTextureBindlessDescriptorSet, {});
 }
 } // namespace MEngine::Resource

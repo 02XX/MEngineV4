@@ -166,7 +166,7 @@ void SceneResource::Upload()
 }
 void SceneResource::Bind(BindContext bindContext)
 {
-    mBindInfo.setDescriptorSets(mGlobalDescriptorSet).setFirstSet(mSetIndex).setLayout(bindContext.PipelineLayout);
-    bindContext.CommandBuffer.bindDescriptorSets2(mBindInfo);
+    bindContext.CommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, bindContext.PipelineLayout,
+                                                 mSetIndex, {mGlobalDescriptorSet}, {});
 }
 } // namespace MEngine::Resource

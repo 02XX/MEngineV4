@@ -1,8 +1,7 @@
-#include "PhongMaterialResource.hpp"
+#include "PBRMaterialResource.hpp"
 #include "AssetManager.hpp"
 #include "Material.hpp"
-#include "MaterialResource.hpp"
-#include "PhongMaterial.hpp"
+#include "PBRMaterial.hpp"
 #include "PipelineManager.hpp"
 #include "Texture2D.hpp"
 #include "UploadableTexture.hpp"
@@ -10,18 +9,20 @@
 
 namespace MEngine::Resource
 {
-PhongMaterialResource::PhongMaterialResource(PhongMaterial *material) : MaterialResource(material)
+PBRMaterialResource::PBRMaterialResource(PBRMaterial *material) : MaterialResource(material)
 {
 }
-void PhongMaterialResource::InitRHI(std::shared_ptr<Context> context)
+void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
 {
-    auto phongMaterial = static_cast<PhongMaterial *>(mOwnerAsset);
-    phongMaterial->mPipeline->GetResource()->InitResource(context);
-    phongMaterial->mTextures.DiffuseTexture->GetResource()->InitResource(context);
-    phongMaterial->mTextures.SpecularTexture->GetResource()->InitResource(context);
+    auto pbrMaterial = static_cast<PBRMaterial *>(mOwnerAsset);
+    pbrMaterial->mPipeline->GetResource()->InitResource(context);
+    pbrMaterial->mTextures.AlbedoTexture->GetResource()->InitResource(context);
+    pbrMaterial->mTextures.NormalTexture->GetResource()->InitResource(context);
+    pbrMaterial->mTextures.ARMTexture->GetResource()->InitResource(context);
+    pbrMaterial->mTextures.EmissiveTexture->GetResource()->InitResource(context);
 
     vk::BufferCreateInfo bufferCreateInfo{};
-    bufferCreateInfo.setSize(sizeof(PhongParams))
+    bufferCreateInfo.setSize(sizeof(PBRParams))
         .setUsage(vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
                   vk::BufferUsageFlagBits::eTransferDst)
         .setSharingMode(vk::SharingMode::eExclusive);
@@ -45,7 +46,7 @@ void PhongMaterialResource::InitRHI(std::shared_ptr<Context> context)
     mDescriptorSet = context->Device->allocateDescriptorSets(allocateInfo).front();
     vk::WriteDescriptorSet descriptorWrite{};
     vk::DescriptorBufferInfo bufferInfo{};
-    bufferInfo.setBuffer(mBuffer).setOffset(0).setRange(sizeof(PhongParams));
+    bufferInfo.setBuffer(mBuffer).setOffset(0).setRange(sizeof(PBRParams));
     descriptorWrite.setDstSet(mDescriptorSet)
         .setDstBinding(0)
         .setDstArrayElement(0)
@@ -53,7 +54,7 @@ void PhongMaterialResource::InitRHI(std::shared_ptr<Context> context)
         .setBufferInfo(bufferInfo);
     context->Device->updateDescriptorSets({descriptorWrite}, {});
 }
-void PhongMaterialResource::ReleaseRHI(std::shared_ptr<Context> context)
+void PBRMaterialResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
     ReleaseStaging(context);
     if (mBuffer && mBufferAllocation)
@@ -61,7 +62,7 @@ void PhongMaterialResource::ReleaseRHI(std::shared_ptr<Context> context)
         vmaDestroyBuffer(context->VmaAllocator, mBuffer, mBufferAllocation);
     }
 }
-void PhongMaterialResource::InitStaging(std::shared_ptr<Context> context, vk::DeviceSize bufferSize)
+void PBRMaterialResource::InitStaging(std::shared_ptr<Context> context, vk::DeviceSize bufferSize)
 {
     // Staging Buffer
     vk::BufferCreateInfo stagingBufferCreateInfo{};
@@ -80,24 +81,28 @@ void PhongMaterialResource::InitStaging(std::shared_ptr<Context> context, vk::De
         return;
     }
 }
-void PhongMaterialResource::ReleaseStaging(std::shared_ptr<Context> context)
+void PBRMaterialResource::ReleaseStaging(std::shared_ptr<Context> context)
 {
     if (mStagingBuffer && mStagingBufferAllocation)
     {
         vmaDestroyBuffer(context->VmaAllocator, mStagingBuffer, mStagingBufferAllocation);
     }
 }
-void PhongMaterialResource::Upload()
+void PBRMaterialResource::Upload()
 {
-    auto phongMaterial = static_cast<PhongMaterial *>(mOwnerAsset);
-    phongMaterial->mParam.DiffuseBindlessIndex =
-        phongMaterial->mTextures.DiffuseTexture->GetResourceAs<UploadableTextureResource>()->mBindlessDescriptorIndex;
-    phongMaterial->mParam.SpecularBindlessIndex =
-        phongMaterial->mTextures.SpecularTexture->GetResourceAs<UploadableTextureResource>()->mBindlessDescriptorIndex;
+    auto pbrMaterial = static_cast<PBRMaterial *>(mOwnerAsset);
+    pbrMaterial->mParam.AlbedoBindlessIndex =
+        pbrMaterial->mTextures.AlbedoTexture->GetResourceAs<UploadableTextureResource>()->mBindlessDescriptorIndex;
+    pbrMaterial->mParam.NormalBindlessIndex =
+        pbrMaterial->mTextures.NormalTexture->GetResourceAs<UploadableTextureResource>()->mBindlessDescriptorIndex;
+    pbrMaterial->mParam.ARMBindlessIndex =
+        pbrMaterial->mTextures.ARMTexture->GetResourceAs<UploadableTextureResource>()->mBindlessDescriptorIndex;
+    pbrMaterial->mParam.EmissiveBindlessIndex =
+        pbrMaterial->mTextures.EmissiveTexture->GetResourceAs<UploadableTextureResource>()->mBindlessDescriptorIndex;
     uint8_t *target = reinterpret_cast<uint8_t *>(mStagingBufferAllocationInfo.pMappedData);
-    std::memcpy(target, &phongMaterial->mParam, sizeof(PhongParams));
+    std::memcpy(target, &pbrMaterial->mParam, sizeof(PBRParams));
 }
-void PhongMaterialResource::Bind(BindContext bindContext)
+void PBRMaterialResource::Bind(BindContext bindContext)
 {
     MaterialResource::Bind(bindContext);
     bindContext.CommandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, bindContext.PipelineLayout,

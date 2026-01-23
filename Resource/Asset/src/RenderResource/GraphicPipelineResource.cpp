@@ -34,16 +34,20 @@ void GraphicPipelineResource::InitRHI(std::shared_ptr<Context> context)
         // =============顶点输入=========================
         //==============================================
         vk::DynamicState::ePrimitiveTopology,
+        vk::DynamicState::ePrimitiveRestartEnable,
         // =============光栅化=========================
         vk::DynamicState::eCullMode,
         vk::DynamicState::eFrontFace,
         vk::DynamicState::eLineWidth,
         vk::DynamicState::eDepthBiasEnable,
         vk::DynamicState::eDepthBias,
+
         // 深度模板状态
         vk::DynamicState::eDepthTestEnable,
         vk::DynamicState::eDepthWriteEnable,
         vk::DynamicState::eDepthCompareOp,
+        vk::DynamicState::eDepthBoundsTestEnable,
+        vk::DynamicState::eDepthBounds,
         vk::DynamicState::eStencilTestEnable,
         vk::DynamicState::eStencilOp,
         //==============================================

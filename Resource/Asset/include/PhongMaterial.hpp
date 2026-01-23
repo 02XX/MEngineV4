@@ -2,6 +2,7 @@
 #include "Material.hpp"
 #include "MaterialResource.hpp"
 #include "Math.hpp"
+#include "PhongMaterialResource.hpp"
 #include "Texture2D.hpp"
 #include <cstdint>
 #include <memory>
@@ -33,6 +34,7 @@ class PhongMaterial : public Material
                   PhongTextures textures, bool dynamic = false)
         : Material(name, pipeline, dynamic), mParam(params), mTextures(textures)
     {
+        mResource = std::make_unique<PhongMaterialResource>(this);
     }
     void PendingUpdate() override
     {

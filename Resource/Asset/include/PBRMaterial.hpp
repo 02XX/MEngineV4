@@ -2,12 +2,13 @@
 #include "Material.hpp"
 #include "MaterialResource.hpp"
 #include "Math.hpp"
+#include "PBRMaterialResource.hpp"
 #include "Texture2D.hpp"
 #include <cstdint>
 #include <memory>
 namespace MEngine::Resource
 {
-struct PBRParms
+struct PBRParams
 {
     Vector4 Albedo = Vector4(1.0f, 1.0f, 0.0f, 1.0f);
     Vector4 Normal = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -31,14 +32,15 @@ struct PBRTextures
 class PBRMaterial : public Material
 {
   public:
-    PBRParms mParam{};
+    PBRParams mParam{};
     PBRTextures mTextures{};
 
   public:
-    PBRMaterial(const std::string &name, std::shared_ptr<GraphicPipeline> pipeline, PBRParms parms,
+    PBRMaterial(const std::string &name, std::shared_ptr<GraphicPipeline> pipeline, PBRParams parms,
                 PBRTextures textures, bool dynamic = false)
         : Material(name, pipeline, dynamic), mParam(parms), mTextures(textures)
     {
+        mResource = std::make_unique<PBRMaterialResource>(this);
     }
     void PendingUpdate() override
     {
