@@ -1,10 +1,8 @@
 file(GLOB_RECURSE RESOURCE CONFIGURE_DEPENDS  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
+find_package(reflectcpp CONFIG REQUIRED)
 
-
-find_package(nlohmann_json CONFIG REQUIRED)
-
- find_package(slang CONFIG REQUIRED)
+find_package(slang CONFIG REQUIRED)
 
 
 add_library(AssetManager ${RESOURCE})
@@ -15,6 +13,6 @@ ${CMAKE_CURRENT_SOURCE_DIR}/include/AssetBuilder
 )
 
 target_link_libraries(AssetManager PUBLIC Core Asset)
-target_link_libraries(AssetManager PUBLIC nlohmann_json::nlohmann_json Component)
+target_link_libraries(AssetManager PUBLIC reflectcpp::reflectcpp Component)
 target_link_libraries(AssetManager PRIVATE slang::slang)
 

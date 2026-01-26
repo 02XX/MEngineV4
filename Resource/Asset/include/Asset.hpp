@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <vector>
 
 using namespace MEngine::Core;
 namespace MEngine::Resource
@@ -27,14 +28,14 @@ class Asset
 
   protected:
     std::atomic<size_t> mRefCount{0};
-    MEngine::Core::UUID mID{};
-    std::string mName{"Unnamed"};
-    AssetType mAssetType{AssetType::Unknown};
     Asset() : mID(MEngine::Core::UUID{}), mName("Unnamed")
     {
     }
 
   public:
+    MEngine::Core::UUID mID{};
+    std::string mName{"Unnamed"};
+    AssetType mAssetType{AssetType::Unknown};
     std::unique_ptr<RenderResource> mResource{};
     Asset(const std::string &name) : mID(UUIDGenerator::Instance().Create()), mName(name)
     {

@@ -7,7 +7,9 @@
 #include "ShaderManager.hpp"
 #include <concepts>
 #include <memory>
+#include <sys/stat.h>
 #include <unordered_map>
+#include <vulkan/vulkan_structs.hpp>
 
 namespace MEngine::Resource
 {
@@ -34,8 +36,13 @@ struct DefaultDescriptorSetLayoutType
     static constexpr const char *Material = "DescriptorSetLayout_Material";
     static constexpr const char *Bindless = "DescriptorSetLayout_Bindless";
 };
+struct DefaultPushConstantRangeType
+{
+    static constexpr const char *Matrix = "PushConstantRange_Matrix";
+};
 constexpr static uint32_t MAX_DESCRIPTOR_COUNT = 1024;
-class PipelineManager final : public Manager<Pipeline, PipelineResource>
+class PipelineManager final : public Manager<Pipeline, PipelineResource, PipelineEntity>,
+                              PendingResourceManager<PipelineResource>
 {
   private:
     std::shared_ptr<ShaderManager> mShaderManager;
@@ -103,15 +110,17 @@ class PipelineManager final : public Manager<Pipeline, PipelineResource>
                      .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)
                      .setPImmutableSamplers(nullptr),
              }}};
+    static inline const std::unordered_map<std::string, vk::PushConstantRange> sDefaultPushConstantRanges{
+        {DefaultPushConstantRangeType::Matrix,
+         vk::PushConstantRange{}
+             .setOffset(0)
+             .setSize(sizeof(glm::mat4))
+             .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment)},
+    };
     std::unordered_map<std::string, vk::DescriptorSetLayout> mDefaultDescriptorSetLayouts{};
+    std::unordered_map<std::string, vk::PushConstantRange> mDefaultPushConstantRanges{};
 
   public:
-    std::shared_ptr<Asset> Load(const AssetURL &url) override
-    {
-    }
-    void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override
-    {
-    }
     std::shared_ptr<GraphicPipeline> GetGraphicPipeline(const Core::UUID &id);
     std::shared_ptr<GraphicPipeline> GetGraphicPipelineByName(const std::string &name);
     PipelineManager(std::shared_ptr<Context> context, std::shared_ptr<ShaderManager> shaderManager);

@@ -1,15 +1,18 @@
 #include "ShaderManager.hpp"
 #include "AssetURL.hpp"
 #include "Logger.hpp"
+#include "RflEntity.hpp"
 #include "ShaderResource.hpp"
 #include <fstream>
+#include <rfl/flexbuf/read.hpp>
+#include <rfl/flexbuf/write.hpp>
 #include <slang-com-ptr.h>
 #include <slang.h>
 
 using namespace MEngine::Core;
 namespace MEngine::Resource
 {
-ShaderManager::ShaderManager(std::shared_ptr<Context> context) : Manager<Shader, ShaderResource>(context)
+ShaderManager::ShaderManager(std::shared_ptr<Context> context) : Manager<Shader, ShaderResource, ShaderEntity>(context)
 {
     InitializeSlang();
     auto frowardOpaquePhongVertShader =
@@ -21,8 +24,8 @@ ShaderManager::ShaderManager(std::shared_ptr<Context> context) : Manager<Shader,
 
     frowardOpaquePhongVertShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePhongVert));
     frowardOpaquePhongFragShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePhongFrag));
-    Add(std::move(frowardOpaquePhongVertShader));
-    Add(std::move(frowardOpaquePhongFragShader));
+    Add(frowardOpaquePhongVertShader);
+    Add(frowardOpaquePhongFragShader);
 }
 void ShaderManager::InitializeSlang()
 {
@@ -122,7 +125,7 @@ std::vector<uint32_t> ShaderManager::ReadSpirvFile(const std::filesystem::path &
     std::memcpy(spirv.data(), buffer.data(), buffer.size());
     return spirv;
 }
-std::unique_ptr<Shader> ShaderManager::CreateShader(const std::string &name, const AssetURL &path,
+std::shared_ptr<Shader> ShaderManager::CreateShader(const std::string &name, const AssetURL &path,
                                                     const std::string &entryPointName, bool writeSpirvFile)
 {
     if (!std::filesystem::exists(path.GetPath()))
@@ -144,7 +147,7 @@ std::unique_ptr<Shader> ShaderManager::CreateShader(const std::string &name, con
         LogDebug("Compiling shader: {}", path.GetPath().string());
         spirvCode = CompileSlangToSPIRV(path, entryPointName); // 编译并写入.spv文件
     }
-    auto shader = std::make_unique<Shader>(name, spirvCode, GetShaderStageFromEntryPoint(entryPointName));
+    auto shader = std::make_shared<Shader>(name, spirvCode, GetShaderStageFromEntryPoint(entryPointName));
     if (writeSpirvFile)
     {
         std::ofstream spirvFile(spirvPath, std::ios::binary);

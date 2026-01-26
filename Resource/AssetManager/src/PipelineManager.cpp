@@ -8,12 +8,13 @@
 #include "ShaderManager.hpp"
 #include "Vertex.hpp"
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MEngine::Resource
 {
 PipelineManager::PipelineManager(std::shared_ptr<Context> context, std::shared_ptr<ShaderManager> shaderManager)
-    : Manager<Pipeline, PipelineResource>(context), mShaderManager(shaderManager)
+    : Manager<Pipeline, PipelineResource, PipelineEntity>(context), mShaderManager(shaderManager)
 {
     vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo;
     descriptorPoolCreateInfo.setPoolSizes(sDescriptorPoolSize)
@@ -47,17 +48,15 @@ PipelineManager::PipelineManager(std::shared_ptr<Context> context, std::shared_p
 
         mDefaultDescriptorSetLayouts.insert({layoutName, descriptorSetLayout});
     }
+
     // Create Default Pipelines
-    std::vector<vk::DescriptorSetLayout> genericDescriptorSetLayouts{
-        mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Global),
-        mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Bindless),
-        mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Material),
+    std::vector<std::string> genericDescriptorSetLayouts{
+        DefaultDescriptorSetLayoutType::Global,
+        DefaultDescriptorSetLayoutType::Bindless,
+        DefaultDescriptorSetLayoutType::Material,
     };
-    std::vector<vk::PushConstantRange> genericPushConstantRanges{
-        vk::PushConstantRange{}
-            .setOffset(0)
-            .setSize(sizeof(glm::mat4))
-            .setStageFlags(vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment),
+    std::vector<std::string> genericPushConstantRanges{
+        DefaultPushConstantRangeType::Matrix,
     };
     std::vector<vk::PipelineColorBlendAttachmentState> mColorBlendAttachments{
         vk::PipelineColorBlendAttachmentState{}

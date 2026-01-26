@@ -3,7 +3,6 @@
 #include "Logger.hpp"
 #include "RenderResource.hpp"
 #include "Texture.hpp"
-#include "TextureManager.hpp"
 #include <memory>
 namespace MEngine::Resource
 {

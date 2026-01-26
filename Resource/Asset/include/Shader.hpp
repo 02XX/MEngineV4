@@ -7,6 +7,7 @@
 using namespace MEngine::Core;
 namespace MEngine::Resource
 {
+
 class Shader final : public Asset
 {
     friend class ShaderResource;

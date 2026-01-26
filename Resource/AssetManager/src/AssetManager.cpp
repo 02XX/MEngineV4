@@ -1,20 +1,17 @@
 #include "AssetManager.hpp"
 #include "Asset.hpp"
+#include "AssetMetadata.hpp"
 #include "Context.hpp"
 #include "GraphicPipeline.hpp"
 #include "GraphicPipelineResource.hpp"
 #include "Logger.hpp"
-#include "MaterialManager.hpp"
-#include "MeshManager.hpp"
 #include "MeshResource.hpp"
 #include "PBRMaterialResource.hpp"
 #include "PhongMaterialResource.hpp"
 #include "PipelineManager.hpp"
-#include "SceneManager.hpp"
 #include "Shader.hpp"
 #include "ShaderManager.hpp"
 #include "ShaderResource.hpp"
-#include "TextureManager.hpp"
 #include "TextureRenderTargetResource.hpp"
 #include "UploadableTexture.hpp"
 #include "UploadableTextureResource.hpp"
@@ -31,21 +28,20 @@ AssetManager::~AssetManager()
 void AssetManager::Init(std::shared_ptr<Context> context)
 {
     auto shaderManager = std::make_shared<ShaderManager>(context);
-    auto meshManager = std::make_shared<MeshManager>(context);
+    // auto meshManager = std::make_shared<MeshManager>(context);
     auto pipelineManager = std::make_shared<PipelineManager>(context, shaderManager);
-    auto textureManager = std::make_shared<TextureManager>(context, pipelineManager);
-    auto materialManager = std::make_shared<MaterialManager>(context, pipelineManager, textureManager);
-    auto sceneManager = std::make_shared<SceneManager>(context, pipelineManager, materialManager, meshManager);
+    // auto textureManager = std::make_shared<TextureManager>(context, pipelineManager);
+    // auto materialManager = std::make_shared<MaterialManager>(context, pipelineManager, textureManager);
+    // auto sceneManager = std::make_shared<SceneManager>(context, pipelineManager, materialManager, meshManager);
     RegisterManager<Shader, ShaderResource>(shaderManager);
-    RegisterManager<Mesh, MeshResource>(meshManager);
+    // RegisterManager<Mesh, MeshResource>(meshManager);
     RegisterManager<Pipeline, PipelineResource, GraphicPipelineResource>(pipelineManager);
-    RegisterManager<Texture, TextureResource, UploadableTextureResource, TextureRenderTargetResource>(textureManager);
-    RegisterManager<Material, MaterialResource, PBRMaterialResource, PhongMaterialResource>(materialManager);
-    RegisterManager<Scene, SceneResource>(sceneManager);
+    // RegisterManager<Texture, TextureResource, UploadableTextureResource,
+    // TextureRenderTargetResource>(textureManager); RegisterManager<Material, MaterialResource, PBRMaterialResource,
+    // PhongMaterialResource>(materialManager); RegisterManager<Scene, SceneResource>(sceneManager);
 }
 void AssetManager::Shutdown(std::shared_ptr<Context> context)
 {
-    DestroyAll();
     ProcessPendingDeletionResources(RenderContext{context, vk::CommandBuffer{}});
     mIsShutdown = true;
 }
@@ -54,13 +50,7 @@ AssetManager &AssetManager::Instance()
     static AssetManager instance;
     return instance;
 }
-void AssetManager::DestroyAll()
-{
-    for (auto &[type, manager] : mManagers)
-    {
-        manager->DestroyAll();
-    }
-}
+
 std::shared_ptr<Asset> AssetManager::Load(const AssetURL &url)
 {
     auto assetType = GetAssetTypeFromURL(url);
@@ -101,7 +91,7 @@ void AssetManager::Add(std::shared_ptr<Asset> asset)
         LogError("No manager found for asset type {}", assetType.name());
     }
 }
-std::shared_ptr<Asset> AssetManager::Get(const Core::UUID &id) const
+std::shared_ptr<Asset> AssetManager::Get(const Core::UUID &id)
 {
     for (const auto &[type, manager] : mManagers)
     {
@@ -114,7 +104,7 @@ std::shared_ptr<Asset> AssetManager::Get(const Core::UUID &id) const
     LogError("Asset with ID {} not found", id.ToString());
     return nullptr;
 }
-std::shared_ptr<Asset> AssetManager::GetByName(const std::string &name) const
+std::shared_ptr<Asset> AssetManager::GetByName(const std::string &name)
 {
     for (const auto &[type, manager] : mManagers)
     {
@@ -127,16 +117,7 @@ std::shared_ptr<Asset> AssetManager::GetByName(const std::string &name) const
     LogError("Asset with name {} not found", name);
     return nullptr;
 }
-std::vector<std::shared_ptr<Asset>> AssetManager::GetAll() const
-{
-    std::vector<std::shared_ptr<Asset>> allAssets;
-    for (const auto &[type, manager] : mManagers)
-    {
-        auto assets = manager->GetAll();
-        allAssets.insert(allAssets.end(), assets.begin(), assets.end());
-    }
-    return allAssets;
-}
+
 void AssetManager::Remove(const Core::UUID &id)
 {
     for (const auto &[type, manager] : mManagers)

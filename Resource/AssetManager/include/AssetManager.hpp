@@ -5,6 +5,7 @@
 #include "IManager.hpp"
 #include "MemberInfo.hpp"
 #include "RenderResource.hpp"
+#include "UUID.hpp"
 #include <any>
 #include <concepts>
 #include <memory>
@@ -52,9 +53,8 @@ class AssetManager final : public virtual IManager,
     std::shared_ptr<Asset> Load(const AssetURL &url) override;
     void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override;
     void Add(std::shared_ptr<Asset> asset) override;
-    std::shared_ptr<Asset> Get(const Core::UUID &id) const override;
-    std::shared_ptr<Asset> GetByName(const std::string &name) const override;
-    std::vector<std::shared_ptr<Asset>> GetAll() const override;
+    std::shared_ptr<Asset> Get(const Core::UUID &id) override;
+    std::shared_ptr<Asset> GetByName(const std::string &name) override;
     void Remove(const Core::UUID &id) override;
     // TODO: More Perfect Type Identification
     std::type_index GetAssetType(Asset *asset) const;
@@ -68,6 +68,5 @@ class AssetManager final : public virtual IManager,
     void PendingUpdate(RenderResource *resource) override;
     void PendingDelete(std::unique_ptr<RenderResource> resource) override;
     void PendingTask(Task task) override;
-    void DestroyAll() override;
 };
 } // namespace MEngine::Resource

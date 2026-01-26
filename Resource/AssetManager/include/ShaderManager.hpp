@@ -1,4 +1,6 @@
 #pragma once
+#include "RflEntity.hpp"
+
 #include "AssetURL.hpp"
 #include "Manager.hpp"
 #include "PendingResourceManager.hpp"
@@ -38,7 +40,7 @@ struct ShaderEntryPoint
     static constexpr const char *Fragment = "fragment";
 };
 
-class ShaderManager final : public Manager<Shader, ShaderResource>
+class ShaderManager final : public Manager<Shader, ShaderResource, ShaderEntity>, PendingResourceManager<ShaderResource>
 {
   private:
     static inline const std::unordered_map<std::string, Core::UUID> sDefaultShaders{
@@ -67,19 +69,12 @@ class ShaderManager final : public Manager<Shader, ShaderResource>
     bool mAlwaysCompile{true};
     ShaderManager(std::shared_ptr<Context> context);
 
-    std::shared_ptr<Asset> Load(const AssetURL &url) override
-    {
-    }
-    void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override
-    {
-    }
-
   private:
     void InitializeSlang();
     std::vector<uint32_t> CompileSlangToSPIRV(const AssetURL &url, const std::string &entryPointName);
     std::vector<uint32_t> ReadSpirvFile(const std::filesystem::path &path);
-    std::unique_ptr<Shader> CreateShader(const std::string &name, const AssetURL &path,
-                                         const std::string &entryPointName, bool writeSpirvFile = true);
+    std::shared_ptr<Shader> CreateShader(const std::string &name, const AssetURL &path,
+                                             const std::string &entryPointName, bool writeSpirvFile = true);
     vk::ShaderStageFlagBits GetShaderStageFromExtension(const std::string &extension);
     vk::ShaderStageFlagBits GetShaderStageFromEntryPoint(const std::string &entryPointName);
 };

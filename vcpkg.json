@@ -16,11 +16,17 @@
         "imguizmo",
         "nlohmann-json",
         "readerwriterqueue",
+        "shader-slang",
         "shaderc",
         "spdlog",
         "stb",
         "taskflow",
         "vulkan-memory-allocator",
-        "shader-slang"
+        {
+            "name": "reflectcpp",
+            "features": [
+                "flexbuffers"
+            ]
+        }
     ]
 }

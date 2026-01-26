@@ -7,7 +7,6 @@
 #include "Vertex.hpp"
 #include <memory>
 #include <string>
-#include <vulkan/vulkan_enums.hpp>
 
 namespace MEngine::Resource
 {
@@ -15,7 +14,7 @@ class GraphicPipeline final : public Pipeline
 {
     friend class GraphicPipelineResource;
 
-  private:
+  public:
     std::vector<std::shared_ptr<Shader>> mShaders{};
     std::vector<vk::Format> mColorAttachmentFormats{};
     vk::Format mDepthStencilAttachmentFormat{};
@@ -60,9 +59,8 @@ class GraphicPipeline final : public Pipeline
                                                                    .setFront({})};
 
   public:
-    GraphicPipeline(const std::string &name, std::vector<vk::DescriptorSetLayout> descriptorSetLayouts,
-                    std::vector<vk::PushConstantRange> pushConstantRanges,
-                    vk::VertexInputBindingDescription vertexBindings,
+    GraphicPipeline(const std::string &name, std::vector<std::string> descriptorSetLayouts,
+                    std::vector<std::string> pushConstantRanges, vk::VertexInputBindingDescription vertexBindings,
                     std::vector<vk::VertexInputAttributeDescription> vertexAttributes,
                     vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState,
                     std::vector<std::shared_ptr<Shader>> shaders, std::vector<vk::Format> colorAttachmentFormats,

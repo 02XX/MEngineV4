@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.30.0)
 project(MEngine LANGUAGES C CXX)
+if(WIN32)
+    add_compile_definitions(NOMINMAX)
+endif()
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # 设置可执行文件的输出目录 (bin)
