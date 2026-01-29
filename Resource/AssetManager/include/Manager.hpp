@@ -5,6 +5,7 @@
 #include "Logger.hpp"
 #include "PendingResourceManager.hpp"
 #include "RflEntity.hpp"
+#include "Serialization.hpp"
 #include "UUID.hpp"
 #include <concepts>
 #include <fstream>
@@ -16,8 +17,7 @@
 
 namespace MEngine::Resource
 {
-template <std::derived_from<Asset> TAsset, std::derived_from<RenderResource> TRenderResource, typename TAssetEntity>
-class Manager : public virtual IManager
+class Manager : public virtual IManager, public virtual Serialization
 {
   protected:
     std::shared_ptr<Context> mContext{};
@@ -64,45 +64,6 @@ class Manager : public virtual IManager
         {
             mCachedAssets.erase(id);
         }
-    }
-
-    std::shared_ptr<Asset> Load(const AssetURL &url) override
-    {
-        auto path = url.GetPath();
-        // std::ifstream file(path, std::ios::binary);
-        std::ifstream file(path);
-        if (!file.is_open())
-        {
-            LogError("Failed to open file: {}", path.string());
-            return nullptr;
-        }
-        auto result = rfl::json::read<TAssetEntity>(file);
-        if (!result)
-        {
-            LogError("Failed to deserialize: {}, {}", path.string(), result.error().what());
-            return nullptr;
-        }
-        Transformer<TAsset, TAssetEntity> transformer;
-        auto asset = transformer.FromEntity(result.value());
-        if (asset)
-        {
-            asset->mID = result.value().assetEntity.value_.id;
-        }
-        return asset;
-    }
-    void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override
-    {
-        auto path = url.GetPath();
-        std::ofstream file(path);
-        if (!file.is_open())
-        {
-            LogError("Failed to open file for writing: {}", path.string());
-            return;
-        }
-        Transformer<TAsset, TAssetEntity> transformer;
-        auto entity = transformer.ToEntity(asset); 
-        rfl::json::write(entity, file);
-        file.close();
     }
 };
 } // namespace MEngine::Resource

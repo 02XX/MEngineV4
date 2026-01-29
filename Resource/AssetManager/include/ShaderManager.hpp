@@ -40,7 +40,7 @@ struct ShaderEntryPoint
     static constexpr const char *Fragment = "fragment";
 };
 
-class ShaderManager final : public Manager<Shader, ShaderResource, ShaderEntity>, PendingResourceManager<ShaderResource>
+class ShaderManager final : public Manager, PendingResourceManager<ShaderResource>
 {
   private:
     static inline const std::unordered_map<std::string, Core::UUID> sDefaultShaders{
@@ -74,9 +74,13 @@ class ShaderManager final : public Manager<Shader, ShaderResource, ShaderEntity>
     std::vector<uint32_t> CompileSlangToSPIRV(const AssetURL &url, const std::string &entryPointName);
     std::vector<uint32_t> ReadSpirvFile(const std::filesystem::path &path);
     std::shared_ptr<Shader> CreateShader(const std::string &name, const AssetURL &path,
-                                             const std::string &entryPointName, bool writeSpirvFile = true);
+                                         const std::string &entryPointName, bool writeSpirvFile = true);
     vk::ShaderStageFlagBits GetShaderStageFromExtension(const std::string &extension);
     vk::ShaderStageFlagBits GetShaderStageFromEntryPoint(const std::string &entryPointName);
+
+  public:
+    std::shared_ptr<Asset> Load(const AssetURL &url) override;
+    void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override;
 };
 
 } // namespace MEngine::Resource

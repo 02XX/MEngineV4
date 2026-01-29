@@ -1,7 +1,9 @@
 #include "ShaderManager.hpp"
 #include "AssetURL.hpp"
 #include "Logger.hpp"
+#include "Manager.hpp"
 #include "RflEntity.hpp"
+#include "Serialization.hpp"
 #include "ShaderResource.hpp"
 #include <fstream>
 #include <rfl/flexbuf/read.hpp>
@@ -12,7 +14,7 @@
 using namespace MEngine::Core;
 namespace MEngine::Resource
 {
-ShaderManager::ShaderManager(std::shared_ptr<Context> context) : Manager<Shader, ShaderResource, ShaderEntity>(context)
+ShaderManager::ShaderManager(std::shared_ptr<Context> context) : Manager(context)
 {
     InitializeSlang();
     auto frowardOpaquePhongVertShader =
@@ -210,5 +212,31 @@ vk::ShaderStageFlagBits ShaderManager::GetShaderStageFromEntryPoint(const std::s
         LogError("Unsupported shader entry point name: {}", entryPointName);
         return vk::ShaderStageFlagBits::eAll; // 返回一个无效的值
     }
+}
+std::shared_ptr<Asset> ShaderManager::Load(const AssetURL &url)
+{
+    return LoadHelper<Shader, ShaderEntity>(url, [this](const ShaderEntity &entity) {
+        auto shader = std::make_shared<Shader>(entity.assetEntity.value_.name, entity.spirvCode, entity.stage);
+        shader->mID = entity.assetEntity.value_.id;
+        return shader;
+    });
+}
+void ShaderManager::Save(std::shared_ptr<Asset> asset, const AssetURL &url)
+{
+    SaveHelper<Shader, ShaderEntity>(
+        std::dynamic_pointer_cast<Shader>(asset),
+        [](std::shared_ptr<Shader> shader) {
+            ShaderEntity entity{
+                .assetEntity =
+                    AssetEntity{
+                        .id = shader->mID,
+                        .name = shader->mName,
+                    },
+                .stage = shader->mStage,
+                .spirvCode = shader->mSPIRVCode,
+            };
+            return entity;
+        },
+        url);
 }
 } // namespace MEngine::Resource

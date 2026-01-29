@@ -8,6 +8,8 @@
 #include "UUID.hpp"
 #include <gtest/gtest.h>
 #include <print>
+#include <rfl/flexbuf/Writer.hpp>
+#include <rfl/flexbuf/write.hpp>
 
 using namespace MEngine::Resource;
 class SerializationTest : public ::testing::Test
@@ -60,5 +62,6 @@ TEST_F(SerializationTest, ShaderAsset)
         .stage = shader->mStage,
         .spirvCode = shader->mSPIRVCode,
     };
+
     assetManager.Save(shader, AssetURL("shader://TestShader.shader"));
 }

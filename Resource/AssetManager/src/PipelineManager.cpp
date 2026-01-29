@@ -14,7 +14,7 @@
 namespace MEngine::Resource
 {
 PipelineManager::PipelineManager(std::shared_ptr<Context> context, std::shared_ptr<ShaderManager> shaderManager)
-    : Manager<Pipeline, PipelineResource, PipelineEntity>(context), mShaderManager(shaderManager)
+    : Manager(context), mShaderManager(shaderManager)
 {
     vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo;
     descriptorPoolCreateInfo.setPoolSizes(sDescriptorPoolSize)
@@ -153,5 +153,37 @@ std::shared_ptr<GraphicPipeline> PipelineManager::GetGraphicPipeline(const Core:
 std::shared_ptr<GraphicPipeline> PipelineManager::GetGraphicPipelineByName(const std::string &name)
 {
     return std::dynamic_pointer_cast<GraphicPipeline>(GetByName(name));
+}
+std::shared_ptr<Asset> PipelineManager::Load(const AssetURL &url)
+{
+    auto path = url.GetPath();
+    auto extension = path.extension().string();
+    if (extension == ".graphicpipeline")
+    {
+        return LoadHelper<GraphicPipeline, GraphicPipelineEntity>(url, [this](const GraphicPipelineEntity &entity) {
+            std::vector<std::shared_ptr<Shader>> shaders;
+            for (const auto &shaderID : entity.shaderIDs)
+            {
+                auto shader = mShaderManager->GetAs<Shader>(shaderID);
+                shaders.push_back(shader);
+            }
+            auto pipeline = std::make_shared<GraphicPipeline>(
+                entity.pipelineEntity.value_.assetEntity.value_.name,
+                entity.pipelineEntity.value_.mDescriptorSetLayouts, entity.pipelineEntity.value_.mPushConstantRanges,
+                vk::VertexInputBindingDescription{}, std::vector<vk::VertexInputAttributeDescription>{},
+                vk::PipelineInputAssemblyStateCreateInfo{}, shaders, std::vector<vk::Format>{}, vk::Format{},
+                std::vector<vk::PipelineColorBlendAttachmentState>{}, vk::PipelineMultisampleStateCreateInfo{});
+            pipeline->mID = entity.pipelineEntity.value_.assetEntity.value_.id;
+            return pipeline;
+        });
+    }
+    else
+    {
+        LogError("Unsupported pipeline extension: {}", extension);
+        return nullptr;
+    }
+}
+void PipelineManager::Save(std::shared_ptr<Asset> asset, const AssetURL &url)
+{
 }
 } // namespace MEngine::Resource

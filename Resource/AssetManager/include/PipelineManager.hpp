@@ -4,6 +4,7 @@
 #include "Manager.hpp"
 #include "PendingResourceManager.hpp"
 #include "PipelineResource.hpp"
+#include "RflEntity.hpp"
 #include "ShaderManager.hpp"
 #include <concepts>
 #include <memory>
@@ -41,8 +42,7 @@ struct DefaultPushConstantRangeType
     static constexpr const char *Matrix = "PushConstantRange_Matrix";
 };
 constexpr static uint32_t MAX_DESCRIPTOR_COUNT = 1024;
-class PipelineManager final : public Manager<Pipeline, PipelineResource, PipelineEntity>,
-                              PendingResourceManager<PipelineResource>
+class PipelineManager final : public Manager, PendingResourceManager<PipelineResource>
 {
   private:
     std::shared_ptr<ShaderManager> mShaderManager;
@@ -125,5 +125,7 @@ class PipelineManager final : public Manager<Pipeline, PipelineResource, Pipelin
     std::shared_ptr<GraphicPipeline> GetGraphicPipelineByName(const std::string &name);
     PipelineManager(std::shared_ptr<Context> context, std::shared_ptr<ShaderManager> shaderManager);
     ~PipelineManager() override;
+    std::shared_ptr<Asset> Load(const AssetURL &url) override;
+    void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override;
 };
 } // namespace MEngine::Resource
