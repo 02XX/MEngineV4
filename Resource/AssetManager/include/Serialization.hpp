@@ -14,9 +14,6 @@ namespace MEngine::Resource
 
 class Serialization : public virtual ISerialization
 {
-  public:
-    std::shared_ptr<Asset> Load(const AssetURL &url) override;
-    void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override;
 
   protected:
     template <std::derived_from<Asset> TAsset, typename TAssetEntity>
@@ -38,10 +35,6 @@ class Serialization : public virtual ISerialization
             return nullptr;
         }
         auto asset = createAssetFromEntity(result.value());
-        if (asset)
-        {
-            asset->mID = result.value().assetEntity.value_.id;
-        }
         return asset;
     }
     template <std::derived_from<Asset> TAsset, typename TAssetEntity>

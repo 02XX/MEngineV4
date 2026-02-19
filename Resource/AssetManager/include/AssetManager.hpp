@@ -14,9 +14,7 @@
 
 namespace MEngine::Resource
 {
-class AssetManager final : public virtual IManager,
-                           public virtual IPendingResourceManager,
-                           public MReflection::NonCopyable
+class AssetManager final : public virtual IManager, public virtual IPendingResourceManager
 {
   private:
     // Route map
@@ -50,6 +48,8 @@ class AssetManager final : public virtual IManager,
         }
         return nullptr;
     }
+    void Import(const AssetURL &url) override;
+    void Export(std::shared_ptr<Asset> asset, const AssetURL &url) override;
     std::shared_ptr<Asset> Load(const AssetURL &url) override;
     void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override;
     void Add(std::shared_ptr<Asset> asset) override;

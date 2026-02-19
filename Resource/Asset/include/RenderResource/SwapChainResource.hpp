@@ -28,8 +28,6 @@ class SwapChainResource : public RenderResource
 
   private:
   public:
-    HINSTANCE HInstance;
-    HWND Hwnd;
     vk::SurfaceKHR Surface{};
     SurfaceInfo SurfaceInfo;
 

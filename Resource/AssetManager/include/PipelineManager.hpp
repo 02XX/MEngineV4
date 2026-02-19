@@ -125,6 +125,8 @@ class PipelineManager final : public Manager, PendingResourceManager<PipelineRes
     std::shared_ptr<GraphicPipeline> GetGraphicPipelineByName(const std::string &name);
     PipelineManager(std::shared_ptr<Context> context, std::shared_ptr<ShaderManager> shaderManager);
     ~PipelineManager() override;
+    void Import(const AssetURL &url) override;
+    void Export(std::shared_ptr<Asset> asset, const AssetURL &url) override;
     std::shared_ptr<Asset> Load(const AssetURL &url) override;
     void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override;
 };

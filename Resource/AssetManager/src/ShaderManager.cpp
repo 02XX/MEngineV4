@@ -8,8 +8,6 @@
 #include <fstream>
 #include <rfl/flexbuf/read.hpp>
 #include <rfl/flexbuf/write.hpp>
-#include <slang-com-ptr.h>
-#include <slang.h>
 
 using namespace MEngine::Core;
 namespace MEngine::Resource
@@ -238,5 +236,22 @@ void ShaderManager::Save(std::shared_ptr<Asset> asset, const AssetURL &url)
             return entity;
         },
         url);
+}
+void ShaderManager::Import(const AssetURL &url)
+{
+    auto path = url.GetPath();
+    auto extension = path.extension().string();
+    if (extension == ".slang")
+    {
+        Add(CreateShader(path.stem().string(), url, ShaderEntryPoint::Vertex));
+        Add(CreateShader(path.stem().string(), url, ShaderEntryPoint::Fragment));
+    }
+    else
+    {
+        LogError("Unsupported shader extension for import: {}", extension);
+    }
+}
+void ShaderManager::Export(std::shared_ptr<Asset> asset, const AssetURL &url)
+{
 }
 } // namespace MEngine::Resource

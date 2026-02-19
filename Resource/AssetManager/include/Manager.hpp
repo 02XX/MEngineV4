@@ -17,6 +17,10 @@
 
 namespace MEngine::Resource
 {
+/**
+ * @brief 抽象类
+ *
+ */
 class Manager : public virtual IManager, public virtual Serialization
 {
   protected:

@@ -61,7 +61,7 @@ void SwapChainResource::CreateSurface(std::shared_ptr<Context> context)
     Surface = context->Instance.get().createWin32SurfaceKHR(createInfo);
 #elifdef VK_USE_PLATFORM_METAL_EXT
     // macos
-    vk::MacOSSurfaceCreateInfoMVK createInfo{};
+    vk::MetalSurfaceCreateInfoEXT createInfo{};
 #elifdef VK_USE_PLATFORM_ANDROID_KHR
     // android
     vk::AndroidSurfaceCreateInfoKHR createInfo{};

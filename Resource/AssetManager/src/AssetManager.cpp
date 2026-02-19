@@ -50,7 +50,32 @@ AssetManager &AssetManager::Instance()
     static AssetManager instance;
     return instance;
 }
-
+void AssetManager::Import(const AssetURL &url)
+{
+    auto assetType = GetAssetTypeFromURL(url);
+    if (mManagers.contains(assetType))
+    {
+        auto manager = mManagers.at(assetType);
+        manager->Import(url);
+    }
+    else
+    {
+        LogError("No manager found for asset type {}", assetType.name());
+    }
+}
+void AssetManager::Export(std::shared_ptr<Asset> asset, const AssetURL &url)
+{
+    auto assetType = GetAssetType(asset.get());
+    if (mManagers.contains(assetType))
+    {
+        auto manager = mManagers.at(assetType);
+        manager->Export(asset, url);
+    }
+    else
+    {
+        LogError("No manager found for asset type {}", assetType.name());
+    }
+}
 std::shared_ptr<Asset> AssetManager::Load(const AssetURL &url)
 {
     auto assetType = GetAssetTypeFromURL(url);

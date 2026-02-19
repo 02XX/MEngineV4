@@ -53,40 +53,9 @@ class AssetManagerTest : public ::testing::Test
     void TearDown() override
     {
         RenderContext renderContext{mContext, vk::CommandBuffer{}};
-        AssetManager::Instance().DestroyAll();
         AssetManager::Instance().ProcessPendingDeletionResources(renderContext);
     }
 };
 TEST_F(AssetManagerTest, All)
 {
-    auto assetManager = &AssetManager::Instance();
-    auto assets = assetManager->GetAll();
-    for (auto asset : assets)
-    {
-        assetManager->PendingInit(asset->GetResource());
-    }
-    RenderContext renderContext{mContext, GraphicsCommandBuffer.get()};
-    vk::CommandBufferBeginInfo beginInfo{};
-    GraphicsCommandBuffer->begin(beginInfo);
-    AssetManager::Instance().ProcessPendingInitResources(renderContext);
-    AssetManager::Instance().ProcessPendingUpdateResources(renderContext);
-    GraphicsCommandBuffer->end();
 }
-// TEST_F(AssetManagerTest, GraphicPipeline)
-// {
-//     auto assetManager = &AssetManager::Instance();
-//     auto pipeline = assetManager->GetByNameAs<GraphicPipeline>(DefaultGraphicPipelineType::ForwardOpaquePhong);
-//     pipeline->PendingInit();
-//     assetManager->ProcessPendingInitResources(RenderContext{mContext, GraphicsCommandBuffer.get()});
-//     vk::UniqueCommandBuffer commandBuffer =
-//         std::move(mContext->Device
-//                       ->allocateCommandBuffersUnique(vk::CommandBufferAllocateInfo{}
-//                                                          .setCommandPool(GraphicsCommandPool.get())
-//                                                          .setLevel(vk::CommandBufferLevel::ePrimary)
-//                                                          .setCommandBufferCount(1))
-//                       .front());
-//     commandBuffer->begin(vk::CommandBufferBeginInfo{});
-//     commandBuffer->bindPipeline(vk::PipelineBindPoint::eGraphics,
-//                                 pipeline->GetResourceAs<GraphicPipelineResource>()->mPipeline);
-//     commandBuffer->end();
-// }

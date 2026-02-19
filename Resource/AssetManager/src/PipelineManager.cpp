@@ -186,4 +186,10 @@ std::shared_ptr<Asset> PipelineManager::Load(const AssetURL &url)
 void PipelineManager::Save(std::shared_ptr<Asset> asset, const AssetURL &url)
 {
 }
+void PipelineManager::Import(const AssetURL &url)
+{
+}
+void PipelineManager::Export(std::shared_ptr<Asset> asset, const AssetURL &url)
+{
+}
 } // namespace MEngine::Resource

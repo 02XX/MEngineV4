@@ -7,8 +7,8 @@
 #include "Shader.hpp"
 #include "ShaderResource.hpp"
 #include <memory>
-#include <slang-com-ptr.h>
-#include <slang.h>
+#include <slang/slang-com-ptr.h>
+#include <slang/slang.h>
 
 using namespace Slang;
 namespace MEngine::Resource
@@ -79,6 +79,15 @@ class ShaderManager final : public Manager, PendingResourceManager<ShaderResourc
     vk::ShaderStageFlagBits GetShaderStageFromEntryPoint(const std::string &entryPointName);
 
   public:
+    /**
+     * @brief
+     * 从指定URL导入着色器资产。URL必须以"shader://"协议开头，并且路径必须指向一个有效的着色器源文件（如.slang）。函数将编译着色器源代码为SPIR-V字节码，并创建一个Shader资产实例返回。
+     *
+     * @param url 支持的外部资源格式：.slang
+     * @return std::shared_ptr<Asset>
+     */
+    void Import(const AssetURL &url) override;
+    void Export(std::shared_ptr<Asset> asset, const AssetURL &url) override;
     std::shared_ptr<Asset> Load(const AssetURL &url) override;
     void Save(std::shared_ptr<Asset> asset, const AssetURL &url) override;
 };

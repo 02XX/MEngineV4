@@ -18,8 +18,8 @@ class IManager : public virtual IPendingResourceManager,
   public:
     virtual ~IManager() = default;
 
-    virtual std::shared_ptr<Asset> Import(const AssetURL &url);
-    virtual void Export(std::shared_ptr<Asset> asset, const AssetURL &url);
+    virtual void Import(const AssetURL &url) = 0;
+    virtual void Export(std::shared_ptr<Asset> asset, const AssetURL &url) = 0;
 
     virtual void Add(std::shared_ptr<Asset> asset) = 0;
     virtual std::shared_ptr<Asset> Get(const Core::UUID &id) = 0;

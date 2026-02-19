@@ -1,5 +1,4 @@
 #include "Logger.hpp"
-#include "AsyncLogger.hpp"
 #include "Spdlogger.hpp"
 namespace MEngine::Core
 {
