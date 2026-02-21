@@ -5,6 +5,7 @@
 #include "RflEntity.hpp"
 #include "Serialization.hpp"
 #include "ShaderResource.hpp"
+#include <filesystem>
 #include <fstream>
 #include <rfl/flexbuf/read.hpp>
 #include <rfl/flexbuf/write.hpp>
@@ -15,17 +16,25 @@ namespace MEngine::Resource
 ShaderManager::ShaderManager(std::shared_ptr<Context> context) : Manager(context)
 {
     InitializeSlang();
-    auto frowardOpaquePhongVertShader =
-        CreateShader(DefaultShaderType::ForwardOpaquePhongVert, AssetURL("shader://ForwardOpaquePhong.slang"),
-                     ShaderEntryPoint::Vertex);
-    auto frowardOpaquePhongFragShader =
-        CreateShader(DefaultShaderType::ForwardOpaquePhongFrag, AssetURL("shader://ForwardOpaquePhong.slang"),
-                     ShaderEntryPoint::Fragment);
+    auto forwardOpaquePhongVertShaderURL = AssetURL("shader://ForwardOpaquePhong.slang");
+    auto forwardOpaquePhongFragShaderURL = AssetURL("shader://ForwardOpaquePhong.slang");
+    auto frowardOpaquePhongVertShader = CreateShader(DefaultShaderType::ForwardOpaquePhongVert,
+                                                     forwardOpaquePhongVertShaderURL, ShaderEntryPoint::Vertex);
+    auto frowardOpaquePhongFragShader = CreateShader(DefaultShaderType::ForwardOpaquePhongFrag,
+                                                     forwardOpaquePhongFragShaderURL, ShaderEntryPoint::Fragment);
 
     frowardOpaquePhongVertShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePhongVert));
     frowardOpaquePhongFragShader->SetID(sDefaultShaders.at(DefaultShaderType::ForwardOpaquePhongFrag));
-    Add(frowardOpaquePhongVertShader);
-    Add(frowardOpaquePhongFragShader);
+
+    auto forwardOpaquePhongVertShaderAssetURL = AssetURL("shader://" + std::string(DefaultShaderType::ForwardOpaquePhongVert));
+    if (!std::filesystem::exists(forwardOpaquePhongVertShaderURL.GetPath()))
+    {
+        Save(frowardOpaquePhongVertShader, forwardOpaquePhongVertShaderURL);
+    }
+    if (!std::filesystem::exists(forwardOpaquePhongFragShaderURL.GetPath()))
+    {
+        Save(frowardOpaquePhongFragShader, forwardOpaquePhongFragShaderURL);
+    }
 }
 void ShaderManager::InitializeSlang()
 {
@@ -243,8 +252,12 @@ void ShaderManager::Import(const AssetURL &url)
     auto extension = path.extension().string();
     if (extension == ".slang")
     {
-        Add(CreateShader(path.stem().string(), url, ShaderEntryPoint::Vertex));
-        Add(CreateShader(path.stem().string(), url, ShaderEntryPoint::Fragment));
+        auto vertShader = CreateShader(path.stem().string(), url, ShaderEntryPoint::Vertex);
+        auto fragShader = CreateShader(path.stem().string(), url, ShaderEntryPoint::Fragment);
+        Add(vertShader);
+        Add(fragShader);
+        Save(vertShader, AssetURL("shader://" + path.stem().string() + "_vert.shader"));
+        Save(fragShader, AssetURL("shader://" + path.stem().string() + "_frag.shader"));
     }
     else
     {

@@ -8,7 +8,6 @@
 #include "MeshResource.hpp"
 #include "PBRMaterialResource.hpp"
 #include "PhongMaterialResource.hpp"
-#include "PipelineManager.hpp"
 #include "Shader.hpp"
 #include "ShaderManager.hpp"
 #include "ShaderResource.hpp"
@@ -29,13 +28,11 @@ void AssetManager::Init(std::shared_ptr<Context> context)
 {
     auto shaderManager = std::make_shared<ShaderManager>(context);
     // auto meshManager = std::make_shared<MeshManager>(context);
-    auto pipelineManager = std::make_shared<PipelineManager>(context, shaderManager);
     // auto textureManager = std::make_shared<TextureManager>(context, pipelineManager);
     // auto materialManager = std::make_shared<MaterialManager>(context, pipelineManager, textureManager);
     // auto sceneManager = std::make_shared<SceneManager>(context, pipelineManager, materialManager, meshManager);
     RegisterManager<Shader, ShaderResource>(shaderManager);
     // RegisterManager<Mesh, MeshResource>(meshManager);
-    RegisterManager<Pipeline, PipelineResource, GraphicPipelineResource>(pipelineManager);
     // RegisterManager<Texture, TextureResource, UploadableTextureResource,
     // TextureRenderTargetResource>(textureManager); RegisterManager<Material, MaterialResource, PBRMaterialResource,
     // PhongMaterialResource>(materialManager); RegisterManager<Scene, SceneResource>(sceneManager);

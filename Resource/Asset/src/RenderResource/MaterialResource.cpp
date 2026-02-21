@@ -1,7 +1,6 @@
 #include "MaterialResource.hpp"
 #include "AssetManager.hpp"
 #include "Material.hpp"
-#include "PipelineManager.hpp"
 namespace MEngine::Resource
 {
 MaterialResource::MaterialResource(Material *material) : RenderResource(material)

@@ -2,7 +2,6 @@
 #include "AssetManager.hpp"
 #include "Material.hpp"
 #include "PBRMaterial.hpp"
-#include "PipelineManager.hpp"
 #include "Texture2D.hpp"
 #include "UploadableTexture.hpp"
 #include "UploadableTextureResource.hpp"
@@ -14,45 +13,46 @@ PBRMaterialResource::PBRMaterialResource(PBRMaterial *material) : MaterialResour
 }
 void PBRMaterialResource::InitRHI(std::shared_ptr<Context> context)
 {
-    auto pbrMaterial = static_cast<PBRMaterial *>(mOwnerAsset);
-    pbrMaterial->mPipeline->GetResource()->InitResource(context);
-    pbrMaterial->mTextures.AlbedoTexture->GetResource()->InitResource(context);
-    pbrMaterial->mTextures.NormalTexture->GetResource()->InitResource(context);
-    pbrMaterial->mTextures.ARMTexture->GetResource()->InitResource(context);
-    pbrMaterial->mTextures.EmissiveTexture->GetResource()->InitResource(context);
+    // auto pbrMaterial = static_cast<PBRMaterial *>(mOwnerAsset);
+    // pbrMaterial->mPipeline->GetResource()->InitResource(context);
+    // pbrMaterial->mTextures.AlbedoTexture->GetResource()->InitResource(context);
+    // pbrMaterial->mTextures.NormalTexture->GetResource()->InitResource(context);
+    // pbrMaterial->mTextures.ARMTexture->GetResource()->InitResource(context);
+    // pbrMaterial->mTextures.EmissiveTexture->GetResource()->InitResource(context);
 
-    vk::BufferCreateInfo bufferCreateInfo{};
-    bufferCreateInfo.setSize(sizeof(PBRParams))
-        .setUsage(vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
-                  vk::BufferUsageFlagBits::eTransferDst)
-        .setSharingMode(vk::SharingMode::eExclusive);
-    VmaAllocationCreateInfo allocCreateInfo{};
-    allocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    if (vmaCreateBuffer(context->VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&bufferCreateInfo),
-                        &allocCreateInfo, reinterpret_cast<VkBuffer *>(&mBuffer), &mBufferAllocation,
-                        &mBufferAllocationInfo) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to create UBO buffer");
-    }
-    // Get Device Address
-    vk::BufferDeviceAddressInfo bufferDeviceAddressInfo{};
-    bufferDeviceAddressInfo.setBuffer(mBuffer);
-    mBufferAddress = context->Device->getBufferAddress(bufferDeviceAddressInfo);
-    auto pipelineManager = std::dynamic_pointer_cast<PipelineManager>(AssetManager::Instance().GetManager<Pipeline>());
-    vk::DescriptorSetAllocateInfo allocateInfo{};
-    allocateInfo.setDescriptorPool(pipelineManager->mDescriptorPool)
-        .setSetLayouts(pipelineManager->mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Material))
-        .setDescriptorSetCount(1);
-    mDescriptorSet = context->Device->allocateDescriptorSets(allocateInfo).front();
-    vk::WriteDescriptorSet descriptorWrite{};
-    vk::DescriptorBufferInfo bufferInfo{};
-    bufferInfo.setBuffer(mBuffer).setOffset(0).setRange(sizeof(PBRParams));
-    descriptorWrite.setDstSet(mDescriptorSet)
-        .setDstBinding(0)
-        .setDstArrayElement(0)
-        .setDescriptorType(vk::DescriptorType::eUniformBuffer)
-        .setBufferInfo(bufferInfo);
-    context->Device->updateDescriptorSets({descriptorWrite}, {});
+    // vk::BufferCreateInfo bufferCreateInfo{};
+    // bufferCreateInfo.setSize(sizeof(PBRParams))
+    //     .setUsage(vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
+    //               vk::BufferUsageFlagBits::eTransferDst)
+    //     .setSharingMode(vk::SharingMode::eExclusive);
+    // VmaAllocationCreateInfo allocCreateInfo{};
+    // allocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    // if (vmaCreateBuffer(context->VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&bufferCreateInfo),
+    //                     &allocCreateInfo, reinterpret_cast<VkBuffer *>(&mBuffer), &mBufferAllocation,
+    //                     &mBufferAllocationInfo) != VK_SUCCESS)
+    // {
+    //     throw std::runtime_error("Failed to create UBO buffer");
+    // }
+    // // Get Device Address
+    // vk::BufferDeviceAddressInfo bufferDeviceAddressInfo{};
+    // bufferDeviceAddressInfo.setBuffer(mBuffer);
+    // mBufferAddress = context->Device->getBufferAddress(bufferDeviceAddressInfo);
+    // auto pipelineManager =
+    // std::dynamic_pointer_cast<PipelineManager>(AssetManager::Instance().GetManager<Pipeline>());
+    // vk::DescriptorSetAllocateInfo allocateInfo{};
+    // allocateInfo.setDescriptorPool(pipelineManager->mDescriptorPool)
+    //     .setSetLayouts(pipelineManager->mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Material))
+    //     .setDescriptorSetCount(1);
+    // mDescriptorSet = context->Device->allocateDescriptorSets(allocateInfo).front();
+    // vk::WriteDescriptorSet descriptorWrite{};
+    // vk::DescriptorBufferInfo bufferInfo{};
+    // bufferInfo.setBuffer(mBuffer).setOffset(0).setRange(sizeof(PBRParams));
+    // descriptorWrite.setDstSet(mDescriptorSet)
+    //     .setDstBinding(0)
+    //     .setDstArrayElement(0)
+    //     .setDescriptorType(vk::DescriptorType::eUniformBuffer)
+    //     .setBufferInfo(bufferInfo);
+    // context->Device->updateDescriptorSets({descriptorWrite}, {});
 }
 void PBRMaterialResource::ReleaseRHI(std::shared_ptr<Context> context)
 {

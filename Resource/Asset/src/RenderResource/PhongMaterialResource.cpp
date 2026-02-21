@@ -3,7 +3,6 @@
 #include "Material.hpp"
 #include "MaterialResource.hpp"
 #include "PhongMaterial.hpp"
-#include "PipelineManager.hpp"
 #include "Texture2D.hpp"
 #include "UploadableTexture.hpp"
 #include "UploadableTextureResource.hpp"
@@ -15,43 +14,44 @@ PhongMaterialResource::PhongMaterialResource(PhongMaterial *material) : Material
 }
 void PhongMaterialResource::InitRHI(std::shared_ptr<Context> context)
 {
-    auto phongMaterial = static_cast<PhongMaterial *>(mOwnerAsset);
-    phongMaterial->mPipeline->GetResource()->InitResource(context);
-    phongMaterial->mTextures.DiffuseTexture->GetResource()->InitResource(context);
-    phongMaterial->mTextures.SpecularTexture->GetResource()->InitResource(context);
+    // auto phongMaterial = static_cast<PhongMaterial *>(mOwnerAsset);
+    // phongMaterial->mPipeline->GetResource()->InitResource(context);
+    // phongMaterial->mTextures.DiffuseTexture->GetResource()->InitResource(context);
+    // phongMaterial->mTextures.SpecularTexture->GetResource()->InitResource(context);
 
-    vk::BufferCreateInfo bufferCreateInfo{};
-    bufferCreateInfo.setSize(sizeof(PhongParams))
-        .setUsage(vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
-                  vk::BufferUsageFlagBits::eTransferDst)
-        .setSharingMode(vk::SharingMode::eExclusive);
-    VmaAllocationCreateInfo allocCreateInfo{};
-    allocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    if (vmaCreateBuffer(context->VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&bufferCreateInfo),
-                        &allocCreateInfo, reinterpret_cast<VkBuffer *>(&mBuffer), &mBufferAllocation,
-                        &mBufferAllocationInfo) != VK_SUCCESS)
-    {
-        throw std::runtime_error("Failed to create UBO buffer");
-    }
-    // Get Device Address
-    vk::BufferDeviceAddressInfo bufferDeviceAddressInfo{};
-    bufferDeviceAddressInfo.setBuffer(mBuffer);
-    mBufferAddress = context->Device->getBufferAddress(bufferDeviceAddressInfo);
-    auto pipelineManager = std::dynamic_pointer_cast<PipelineManager>(AssetManager::Instance().GetManager<Pipeline>());
-    vk::DescriptorSetAllocateInfo allocateInfo{};
-    allocateInfo.setDescriptorPool(pipelineManager->mDescriptorPool)
-        .setSetLayouts(pipelineManager->mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Material))
-        .setDescriptorSetCount(1);
-    mDescriptorSet = context->Device->allocateDescriptorSets(allocateInfo).front();
-    vk::WriteDescriptorSet descriptorWrite{};
-    vk::DescriptorBufferInfo bufferInfo{};
-    bufferInfo.setBuffer(mBuffer).setOffset(0).setRange(sizeof(PhongParams));
-    descriptorWrite.setDstSet(mDescriptorSet)
-        .setDstBinding(0)
-        .setDstArrayElement(0)
-        .setDescriptorType(vk::DescriptorType::eUniformBuffer)
-        .setBufferInfo(bufferInfo);
-    context->Device->updateDescriptorSets({descriptorWrite}, {});
+    // vk::BufferCreateInfo bufferCreateInfo{};
+    // bufferCreateInfo.setSize(sizeof(PhongParams))
+    //     .setUsage(vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eShaderDeviceAddress |
+    //               vk::BufferUsageFlagBits::eTransferDst)
+    //     .setSharingMode(vk::SharingMode::eExclusive);
+    // VmaAllocationCreateInfo allocCreateInfo{};
+    // allocCreateInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    // if (vmaCreateBuffer(context->VmaAllocator, reinterpret_cast<VkBufferCreateInfo *>(&bufferCreateInfo),
+    //                     &allocCreateInfo, reinterpret_cast<VkBuffer *>(&mBuffer), &mBufferAllocation,
+    //                     &mBufferAllocationInfo) != VK_SUCCESS)
+    // {
+    //     throw std::runtime_error("Failed to create UBO buffer");
+    // }
+    // // Get Device Address
+    // vk::BufferDeviceAddressInfo bufferDeviceAddressInfo{};
+    // bufferDeviceAddressInfo.setBuffer(mBuffer);
+    // mBufferAddress = context->Device->getBufferAddress(bufferDeviceAddressInfo);
+    // auto pipelineManager =
+    // std::dynamic_pointer_cast<PipelineManager>(AssetManager::Instance().GetManager<Pipeline>());
+    // vk::DescriptorSetAllocateInfo allocateInfo{};
+    // allocateInfo.setDescriptorPool(pipelineManager->mDescriptorPool)
+    //     .setSetLayouts(pipelineManager->mDefaultDescriptorSetLayouts.at(DefaultDescriptorSetLayoutType::Material))
+    //     .setDescriptorSetCount(1);
+    // mDescriptorSet = context->Device->allocateDescriptorSets(allocateInfo).front();
+    // vk::WriteDescriptorSet descriptorWrite{};
+    // vk::DescriptorBufferInfo bufferInfo{};
+    // bufferInfo.setBuffer(mBuffer).setOffset(0).setRange(sizeof(PhongParams));
+    // descriptorWrite.setDstSet(mDescriptorSet)
+    //     .setDstBinding(0)
+    //     .setDstArrayElement(0)
+    //     .setDescriptorType(vk::DescriptorType::eUniformBuffer)
+    //     .setBufferInfo(bufferInfo);
+    // context->Device->updateDescriptorSets({descriptorWrite}, {});
 }
 void PhongMaterialResource::ReleaseRHI(std::shared_ptr<Context> context)
 {
